@@ -1,57 +1,115 @@
 # QuantPilot-AI
 
-QuantPilot-AI is a multi-agent AI stock research and backtesting platform.
+QuantPilot-AI is a beginner-friendly stock research and backtesting platform.
 
-The goal of this project is to combine stock market data, technical indicators, backtesting, risk control, and AI-generated research reports into one explainable decision-support system.
+The goal of this project is to help users learn how stock data, technical
+indicators, trading signals, backtesting, performance metrics, and simple
+research reports can work together in one explainable workflow.
 
-## Project Vision
+This project does not try to predict stock prices with certainty. It is built
+for education, experimentation, and research.
 
-This project is not designed to predict stock prices with certainty.  
-Instead, it aims to build a research platform that helps users analyse stocks through data, backtesting, and risk-based reasoning.
+## Current V1 Features
 
-## V1 Features
+- Sample stock K-line data from CSV
+- Technical indicators:
+  - MA5
+  - MA20
+  - RSI
+  - CCI
+- MA crossover signal generation
+- Simple long-only backtesting
+- Performance metrics
+- Rule-based strategy report
+- One-command workflow using:
 
-The first version focuses on a single-stock research workflow:
+```bash
+python src/main.py
+```
 
-- Load historical K-line stock data
-- Calculate technical indicators
-- Generate simple trading signals
-- Run a basic backtest
-- Calculate performance metrics
-- Generate an AI-assisted research report
+## Project Structure
 
-## Planned Modules
+```text
+QuantPilot-AI/
+├── data/
+│   └── sample/
+│       ├── README.md
+│       └── sample_stock.csv
+├── docs/
+│   ├── project-plan.md
+│   └── stock-research-template.md
+├── src/
+│   ├── backtester.py
+│   ├── data_loader.py
+│   ├── indicators.py
+│   ├── main.py
+│   ├── metrics.py
+│   ├── report_generator.py
+│   └── strategy.py
+├── .gitignore
+└── README.md
+```
 
-- Data Loader
-- Technical Indicator Engine
-- Backtesting Engine
-- Risk Control Engine
-- AI Report Generator
-- Multi-Agent Research System
+## Installation
 
-## Tech Stack
+Clone the project and enter the project folder:
 
-- Python
-- Pandas
-- NumPy
-- Matplotlib / Plotly
-- Streamlit
-- Java
-- GitHub
+```bash
+git clone <your-repository-url>
+cd QuantPilot-AI
+```
 
-## V1 Roadmap
+Install the required Python package:
 
-### Week 1
+```bash
+pip install pandas
+```
 
-- Create the GitHub repository
-- Build the basic project structure
-- Add sample stock data
-- Implement moving average indicators
-- Implement a simple MA crossover strategy
-- Run the first backtest
-- Write the first AI-generated stock report
+Python 3.10 or newer is recommended.
+
+## Usage
+
+Run the full V1 workflow from the project root:
+
+```bash
+python src/main.py
+```
+
+This command will:
+
+1. Load `data/sample/sample_stock.csv`
+2. Add MA5, MA20, RSI, and CCI indicators
+3. Generate MA crossover signals
+4. Run a simple long-only backtest
+5. Calculate performance metrics
+6. Print a rule-based strategy report
+7. Print the last 10 rows of the backtest result
+
+## Example Output
+
+The current sample data produces output similar to:
+
+```text
+initial_value: 10000.0
+final_value: 11227.91
+total_return_pct: 12.28
+max_drawdown_pct: -5.78
+buy_signals: 1
+currently_holding: True
+```
+
+The exact formatting may differ slightly, but the V1 result should show one
+buy signal and a final portfolio value around `11227.91`.
 
 ## Disclaimer
 
-This project is for educational and research purposes only.  
-It does not provide financial advice or investment recommendations.
+This project is for educational and research purposes only. It is not financial
+advice.
+
+## V2 Roadmap
+
+- Real stock data loader
+- Streamlit dashboard
+- Better risk metrics
+- AI-assisted report generation
+- Multi-agent research system
