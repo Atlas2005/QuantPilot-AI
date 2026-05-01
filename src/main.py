@@ -3,6 +3,7 @@ import pandas as pd
 from backtester import run_long_only_backtest
 from indicators import add_all_indicators
 from metrics import summarize_performance
+from report_generator import generate_rule_based_report
 from strategy import generate_ma_crossover_signals
 
 
@@ -27,10 +28,16 @@ def main() -> None:
     # Step 5: Summarize the main V1 performance metrics.
     performance_summary = summarize_performance(backtest_result)
 
+    # Step 6: Generate a rule-based report from the summary metrics.
+    report = generate_rule_based_report(performance_summary)
+
     print("Performance Summary")
     print("-------------------")
     for key, value in performance_summary.items():
         print(f"{key}: {value}")
+
+    print()
+    print(report)
 
     print()
     print("Last 10 Backtest Rows")
