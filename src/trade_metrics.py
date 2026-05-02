@@ -21,6 +21,10 @@ def _empty_trade_metrics() -> dict:
         "average_holding_days": None,
         "open_unrealized_profit": 0.0,
         "open_unrealized_return_pct": None,
+        "total_commission": 0.0,
+        "total_stamp_tax": 0.0,
+        "total_slippage_cost": 0.0,
+        "total_transaction_cost": 0.0,
     }
 
 
@@ -33,6 +37,27 @@ def summarize_trade_metrics(trades_df: pd.DataFrame) -> dict:
 
     metrics = _empty_trade_metrics()
     metrics["total_trades"] = int(len(trades_df))
+
+    cost_columns = {
+        "entry_commission": "entry_commission",
+        "exit_commission": "exit_commission",
+        "stamp_tax": "stamp_tax",
+        "slippage_cost": "slippage_cost",
+        "total_transaction_cost": "total_transaction_cost",
+    }
+    costs = {}
+    for column in cost_columns:
+        if column in trades_df.columns:
+            costs[column] = pd.to_numeric(trades_df[column], errors="coerce").fillna(0)
+        else:
+            costs[column] = pd.Series([0.0] * len(trades_df))
+
+    metrics["total_commission"] = float(
+        costs["entry_commission"].sum() + costs["exit_commission"].sum()
+    )
+    metrics["total_stamp_tax"] = float(costs["stamp_tax"].sum())
+    metrics["total_slippage_cost"] = float(costs["slippage_cost"].sum())
+    metrics["total_transaction_cost"] = float(costs["total_transaction_cost"].sum())
 
     closed_trades = trades_df[trades_df["status"] == "closed"].copy()
     open_trades = trades_df[trades_df["status"] == "open"].copy()

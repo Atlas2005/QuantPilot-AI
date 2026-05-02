@@ -63,7 +63,7 @@ def summarize_performance(backtest_df: pd.DataFrame) -> dict:
     initial_value = backtest_df["total_value"].iloc[0]
     final_value = backtest_df["total_value"].iloc[-1]
 
-    return {
+    summary = {
         "initial_value": float(initial_value),
         "final_value": float(final_value),
         "total_return_pct": calculate_total_return(backtest_df),
@@ -72,3 +72,16 @@ def summarize_performance(backtest_df: pd.DataFrame) -> dict:
         "sell_signals": count_sell_signals(backtest_df),
         "currently_holding": is_currently_holding(backtest_df),
     }
+
+    for column, key in [
+        ("total_commission", "total_commission"),
+        ("total_stamp_tax", "total_stamp_tax"),
+        ("total_slippage_cost", "total_slippage_cost"),
+        ("total_transaction_cost", "total_transaction_cost"),
+    ]:
+        if column in backtest_df.columns:
+            summary[key] = float(backtest_df[column].iloc[-1])
+        else:
+            summary[key] = 0.0
+
+    return summary
