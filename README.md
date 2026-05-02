@@ -108,6 +108,18 @@ Smoke tests compile the main scripts, check dependencies, run the offline demo,
 and run `--help` checks for command-line tools. They do not fetch real market
 data and do not call Baostock or AkShare data download commands.
 
+## Automated Checks
+
+GitHub Actions runs the offline smoke test after pushes and pull requests:
+
+```powershell
+python src/run_smoke_tests.py
+```
+
+The CI workflow installs dependencies and runs the smoke tests only. It does not
+fetch real market data and does not call Baostock or AkShare data download
+commands.
+
 ## Single-Stock Backtest
 
 Fetch real data, save it, and run the full backtest workflow:
