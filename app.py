@@ -84,6 +84,10 @@ RESULT_COLUMNS = [
     "final_value",
     "total_return_pct",
     "max_drawdown_pct",
+    "benchmark_final_value",
+    "benchmark_return_pct",
+    "benchmark_max_drawdown_pct",
+    "strategy_vs_benchmark_pct",
     "total_trades",
     "closed_trades",
     "open_trades",
@@ -128,6 +132,10 @@ PERIOD_RESULT_COLUMNS = [
     "final_value",
     "total_return_pct",
     "max_drawdown_pct",
+    "benchmark_final_value",
+    "benchmark_return_pct",
+    "benchmark_max_drawdown_pct",
+    "strategy_vs_benchmark_pct",
     "total_trades",
     "closed_trades",
     "open_trades",
@@ -329,6 +337,8 @@ def format_summary_value(metric: str, value) -> str:
 
     percent_metrics = {
         "total_return_pct",
+        "benchmark_return_pct",
+        "strategy_vs_benchmark_pct",
         "max_drawdown_pct",
     }
     whole_number_metrics = {
@@ -411,6 +421,56 @@ def format_trade_metrics_table(trade_metrics: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def calculate_max_drawdown_from_values(values: pd.Series) -> float:
+    running_max = values.cummax()
+    drawdown = values / running_max - 1
+    return float(drawdown.min() * 100)
+
+
+def build_buy_and_hold_equity_curve(
+    stock_data: pd.DataFrame,
+    initial_cash: float,
+) -> pd.DataFrame:
+    benchmark_df = stock_data[["date", "close"]].copy()
+    benchmark_df["date"] = pd.to_datetime(benchmark_df["date"])
+    benchmark_df["close"] = pd.to_numeric(benchmark_df["close"], errors="coerce")
+    benchmark_df = benchmark_df.dropna(subset=["close"]).reset_index(drop=True)
+    if benchmark_df.empty:
+        return pd.DataFrame(columns=["date", "benchmark_total_value"])
+
+    first_close = benchmark_df["close"].iloc[0]
+    if first_close <= 0:
+        return pd.DataFrame(columns=["date", "benchmark_total_value"])
+
+    shares = initial_cash / first_close
+    benchmark_df["benchmark_total_value"] = shares * benchmark_df["close"]
+    return benchmark_df[["date", "benchmark_total_value"]]
+
+
+def calculate_buy_and_hold_benchmark(
+    stock_data: pd.DataFrame,
+    initial_cash: float,
+) -> dict:
+    benchmark_curve = build_buy_and_hold_equity_curve(stock_data, initial_cash)
+    if benchmark_curve.empty:
+        return {
+            "benchmark_final_value": None,
+            "benchmark_return_pct": None,
+            "benchmark_max_drawdown_pct": None,
+        }
+
+    final_value = float(benchmark_curve["benchmark_total_value"].iloc[-1])
+    benchmark_return_pct = ((final_value - initial_cash) / initial_cash) * 100
+    benchmark_max_drawdown_pct = calculate_max_drawdown_from_values(
+        benchmark_curve["benchmark_total_value"]
+    )
+    return {
+        "benchmark_final_value": final_value,
+        "benchmark_return_pct": float(benchmark_return_pct),
+        "benchmark_max_drawdown_pct": benchmark_max_drawdown_pct,
+    }
+
+
 def format_experiment_table(results_df: pd.DataFrame) -> pd.DataFrame:
     if results_df.empty:
         return results_df
@@ -419,6 +479,8 @@ def format_experiment_table(results_df: pd.DataFrame) -> pd.DataFrame:
         "symbol",
         "scenario",
         "total_return_pct",
+        "benchmark_return_pct",
+        "strategy_vs_benchmark_pct",
         "max_drawdown_pct",
         "profit_factor",
         "win_rate_pct",
@@ -428,7 +490,13 @@ def format_experiment_table(results_df: pd.DataFrame) -> pd.DataFrame:
     ]
     display_df = results_df[compact_columns].copy()
 
-    for column in ["total_return_pct", "max_drawdown_pct", "win_rate_pct"]:
+    for column in [
+        "total_return_pct",
+        "benchmark_return_pct",
+        "strategy_vs_benchmark_pct",
+        "max_drawdown_pct",
+        "win_rate_pct",
+    ]:
         display_df[column] = display_df[column].apply(format_table_pct)
 
     display_df["profit_factor"] = display_df["profit_factor"].apply(
@@ -451,10 +519,12 @@ def format_average_summary_table(summary_df: pd.DataFrame) -> pd.DataFrame:
     display_df = summary_df.copy()
     for column in [
         "avg_total_return_pct",
+        "avg_strategy_vs_benchmark_pct",
         "avg_max_drawdown_pct",
         "avg_win_rate_pct",
     ]:
-        display_df[column] = display_df[column].apply(format_table_pct)
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_pct)
 
     display_df["avg_profit_factor"] = display_df["avg_profit_factor"].apply(
         format_table_number_or_na
@@ -473,10 +543,12 @@ def format_ranking_table(ranking_df: pd.DataFrame) -> pd.DataFrame:
     display_df = ranking_df.copy()
     for column in [
         "avg_total_return_pct",
+        "avg_strategy_vs_benchmark_pct",
         "avg_max_drawdown_pct",
         "avg_win_rate_pct",
     ]:
-        display_df[column] = display_df[column].apply(format_table_pct)
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_pct)
 
     display_df["avg_profit_factor"] = display_df["avg_profit_factor"].apply(
         format_table_number_or_na
@@ -497,6 +569,8 @@ def format_period_results_table(results_df: pd.DataFrame, compact: bool) -> pd.D
             "symbol",
             "scenario",
             "total_return_pct",
+            "benchmark_return_pct",
+            "strategy_vs_benchmark_pct",
             "max_drawdown_pct",
             "profit_factor",
             "win_rate_pct",
@@ -557,10 +631,12 @@ def format_period_summary_table(summary_df: pd.DataFrame) -> pd.DataFrame:
     display_df = add_scenario_label_column(display_df)
     for column in [
         "avg_total_return_pct",
+        "avg_strategy_vs_benchmark_pct",
         "avg_max_drawdown_pct",
         "avg_win_rate_pct",
     ]:
-        display_df[column] = display_df[column].apply(format_table_pct_or_na)
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_pct_or_na)
 
     for column in ["avg_profit_factor", "avg_average_holding_days"]:
         display_df[column] = display_df[column].apply(format_table_number_or_na)
@@ -713,6 +789,13 @@ def run_experiment_scenario(
     )
     performance = summarize_performance(backtest_df)
     trade_metrics = summarize_trade_metrics(trades_df)
+    benchmark = calculate_buy_and_hold_benchmark(prepared_data, initial_cash)
+    benchmark_return_pct = benchmark["benchmark_return_pct"]
+    strategy_vs_benchmark_pct = (
+        None
+        if benchmark_return_pct is None
+        else performance["total_return_pct"] - benchmark_return_pct
+    )
 
     return {
         "symbol": symbol,
@@ -723,6 +806,10 @@ def run_experiment_scenario(
         "final_value": performance["final_value"],
         "total_return_pct": performance["total_return_pct"],
         "max_drawdown_pct": performance["max_drawdown_pct"],
+        "benchmark_final_value": benchmark["benchmark_final_value"],
+        "benchmark_return_pct": benchmark_return_pct,
+        "benchmark_max_drawdown_pct": benchmark["benchmark_max_drawdown_pct"],
+        "strategy_vs_benchmark_pct": strategy_vs_benchmark_pct,
         "total_trades": trade_metrics["total_trades"],
         "closed_trades": trade_metrics["closed_trades"],
         "open_trades": trade_metrics["open_trades"],
@@ -762,6 +849,7 @@ def build_scenario_average_summary(results_df: pd.DataFrame) -> pd.DataFrame:
                 "scenario",
                 "symbols_tested",
                 "avg_total_return_pct",
+                "avg_strategy_vs_benchmark_pct",
                 "avg_max_drawdown_pct",
                 "avg_profit_factor",
                 "avg_win_rate_pct",
@@ -771,6 +859,7 @@ def build_scenario_average_summary(results_df: pd.DataFrame) -> pd.DataFrame:
 
     for column in [
         "total_return_pct",
+        "strategy_vs_benchmark_pct",
         "max_drawdown_pct",
         "profit_factor",
         "win_rate_pct",
@@ -783,6 +872,7 @@ def build_scenario_average_summary(results_df: pd.DataFrame) -> pd.DataFrame:
         .agg(
             symbols_tested=("symbol", "nunique"),
             avg_total_return_pct=("total_return_pct", "mean"),
+            avg_strategy_vs_benchmark_pct=("strategy_vs_benchmark_pct", "mean"),
             avg_max_drawdown_pct=("max_drawdown_pct", "mean"),
             avg_profit_factor=("profit_factor", "mean"),
             avg_win_rate_pct=("win_rate_pct", "mean"),
@@ -800,6 +890,7 @@ def build_scenario_ranking(summary_df: pd.DataFrame) -> pd.DataFrame:
                 "scenario",
                 "symbols_tested",
                 "avg_total_return_pct",
+                "avg_strategy_vs_benchmark_pct",
                 "avg_max_drawdown_pct",
                 "avg_profit_factor",
                 "avg_win_rate_pct",
@@ -832,6 +923,7 @@ def build_scenario_ranking(summary_df: pd.DataFrame) -> pd.DataFrame:
             "scenario",
             "symbols_tested",
             "avg_total_return_pct",
+            "avg_strategy_vs_benchmark_pct",
             "avg_max_drawdown_pct",
             "avg_profit_factor",
             "avg_win_rate_pct",
@@ -848,6 +940,7 @@ def build_period_summary(results_df: pd.DataFrame) -> pd.DataFrame:
         "scenario",
         "symbols_tested",
         "avg_total_return_pct",
+        "avg_strategy_vs_benchmark_pct",
         "avg_max_drawdown_pct",
         "avg_profit_factor",
         "avg_win_rate_pct",
@@ -858,6 +951,7 @@ def build_period_summary(results_df: pd.DataFrame) -> pd.DataFrame:
 
     for column in [
         "total_return_pct",
+        "strategy_vs_benchmark_pct",
         "max_drawdown_pct",
         "profit_factor",
         "win_rate_pct",
@@ -870,6 +964,7 @@ def build_period_summary(results_df: pd.DataFrame) -> pd.DataFrame:
         .agg(
             symbols_tested=("symbol", "nunique"),
             avg_total_return_pct=("total_return_pct", "mean"),
+            avg_strategy_vs_benchmark_pct=("strategy_vs_benchmark_pct", "mean"),
             avg_max_drawdown_pct=("max_drawdown_pct", "mean"),
             avg_profit_factor=("profit_factor", "mean"),
             avg_win_rate_pct=("win_rate_pct", "mean"),
@@ -887,6 +982,7 @@ def build_period_overall_summary(results_df: pd.DataFrame) -> pd.DataFrame:
         "symbols_tested",
         "total_cases",
         "avg_total_return_pct",
+        "avg_strategy_vs_benchmark_pct",
         "avg_max_drawdown_pct",
         "avg_profit_factor",
         "avg_win_rate_pct",
@@ -897,6 +993,7 @@ def build_period_overall_summary(results_df: pd.DataFrame) -> pd.DataFrame:
 
     for column in [
         "total_return_pct",
+        "strategy_vs_benchmark_pct",
         "max_drawdown_pct",
         "profit_factor",
         "win_rate_pct",
@@ -911,6 +1008,7 @@ def build_period_overall_summary(results_df: pd.DataFrame) -> pd.DataFrame:
             symbols_tested=("symbol", "nunique"),
             total_cases=("symbol", "count"),
             avg_total_return_pct=("total_return_pct", "mean"),
+            avg_strategy_vs_benchmark_pct=("strategy_vs_benchmark_pct", "mean"),
             avg_max_drawdown_pct=("max_drawdown_pct", "mean"),
             avg_profit_factor=("profit_factor", "mean"),
             avg_win_rate_pct=("win_rate_pct", "mean"),
@@ -930,6 +1028,7 @@ def build_period_scenario_ranking(overall_df: pd.DataFrame) -> pd.DataFrame:
                 "symbols_tested",
                 "total_cases",
                 "avg_total_return_pct",
+                "avg_strategy_vs_benchmark_pct",
                 "avg_max_drawdown_pct",
                 "avg_profit_factor",
                 "avg_win_rate_pct",
@@ -964,6 +1063,7 @@ def build_period_scenario_ranking(overall_df: pd.DataFrame) -> pd.DataFrame:
             "symbols_tested",
             "total_cases",
             "avg_total_return_pct",
+            "avg_strategy_vs_benchmark_pct",
             "avg_max_drawdown_pct",
             "avg_profit_factor",
             "avg_win_rate_pct",
@@ -1320,6 +1420,61 @@ def show_equity_curve(backtest_result: pd.DataFrame) -> None:
     st.line_chart(equity_data[["total_value"]])
 
 
+def show_benchmark_comparison_cards(
+    performance_summary: dict,
+    benchmark: dict,
+) -> None:
+    strategy_return = performance_summary["total_return_pct"]
+    strategy_drawdown = performance_summary["max_drawdown_pct"]
+    benchmark_return = benchmark["benchmark_return_pct"]
+    benchmark_drawdown = benchmark["benchmark_max_drawdown_pct"]
+    difference = (
+        None if benchmark_return is None else strategy_return - benchmark_return
+    )
+
+    st.subheader("Benchmark Comparison")
+    columns = st.columns(5)
+    columns[0].metric("Strategy return", format_metric_pct(strategy_return))
+    columns[1].metric("Buy-and-hold return", format_metric_pct(benchmark_return))
+    columns[2].metric("Difference vs benchmark", format_metric_pct(difference))
+    columns[3].metric("Strategy max drawdown", format_metric_pct(strategy_drawdown))
+    columns[4].metric(
+        "Buy-and-hold max drawdown",
+        format_metric_pct(benchmark_drawdown),
+    )
+
+
+def show_equity_comparison_curve(
+    backtest_result: pd.DataFrame,
+    stock_data: pd.DataFrame,
+    initial_cash: float,
+) -> None:
+    if "date" not in backtest_result.columns or "total_value" not in backtest_result.columns:
+        st.warning("Equity comparison cannot be drawn because backtest data is missing.")
+        return
+
+    benchmark_curve = build_buy_and_hold_equity_curve(stock_data, initial_cash)
+    if benchmark_curve.empty:
+        st.warning("Buy-and-hold benchmark curve cannot be drawn.")
+        return
+
+    strategy_curve = backtest_result[["date", "total_value"]].copy()
+    strategy_curve["date"] = pd.to_datetime(strategy_curve["date"])
+    strategy_curve = strategy_curve.rename(
+        columns={"total_value": "Strategy equity"}
+    )
+    benchmark_curve = benchmark_curve.rename(
+        columns={"benchmark_total_value": "Buy-and-hold equity"}
+    )
+    comparison_df = pd.merge(
+        strategy_curve,
+        benchmark_curve,
+        on="date",
+        how="inner",
+    ).set_index("date")
+    st.line_chart(comparison_df, width="stretch")
+
+
 def show_drawdown_curve(backtest_result: pd.DataFrame) -> None:
     if "date" not in backtest_result.columns or "total_value" not in backtest_result.columns:
         st.warning("Drawdown curve cannot be drawn because date or total_value is missing.")
@@ -1385,15 +1540,20 @@ def render_single_backtest_tab(
     )
     performance_summary = summarize_performance(backtest_result)
     trade_metrics = summarize_trade_metrics(trades)
+    benchmark = calculate_buy_and_hold_benchmark(stock_data, initial_cash)
     report = generate_rule_based_report(performance_summary)
 
     show_metric_cards(performance_summary, trade_metrics)
+    show_benchmark_comparison_cards(performance_summary, benchmark)
 
     st.subheader("Price and Strategy Signals")
     show_price_signal_chart(stock_data)
 
     st.subheader("Portfolio Equity Curve")
     show_equity_curve(backtest_result)
+
+    st.subheader("Strategy vs Buy-and-Hold Equity")
+    show_equity_comparison_curve(backtest_result, stock_data, initial_cash)
 
     st.subheader("Drawdown Curve")
     show_drawdown_curve(backtest_result)
@@ -1463,6 +1623,11 @@ def display_parameter_experiment_outputs(
     st.subheader("Scenario Ranking")
     ranking_display_df = format_ranking_table(ranking_df)
     st.dataframe(ranking_display_df, width="stretch")
+    st.info(
+        "Ranking score is unchanged for now. Also review "
+        "avg_strategy_vs_benchmark_pct: positive values mean the strategy "
+        "outperformed simple buy-and-hold on average."
+    )
     st.download_button(
         label="Download scenario ranking CSV",
         data=dataframe_to_csv_bytes(ranking_df),
@@ -1505,6 +1670,10 @@ def display_period_experiment_outputs(
         )
 
     st.subheader("Period Experiment Summary")
+    st.info(
+        "A positive difference vs benchmark means the strategy outperformed "
+        "simple buy-and-hold for the same stock and period."
+    )
     show_period_summary_cards(results_df, overall_summary_df, ranking_df)
 
     st.subheader("Period Experiment Charts")
