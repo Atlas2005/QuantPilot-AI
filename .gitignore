@@ -216,3 +216,36 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# QuantPilot-AI project ignores
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment/config secrets
+.env
+.env.*
+
+# Generated experiment outputs
+reports/
+*.png
+*.jpg
+*.jpeg
+
+# Matplotlib/cache
+.matplotlib_cache/
+.cache/
+
+# Local editor/system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
