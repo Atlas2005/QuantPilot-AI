@@ -96,6 +96,28 @@ RESULT_COLUMNS = [
     "currently_holding",
     "error",
 ]
+SCENARIO_LABELS = {
+    "baseline": "Baseline",
+    "sl_3": "Stop loss 3%",
+    "sl_5": "Stop loss 5%",
+    "tp_10": "Take profit 10%",
+    "max_30": "Max holding 30 days",
+    "sl_3_tp_10": "Stop loss 3% + take profit 10%",
+    "sl_3_max_30": "Stop loss 3% + max holding 30 days",
+    "sl_3_tp_10_max_30": (
+        "Stop loss 3% + take profit 10% + max holding 30 days"
+    ),
+}
+SCENARIO_SHORT_LABELS = {
+    "baseline": "Baseline",
+    "sl_3": "SL 3%",
+    "sl_5": "SL 5%",
+    "tp_10": "TP 10%",
+    "max_30": "Max 30d",
+    "sl_3_tp_10": "SL 3% + TP 10%",
+    "sl_3_max_30": "SL 3% + Max 30d",
+    "sl_3_tp_10_max_30": "SL 3% + TP 10% + Max 30d",
+}
 PERIOD_RESULT_COLUMNS = [
     "period",
     "symbol",
@@ -246,6 +268,50 @@ def format_display_date(value) -> str:
     if pd.isna(date_value):
         return ""
     return date_value.strftime("%Y-%m-%d")
+
+
+def scenario_label(scenario: str) -> str:
+    return SCENARIO_LABELS.get(scenario, scenario)
+
+
+def scenario_short_label(scenario: str) -> str:
+    return SCENARIO_SHORT_LABELS.get(scenario, scenario)
+
+
+def add_scenario_label_column(df: pd.DataFrame) -> pd.DataFrame:
+    display_df = df.copy()
+    if "scenario" in display_df.columns:
+        scenario_index = display_df.columns.get_loc("scenario") + 1
+        display_df.insert(
+            scenario_index,
+            "scenario_label",
+            display_df["scenario"].apply(scenario_label),
+        )
+    return display_df
+
+
+def scenario_label_column_config() -> dict:
+    return {
+        "scenario_label": st.column_config.TextColumn(
+            "Scenario label",
+            width="large",
+        )
+    }
+
+
+def order_by_ranking(df: pd.DataFrame, ranking_df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or ranking_df.empty or "scenario" not in df.columns:
+        return df
+
+    ranking_order = {
+        scenario: index for index, scenario in enumerate(ranking_df["scenario"].tolist())
+    }
+    ordered_df = df.copy()
+    ordered_df["_scenario_order"] = ordered_df["scenario"].map(ranking_order)
+    ordered_df = ordered_df.sort_values(["_scenario_order", "scenario"]).drop(
+        columns="_scenario_order"
+    )
+    return ordered_df
 
 
 def format_data_preview(stock_data: pd.DataFrame) -> pd.DataFrame:
@@ -442,6 +508,7 @@ def format_period_results_table(results_df: pd.DataFrame, compact: bool) -> pd.D
         display_columns = PERIOD_RESULT_COLUMNS
 
     display_df = results_df[display_columns].copy()
+    display_df = add_scenario_label_column(display_df)
 
     for column in [
         "total_return_pct",
@@ -487,6 +554,7 @@ def format_period_summary_table(summary_df: pd.DataFrame) -> pd.DataFrame:
         return summary_df
 
     display_df = summary_df.copy()
+    display_df = add_scenario_label_column(display_df)
     for column in [
         "avg_total_return_pct",
         "avg_max_drawdown_pct",
@@ -1444,8 +1512,13 @@ def display_period_experiment_outputs(
 
     result_title = "Compact Period Results" if compact else "Period Experiment Results"
     st.subheader(result_title)
-    period_results_display_df = format_period_results_table(results_df, compact)
-    st.dataframe(period_results_display_df, width="stretch")
+    ordered_results_df = order_by_ranking(results_df, ranking_df)
+    period_results_display_df = format_period_results_table(ordered_results_df, compact)
+    st.dataframe(
+        period_results_display_df,
+        width="stretch",
+        column_config=scenario_label_column_config(),
+    )
     compact_period_df = format_period_results_table(results_df, True)
     st.download_button(
         label="Download compact period results CSV",
@@ -1457,8 +1530,13 @@ def display_period_experiment_outputs(
     )
 
     st.subheader("Scenario Period Summary")
-    period_summary_display_df = format_period_summary_table(period_summary_df)
-    st.dataframe(period_summary_display_df, width="stretch")
+    ordered_period_summary_df = order_by_ranking(period_summary_df, ranking_df)
+    period_summary_display_df = format_period_summary_table(ordered_period_summary_df)
+    st.dataframe(
+        period_summary_display_df,
+        width="stretch",
+        column_config=scenario_label_column_config(),
+    )
     st.download_button(
         label="Download scenario period summary CSV",
         data=dataframe_to_csv_bytes(period_summary_df),
@@ -1469,8 +1547,15 @@ def display_period_experiment_outputs(
     )
 
     st.subheader("Overall Scenario Summary")
-    overall_summary_display_df = format_period_summary_table(overall_summary_df)
-    st.dataframe(overall_summary_display_df, width="stretch")
+    ordered_overall_summary_df = order_by_ranking(overall_summary_df, ranking_df)
+    overall_summary_display_df = format_period_summary_table(
+        ordered_overall_summary_df
+    )
+    st.dataframe(
+        overall_summary_display_df,
+        width="stretch",
+        column_config=scenario_label_column_config(),
+    )
     st.download_button(
         label="Download overall scenario summary CSV",
         data=dataframe_to_csv_bytes(overall_summary_df),
@@ -1482,7 +1567,15 @@ def display_period_experiment_outputs(
 
     st.subheader("Scenario Ranking")
     ranking_display_df = format_period_ranking_table(ranking_df)
-    st.dataframe(ranking_display_df, width="stretch")
+    st.dataframe(
+        ranking_display_df,
+        width="stretch",
+        column_config=scenario_label_column_config(),
+    )
+    st.info(
+        "Higher score is better. The score is a simple educational ranking "
+        "formula for comparing scenarios, not an investment recommendation."
+    )
     st.download_button(
         label="Download scenario ranking CSV",
         data=dataframe_to_csv_bytes(ranking_df),
@@ -1512,60 +1605,129 @@ def show_period_summary_cards(
     overall_summary_df: pd.DataFrame,
     ranking_df: pd.DataFrame,
 ) -> None:
-    columns = st.columns(5)
+    columns = st.columns(2)
 
     best_overall = get_best_metric_row(ranking_df, "score")
-    columns[0].metric(
+    render_period_summary_card(
+        columns[0],
         "Best overall scenario",
-        "N/A" if best_overall is None else best_overall["scenario"],
+        best_overall,
+        "score",
+        "Score",
     )
 
     best_return = get_best_metric_row(overall_summary_df, "avg_total_return_pct")
-    columns[1].metric(
+    render_period_summary_card(
+        columns[1],
         "Best average return",
-        "N/A"
-        if best_return is None
-        else f"{best_return['scenario']} ({best_return['avg_total_return_pct']:.2f}%)",
+        best_return,
+        "avg_total_return_pct",
+        "Average return",
+        "%",
     )
 
+    columns = st.columns(3)
     best_drawdown = get_best_metric_row(overall_summary_df, "avg_max_drawdown_pct")
-    columns[2].metric(
+    render_period_summary_card(
+        columns[0],
         "Best drawdown control",
-        "N/A"
-        if best_drawdown is None
-        else f"{best_drawdown['scenario']} ({best_drawdown['avg_max_drawdown_pct']:.2f}%)",
+        best_drawdown,
+        "avg_max_drawdown_pct",
+        "Average max drawdown",
+        "%",
     )
 
     best_profit_factor = get_best_metric_row(overall_summary_df, "avg_profit_factor")
-    columns[3].metric(
+    render_period_summary_card(
+        columns[1],
         "Best profit factor",
-        "N/A"
-        if best_profit_factor is None
-        else f"{best_profit_factor['scenario']} ({best_profit_factor['avg_profit_factor']:.2f})",
+        best_profit_factor,
+        "avg_profit_factor",
+        "Profit factor",
     )
 
     success_df = results_df[results_df["scenario"] != "ERROR"]
-    columns[4].metric("Total cases tested", str(len(success_df)))
+    columns[2].markdown(
+        f"""
+        **Number of total cases tested**
+
+        {len(success_df)}
+        """
+    )
+
+
+def render_period_summary_card(
+    column,
+    title: str,
+    row: pd.Series | None,
+    metric_column: str,
+    metric_label: str,
+    suffix: str = "",
+) -> None:
+    if row is None or metric_column not in row or is_missing(row[metric_column]):
+        column.markdown(f"**{title}**\n\nN/A")
+        return
+
+    scenario_code = row["scenario"]
+    column.markdown(
+        f"""
+        **{title}**
+
+        Scenario code: `{scenario_code}`  
+        Label: {scenario_label(scenario_code)}  
+        {metric_label}: {row[metric_column]:.2f}{suffix}
+        """
+    )
 
 
 def show_period_bar_chart(
     df: pd.DataFrame,
     metric_column: str,
     title: str,
+    ranking_df: pd.DataFrame,
+    value_suffix: str = "",
 ) -> None:
     if df.empty or metric_column not in df.columns:
         st.info(f"{title} is unavailable because the metric is missing.")
         return
 
-    chart_df = df[["scenario", metric_column]].copy()
+    chart_df = order_by_ranking(df, ranking_df)
+    chart_df = chart_df[["scenario", metric_column]].copy()
     chart_df[metric_column] = pd.to_numeric(chart_df[metric_column], errors="coerce")
     chart_df = chart_df.dropna(subset=[metric_column])
     if chart_df.empty:
         st.info(f"{title} is unavailable because all values are N/A.")
         return
 
+    chart_df["scenario_short_label"] = chart_df["scenario"].apply(scenario_short_label)
     st.write(title)
-    st.bar_chart(chart_df.set_index("scenario"), width="stretch")
+    st.caption(
+        "Charts use short scenario labels. Full scenario labels and raw codes "
+        "are shown in the tables below."
+    )
+
+    fig_height = max(3.0, 0.45 * len(chart_df))
+    fig, ax = plt.subplots(figsize=(10, fig_height))
+    ax.barh(chart_df["scenario_short_label"], chart_df[metric_column], color="tab:blue")
+    ax.invert_yaxis()
+    ax.set_xlabel(title)
+    ax.set_ylabel("Scenario")
+    ax.grid(True, axis="x", alpha=0.25)
+
+    for index, value in enumerate(chart_df[metric_column]):
+        label = f"{value:.2f}{value_suffix}"
+        ax.text(
+            value,
+            index,
+            f" {label}",
+            va="center",
+            ha="left" if value >= 0 else "right",
+            fontsize=9,
+        )
+
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
 
 
 def show_period_experiment_charts(
@@ -1575,22 +1737,28 @@ def show_period_experiment_charts(
     show_period_bar_chart(
         overall_summary_df,
         "avg_total_return_pct",
-        "Average total return (%) by scenario",
+        "Average total return by scenario",
+        ranking_df,
+        "%",
     )
     show_period_bar_chart(
         overall_summary_df,
         "avg_max_drawdown_pct",
-        "Average maximum drawdown (%) by scenario",
+        "Average maximum drawdown by scenario",
+        ranking_df,
+        "%",
     )
     show_period_bar_chart(
         overall_summary_df,
         "avg_profit_factor",
         "Average profit factor by scenario",
+        ranking_df,
     )
     show_period_bar_chart(
         ranking_df,
         "score",
         "Scenario score by scenario",
+        ranking_df,
     )
 
 
@@ -1799,7 +1967,11 @@ def main() -> None:
         "and backtest results do not guarantee future returns."
     )
 
-    st.sidebar.header("Backtest Settings")
+    st.sidebar.header("Single Backtest Settings")
+    st.sidebar.caption(
+        "These controls apply only to the Single Backtest tab. "
+        "Experiment tabs have their own settings inside each tab."
+    )
     initial_cash = st.sidebar.number_input(
         "Initial cash",
         min_value=0.0,
