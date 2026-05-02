@@ -23,6 +23,50 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+## Command Quick Reference
+
+Run these commands from the project root in Windows PowerShell.
+
+| Task | Command |
+| --- | --- |
+| Check environment | `python src/check_setup.py` |
+| Run offline demo | `python src/run_demo.py` |
+| Fetch real A-share data | `python src/real_data_loader.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
+| Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
+| Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
+| Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
+| Run multi-period experiment | `python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --periods 2021,2022,2023,2024,2025 --compact` |
+| Analyze exported results | `python src/analyze_period_results.py --input reports/period_2021_2025.csv --output-dir reports` |
+
+Export multi-period results:
+
+```powershell
+New-Item -ItemType Directory -Force reports
+python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --periods 2021,2022,2023,2024,2025 --compact --output reports/period_2021_2025.csv
+```
+
+## Project Structure
+
+- `README.md`: Beginner-friendly project guide and command reference.
+- `requirements.txt`: Python runtime dependencies used by the project.
+- `PROJECT_CONTEXT.md`: Development context and project rules for V2 work.
+- `data/sample/`: Tracked sample and demo CSV data for offline testing.
+- `data/real/`: Local folder for fetched real A-share data. Contents may vary by machine.
+- `reports/`: Generated CSV summaries and chart outputs. This folder is ignored by Git.
+- `src/check_setup.py`: Checks that required Python packages are installed.
+- `src/run_demo.py`: Runs the offline demo without Baostock, AkShare, or internet access.
+- `src/real_data_loader.py`: Fetches real A-share daily data from AkShare or Baostock.
+- `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
+- `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
+- `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
+- `src/analyze_period_results.py`: Reads exported period results and creates summaries/charts.
+- `src/indicators.py`: Calculates MA5, MA20, RSI, and CCI indicators.
+- `src/strategy.py`: Generates MA crossover buy/sell/no-action signals.
+- `src/backtester.py`: Runs the long-only backtest and trade-log workflow.
+- `src/metrics.py`: Calculates portfolio-level performance metrics.
+- `src/trade_metrics.py`: Summarizes trade-log statistics.
+- `src/report.py`: Reserved/simple report module name; current rule-based report code lives in `src/report_generator.py`.
+
 ## Real Data Loader
 
 Fetch and save standardized A-share daily data:
