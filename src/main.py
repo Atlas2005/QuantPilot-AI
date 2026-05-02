@@ -1,3 +1,5 @@
+import argparse
+
 import pandas as pd
 
 from backtester import run_long_only_backtest
@@ -7,11 +9,27 @@ from report_generator import generate_rule_based_report
 from strategy import generate_ma_crossover_signals
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the QuantPilot-AI backtest workflow."
+    )
+    parser.add_argument(
+        "--data",
+        default="data/sample/sample_stock.csv",
+        help="Path to the CSV data file to backtest.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
     """
     Run the full V1 workflow from sample CSV data to backtest summary.
     """
-    file_path = "data/sample/sample_stock.csv"
+    args = parse_args()
+    file_path = args.data
+
+    print(f"Using data file: {file_path}")
+    print()
 
     # Step 1: Load the sample daily K-line data from CSV.
     stock_data = pd.read_csv(file_path)
