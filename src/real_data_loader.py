@@ -1,9 +1,12 @@
+import argparse
 from pathlib import Path
 import os
 import sys
 import time
+from datetime import datetime
 
 import akshare as ak
+import baostock as bs
 import pandas as pd
 
 
@@ -26,6 +29,39 @@ COLUMN_MAPPING = {
     "\u6536\u76d8": "close",
     "\u6210\u4ea4\u91cf": "volume",
 }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Fetch and save standardized A-share daily data."
+    )
+    parser.add_argument(
+        "--symbol",
+        default="000001",
+        help="A-share stock code without market prefix, for example 600519.",
+    )
+    parser.add_argument(
+        "--start",
+        default="20240101",
+        help="Start date in YYYYMMDD format, for example 20240101.",
+    )
+    parser.add_argument(
+        "--end",
+        default="20241231",
+        help="End date in YYYYMMDD format, for example 20241231.",
+    )
+    parser.add_argument(
+        "--adjust",
+        default="qfq",
+        help="AkShare adjustment mode, for example qfq.",
+    )
+    parser.add_argument(
+        "--source",
+        choices=["akshare", "baostock", "auto"],
+        default="auto",
+        help="Data source to use: akshare, baostock, or auto.",
+    )
+    return parser.parse_args()
 
 
 def fetch_a_share_daily(
@@ -93,6 +129,131 @@ def fetch_a_share_daily(
     return df
 
 
+def convert_symbol_for_baostock(symbol: str) -> str:
+    """
+    Convert a plain A-share symbol into Baostock's exchange-prefixed format.
+    """
+    if symbol.startswith(("000", "001", "002", "003", "300")):
+        return f"sz.{symbol}"
+    if symbol.startswith(("600", "601", "603", "605", "688")):
+        return f"sh.{symbol}"
+
+    raise ValueError(
+        f"Unsupported A-share symbol prefix for Baostock: {symbol}. "
+        "Expected a Shenzhen code such as 000001/300750 or "
+        "a Shanghai code such as 600519/688981."
+    )
+
+
+def convert_date_for_baostock(date_text: str) -> str:
+    """
+    Convert YYYYMMDD input into Baostock's YYYY-MM-DD format.
+    """
+    return datetime.strptime(date_text, "%Y%m%d").strftime("%Y-%m-%d")
+
+
+def convert_adjust_for_baostock(adjust: str) -> str:
+    """
+    Convert the command-line adjustment mode into Baostock's adjustflag.
+    """
+    adjust_text = adjust.lower().strip()
+    if adjust_text == "qfq":
+        return "2"
+    if adjust_text == "hfq":
+        return "1"
+    if adjust_text in ("", "none"):
+        return "3"
+
+    raise ValueError(
+        f"Unsupported adjust value for Baostock: {adjust}. "
+        "Use qfq, hfq, none, or an empty value."
+    )
+
+
+def fetch_a_share_daily_baostock(
+    symbol: str,
+    start_date: str,
+    end_date: str,
+    adjust: str = "qfq",
+) -> pd.DataFrame:
+    """
+    Fetch daily historical K-line data for one A-share stock from Baostock.
+    """
+    bs_symbol = convert_symbol_for_baostock(symbol)
+    bs_start_date = convert_date_for_baostock(start_date)
+    bs_end_date = convert_date_for_baostock(end_date)
+    adjustflag = convert_adjust_for_baostock(adjust)
+    fields = "date,code,open,high,low,close,volume"
+    login_result = None
+
+    try:
+        login_result = bs.login()
+        if login_result.error_code != "0":
+            raise RuntimeError(
+                f"Baostock login failed: {login_result.error_msg}"
+            )
+
+        result = bs.query_history_k_data_plus(
+            bs_symbol,
+            fields,
+            start_date=bs_start_date,
+            end_date=bs_end_date,
+            frequency="d",
+            adjustflag=adjustflag,
+        )
+        if result.error_code != "0":
+            raise RuntimeError(
+                f"Baostock query failed for {symbol}: {result.error_msg}"
+            )
+
+        rows = []
+        while result.next():
+            rows.append(result.get_row_data())
+    finally:
+        if login_result is not None:
+            bs.logout()
+
+    if not rows:
+        raise ValueError(
+            f"Baostock returned no data for {symbol} from {start_date} to {end_date}."
+        )
+
+    raw_df = pd.DataFrame(rows, columns=result.fields)
+    df = raw_df[STANDARD_COLUMNS].copy()
+
+    for column in ["open", "high", "low", "close", "volume"]:
+        df[column] = pd.to_numeric(df[column], errors="coerce")
+
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+
+    return df
+
+
+def fetch_a_share_daily_from_source(
+    symbol: str,
+    start_date: str,
+    end_date: str,
+    adjust: str,
+    source: str,
+) -> pd.DataFrame:
+    """
+    Fetch data from the requested source, with AkShare-to-Baostock fallback in auto mode.
+    """
+    if source == "akshare":
+        return fetch_a_share_daily(symbol, start_date, end_date, adjust)
+
+    if source == "baostock":
+        return fetch_a_share_daily_baostock(symbol, start_date, end_date, adjust)
+
+    try:
+        return fetch_a_share_daily(symbol, start_date, end_date, adjust)
+    except Exception as exc:
+        print(f"Warning: AkShare failed: {exc}")
+        print("Trying Baostock fallback...")
+        return fetch_a_share_daily_baostock(symbol, start_date, end_date, adjust)
+
+
 def save_stock_csv(df: pd.DataFrame, symbol: str) -> Path:
     """
     Save standardized stock data to data/real/{symbol}.csv.
@@ -113,17 +274,23 @@ def save_stock_csv(df: pd.DataFrame, symbol: str) -> Path:
 
 
 if __name__ == "__main__":
-    test_symbol = "000001"
-    test_start_date = "20240101"
-    test_end_date = "20241231"
+    args = parse_args()
+
+    print(
+        "Fetching A-share data: "
+        f"symbol={args.symbol}, start={args.start}, "
+        f"end={args.end}, adjust={args.adjust}, source={args.source}"
+    )
 
     try:
-        stock_df = fetch_a_share_daily(
-            symbol=test_symbol,
-            start_date=test_start_date,
-            end_date=test_end_date,
+        stock_df = fetch_a_share_daily_from_source(
+            symbol=args.symbol,
+            start_date=args.start,
+            end_date=args.end,
+            adjust=args.adjust,
+            source=args.source,
         )
-        saved_path = save_stock_csv(stock_df, test_symbol)
+        saved_path = save_stock_csv(stock_df, args.symbol)
         print(f"Saved {len(stock_df)} rows to {saved_path}")
     except Exception as exc:
         print(f"Error: {exc}")
