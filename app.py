@@ -12,6 +12,8 @@ from src.trade_metrics import summarize_trade_metrics
 
 
 DEMO_DATA_PATH = Path("data/sample/demo_000001.csv")
+LOCAL_REAL_DATA_DIR = Path("data/real")
+REQUIRED_COLUMNS = ["date", "open", "high", "low", "close", "volume"]
 
 
 def parse_optional_float(value: str, label: str) -> float | None:
@@ -53,6 +55,65 @@ def format_trade_log(trades_df: pd.DataFrame) -> pd.DataFrame:
     return display_df
 
 
+def validate_stock_data(stock_data: pd.DataFrame) -> None:
+    missing_columns = [
+        column for column in REQUIRED_COLUMNS if column not in stock_data.columns
+    ]
+    if missing_columns:
+        st.error(
+            "The selected CSV is missing required columns: "
+            + ", ".join(missing_columns)
+        )
+        st.stop()
+
+
+def load_demo_data() -> tuple[pd.DataFrame, str]:
+    if not DEMO_DATA_PATH.exists():
+        st.error(f"Demo CSV is missing: {DEMO_DATA_PATH}")
+        st.stop()
+
+    return pd.read_csv(DEMO_DATA_PATH), f"Demo data: {DEMO_DATA_PATH}"
+
+
+def load_local_real_csv() -> tuple[pd.DataFrame, str]:
+    csv_files = sorted(LOCAL_REAL_DATA_DIR.glob("*.csv"))
+    if not csv_files:
+        st.warning(
+            "No local real CSV files found in data/real/. "
+            "Create one with the command-line real-data workflow first."
+        )
+        st.stop()
+
+    selected_file = st.sidebar.selectbox(
+        "Local real CSV",
+        csv_files,
+        format_func=lambda path: path.name,
+    )
+    return pd.read_csv(selected_file), f"Local real CSV: {selected_file}"
+
+
+def load_uploaded_csv() -> tuple[pd.DataFrame, str]:
+    uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
+    if uploaded_file is None:
+        st.info("Upload a CSV file to run the dashboard with browser data.")
+        st.stop()
+
+    return pd.read_csv(uploaded_file), f"Uploaded CSV: {uploaded_file.name}"
+
+
+def load_selected_data() -> tuple[pd.DataFrame, str]:
+    data_source_mode = st.sidebar.selectbox(
+        "Data source mode",
+        ["Demo data", "Local real CSV", "Upload CSV"],
+    )
+
+    if data_source_mode == "Demo data":
+        return load_demo_data()
+    if data_source_mode == "Local real CSV":
+        return load_local_real_csv()
+    return load_uploaded_csv()
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -82,15 +143,12 @@ def main() -> None:
         "Max holding days",
     )
 
-    if not DEMO_DATA_PATH.exists():
-        st.error(f"Demo CSV is missing: {DEMO_DATA_PATH}")
-        st.stop()
-
-    stock_data = pd.read_csv(DEMO_DATA_PATH)
+    stock_data, data_label = load_selected_data()
+    validate_stock_data(stock_data)
     stock_data["date"] = pd.to_datetime(stock_data["date"])
 
     st.subheader("Loaded Data Preview")
-    st.write(f"Using offline demo data: `{DEMO_DATA_PATH}`")
+    st.write(f"Using data source: `{data_label}`")
     st.dataframe(stock_data.head(10), width="stretch")
 
     stock_data = add_all_indicators(stock_data)

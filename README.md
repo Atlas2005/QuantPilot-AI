@@ -106,10 +106,20 @@ Run the first Streamlit dashboard:
 streamlit run app.py
 ```
 
-The first dashboard version uses the offline demo file
-`data/sample/demo_000001.csv`. It does not fetch real market data and does not
-call Baostock or AkShare. It is for workflow demonstration and education, not
-trading advice.
+The dashboard can use three offline input modes:
+
+- Demo data from `data/sample/demo_000001.csv`
+- Local real CSV files from `data/real/`
+- Uploaded CSV files from your browser
+
+The dashboard itself does not fetch real market data and does not call Baostock
+or AkShare. To create a local real CSV first, run:
+
+```powershell
+python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231
+```
+
+The dashboard is for workflow demonstration and education, not trading advice.
 
 ## Smoke Tests
 
