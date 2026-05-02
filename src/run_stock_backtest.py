@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from backtester import run_long_only_backtest
+from backtester import run_long_only_backtest_with_trades
 from indicators import add_all_indicators
 from metrics import summarize_performance
 from real_data_loader import fetch_a_share_daily_from_source, save_stock_csv
@@ -48,6 +48,50 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def print_trade_log(trades_df) -> None:
+    print()
+    print("Trade Log")
+    print("---------")
+
+    if trades_df.empty:
+        print("No trades were executed.")
+        return
+
+    def format_number(value) -> str:
+        return "" if value is None or value != value else f"{value:.2f}"
+
+    def format_pct(value) -> str:
+        return "" if value is None or value != value else f"{value:.2f}%"
+
+    def format_date(value) -> str:
+        if value is None or value != value:
+            return ""
+        if hasattr(value, "strftime"):
+            return value.strftime("%Y-%m-%d")
+        return str(value)
+
+    display_df = trades_df.copy()
+    for column in ["entry_date", "exit_date"]:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_date)
+
+    for column in [
+        "entry_price",
+        "exit_price",
+        "shares",
+        "profit",
+        "unrealized_profit",
+    ]:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_number)
+
+    for column in ["return_pct", "unrealized_return_pct"]:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_pct)
+
+    print(display_df.to_string(index=False))
+
+
 def main() -> None:
     args = parse_args()
 
@@ -78,7 +122,7 @@ def main() -> None:
 
     stock_data = add_all_indicators(stock_data)
     stock_data = generate_ma_crossover_signals(stock_data)
-    backtest_result = run_long_only_backtest(
+    backtest_result, trades = run_long_only_backtest_with_trades(
         stock_data,
         initial_cash=args.initial_cash,
     )
@@ -97,6 +141,8 @@ def main() -> None:
     print("Last 10 Backtest Rows")
     print("---------------------")
     print(backtest_result.tail(10))
+
+    print_trade_log(trades)
 
 
 if __name__ == "__main__":
