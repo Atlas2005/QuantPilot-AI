@@ -1,6 +1,8 @@
 from pathlib import Path
 
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 import pandas as pd
 import streamlit as st
 
@@ -224,6 +226,11 @@ def format_trade_metrics_table(trade_metrics: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def format_chart_date_axis(ax) -> None:
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+
+
 def validate_stock_data(stock_data: pd.DataFrame) -> None:
     missing_columns = [
         column for column in REQUIRED_COLUMNS if column not in stock_data.columns
@@ -346,6 +353,7 @@ def show_price_signal_chart(stock_data: pd.DataFrame) -> None:
     ax.set_ylabel("Price")
     ax.legend()
     ax.grid(True, alpha=0.25)
+    format_chart_date_axis(ax)
     fig.autofmt_xdate()
     st.pyplot(fig)
     plt.close(fig)
@@ -370,9 +378,25 @@ def show_drawdown_curve(backtest_result: pd.DataFrame) -> None:
     drawdown_data = backtest_result.copy()
     drawdown_data["date"] = pd.to_datetime(drawdown_data["date"])
     total_value = drawdown_data["total_value"]
-    drawdown_data["Drawdown %"] = (total_value / total_value.cummax() - 1) * 100
-    drawdown_data = drawdown_data.set_index("date")
-    st.line_chart(drawdown_data[["Drawdown %"]])
+    drawdown_data["drawdown_pct"] = (total_value / total_value.cummax() - 1) * 100
+
+    fig, ax = plt.subplots(figsize=(11, 4))
+    ax.plot(
+        drawdown_data["date"],
+        drawdown_data["drawdown_pct"],
+        label="Drawdown",
+        color="tab:red",
+        linewidth=1.8,
+    )
+    ax.set_title("Portfolio Drawdown")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Drawdown")
+    ax.yaxis.set_major_formatter(PercentFormatter(xmax=100))
+    ax.grid(True, alpha=0.25)
+    format_chart_date_axis(ax)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
+    plt.close(fig)
 
 
 def main() -> None:
