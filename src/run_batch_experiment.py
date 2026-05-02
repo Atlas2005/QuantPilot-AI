@@ -129,6 +129,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional CSV path for saving raw batch results.",
     )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Print a compact result table instead of the full wide table.",
+    )
     return parser.parse_args()
 
 
@@ -352,6 +357,35 @@ def print_batch_results(results_df: pd.DataFrame) -> None:
     print(display_df.to_string(index=False))
 
 
+def print_compact_batch_results(results_df: pd.DataFrame) -> None:
+    print("Compact Batch Results")
+    print("---------------------")
+
+    compact_columns = [
+        "symbol",
+        "scenario",
+        "total_return_pct",
+        "max_drawdown_pct",
+        "profit_factor",
+        "win_rate_pct",
+        "final_value",
+        "currently_holding",
+        "error",
+    ]
+    display_df = results_df[compact_columns].copy()
+
+    for column in ["total_return_pct", "max_drawdown_pct", "win_rate_pct"]:
+        display_df[column] = display_df[column].apply(format_pct)
+
+    for column in ["profit_factor", "final_value"]:
+        display_df[column] = display_df[column].apply(format_number)
+
+    display_df["currently_holding"] = display_df["currently_holding"].fillna("")
+    display_df["error"] = display_df["error"].fillna("")
+
+    print(display_df.to_string(index=False))
+
+
 def print_aggregate_summary(summary_df: pd.DataFrame) -> None:
     print()
     print("Scenario Average Summary")
@@ -468,7 +502,10 @@ def main() -> None:
     ranking_df = build_scenario_ranking(summary_df)
 
     print()
-    print_batch_results(results_df)
+    if args.compact:
+        print_compact_batch_results(results_df)
+    else:
+        print_batch_results(results_df)
     print_aggregate_summary(summary_df)
     print_scenario_ranking(ranking_df)
     print_quick_interpretation(ranking_df)
