@@ -32,6 +32,7 @@ Run these commands from the project root in Windows PowerShell.
 | Check environment | `python src/check_setup.py` |
 | Run offline smoke tests | `python src/run_smoke_tests.py` |
 | Run offline demo | `python src/run_demo.py` |
+| Run dashboard | `streamlit run app.py` |
 | Fetch real A-share data | `python src/real_data_loader.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
@@ -51,6 +52,7 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `README.md`: Beginner-friendly project guide and command reference.
 - `requirements.txt`: Python runtime dependencies used by the project.
 - `PROJECT_CONTEXT.md`: Development context and project rules for V2 work.
+- `app.py`: Offline Streamlit dashboard for the demo workflow.
 - `data/sample/`: Tracked sample and demo CSV data for offline testing.
 - `data/real/`: Local folder for fetched real A-share data. Contents may vary by machine.
 - `reports/`: Generated CSV summaries and chart outputs. This folder is ignored by Git.
@@ -95,6 +97,19 @@ This mode uses `data/sample/demo_000001.csv` and does not use Baostock,
 AkShare, or the internet. The demo data is fake sample data for checking that
 the project workflow runs correctly. It should not be used for real market
 conclusions.
+
+## Dashboard
+
+Run the first Streamlit dashboard:
+
+```powershell
+streamlit run app.py
+```
+
+The first dashboard version uses the offline demo file
+`data/sample/demo_000001.csv`. It does not fetch real market data and does not
+call Baostock or AkShare. It is for workflow demonstration and education, not
+trading advice.
 
 ## Smoke Tests
 
