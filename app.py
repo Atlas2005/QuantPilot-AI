@@ -417,7 +417,10 @@ def ensure_stock_data_or_raise(stock_data: pd.DataFrame) -> None:
 
 def validate_non_empty_stock_data(stock_data: pd.DataFrame, label: str) -> None:
     if stock_data.empty:
-        st.error(f"{label} returned no rows. Try another symbol or date range.")
+        st.error(
+            f"Real-data fetching failed: {label} returned no rows. "
+            "Try checking the network, switching source mode, or using Demo data."
+        )
         st.stop()
 
 
@@ -750,7 +753,11 @@ def load_real_data(source_mode: str) -> tuple[pd.DataFrame | None, str, dict]:
                     adjust=adjust,
                 )
         except Exception as exc:
-            st.error(f"Real-data fetch failed: {exc}")
+            st.error(
+                "Real-data fetching failed. Try checking the network, "
+                "switching source mode, or using Demo data. "
+                f"Details: {exc}"
+            )
             st.stop()
 
         validate_non_empty_stock_data(stock_data, source_mode)
@@ -994,6 +1001,17 @@ def display_parameter_experiment_outputs(
     summary_df: pd.DataFrame,
     ranking_df: pd.DataFrame,
 ) -> None:
+    error_rows = results_df[
+        results_df["error"].notna() & (results_df["error"].astype(str).str.strip() != "")
+    ]
+    if not error_rows.empty:
+        failed_symbols = ", ".join(error_rows["symbol"].dropna().astype(str).unique())
+        st.warning(
+            "Some symbols failed during real-data fetching or processing. "
+            "They are kept as ERROR rows so the rest of the experiment can continue. "
+            f"Failed symbols: {failed_symbols}"
+        )
+
     st.subheader("Compact Batch Results")
     compact_df = format_experiment_table(results_df)
     st.dataframe(compact_df, width="stretch")
