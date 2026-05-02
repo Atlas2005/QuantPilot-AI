@@ -249,6 +249,55 @@ def build_aggregate_summary(results_df: pd.DataFrame) -> pd.DataFrame:
     return summary_df
 
 
+def build_scenario_ranking(summary_df: pd.DataFrame) -> pd.DataFrame:
+    if summary_df.empty:
+        return pd.DataFrame(
+            columns=[
+                "rank",
+                "scenario",
+                "symbols_tested",
+                "avg_total_return_pct",
+                "avg_max_drawdown_pct",
+                "avg_profit_factor",
+                "avg_win_rate_pct",
+                "avg_average_holding_days",
+                "score",
+            ]
+        )
+
+    ranking_df = summary_df.copy()
+    for column in [
+        "avg_total_return_pct",
+        "avg_max_drawdown_pct",
+        "avg_profit_factor",
+    ]:
+        ranking_df[column] = pd.to_numeric(ranking_df[column], errors="coerce")
+
+    ranking_df["score"] = (
+        ranking_df["avg_total_return_pct"].fillna(0)
+        + ranking_df["avg_profit_factor"].fillna(0) * 2
+        + ranking_df["avg_max_drawdown_pct"].fillna(0) * 0.3
+    )
+    ranking_df = ranking_df.sort_values("score", ascending=False).reset_index(
+        drop=True
+    )
+    ranking_df.insert(0, "rank", range(1, len(ranking_df) + 1))
+
+    return ranking_df[
+        [
+            "rank",
+            "scenario",
+            "symbols_tested",
+            "avg_total_return_pct",
+            "avg_max_drawdown_pct",
+            "avg_profit_factor",
+            "avg_win_rate_pct",
+            "avg_average_holding_days",
+            "score",
+        ]
+    ]
+
+
 def format_pct(value) -> str:
     return "N/A" if pd.isna(value) else f"{value:.2f}%"
 
@@ -326,6 +375,64 @@ def print_aggregate_summary(summary_df: pd.DataFrame) -> None:
     print(display_df.to_string(index=False))
 
 
+def print_scenario_ranking(ranking_df: pd.DataFrame) -> None:
+    print()
+    print("Scenario Ranking")
+    print("----------------")
+
+    if ranking_df.empty:
+        print("No successful scenario results to rank.")
+        return
+
+    display_df = ranking_df.copy()
+    for column in [
+        "avg_total_return_pct",
+        "avg_max_drawdown_pct",
+        "avg_win_rate_pct",
+    ]:
+        display_df[column] = display_df[column].apply(format_pct)
+
+    for column in ["avg_profit_factor", "avg_average_holding_days", "score"]:
+        display_df[column] = display_df[column].apply(format_number)
+
+    print(display_df.to_string(index=False))
+
+
+def print_quick_interpretation(ranking_df: pd.DataFrame) -> None:
+    print()
+    print("Quick Interpretation")
+    print("--------------------")
+
+    if ranking_df.empty:
+        print("No successful scenario results are available for interpretation.")
+        return
+
+    best_score = ranking_df.iloc[0]
+    best_return = ranking_df.loc[ranking_df["avg_total_return_pct"].idxmax()]
+    best_drawdown = ranking_df.loc[ranking_df["avg_max_drawdown_pct"].idxmax()]
+    best_profit_factor = ranking_df.loc[ranking_df["avg_profit_factor"].idxmax()]
+
+    print(
+        "Best overall scenario by score: "
+        f"{best_score['scenario']} (score {best_score['score']:.2f})"
+    )
+    print(
+        "Best average return scenario: "
+        f"{best_return['scenario']} "
+        f"({best_return['avg_total_return_pct']:.2f}%)"
+    )
+    print(
+        "Best drawdown control scenario: "
+        f"{best_drawdown['scenario']} "
+        f"({best_drawdown['avg_max_drawdown_pct']:.2f}%)"
+    )
+    print(
+        "Best profit factor scenario: "
+        f"{best_profit_factor['scenario']} "
+        f"({best_profit_factor['avg_profit_factor']:.2f})"
+    )
+
+
 def main() -> None:
     args = parse_args()
     symbols = parse_symbols(args.symbols)
@@ -358,10 +465,13 @@ def main() -> None:
 
     results_df = pd.DataFrame(rows, columns=RESULT_COLUMNS)
     summary_df = build_aggregate_summary(results_df)
+    ranking_df = build_scenario_ranking(summary_df)
 
     print()
     print_batch_results(results_df)
     print_aggregate_summary(summary_df)
+    print_scenario_ranking(ranking_df)
+    print_quick_interpretation(ranking_df)
 
     print()
     print("Note: This report is generated from simple rules for educational research only.")
