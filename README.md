@@ -226,6 +226,34 @@ The risk controls use close prices:
 - `--take-profit-pct 10` exits when the current trade return is `+10%` or better.
 - `--max-holding-days 30` exits after holding for 30 calendar days.
 
+## Realistic Execution Assumptions
+
+By default, QuantPilot-AI uses `same_close` execution. This means a signal is
+filled at the same day's close price. It is simple and useful for education, but
+real trading usually cannot know the final close before placing the trade.
+
+For a more realistic assumption, use `next_open`:
+
+```powershell
+python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --execution-mode next_open --commission-rate 0.0003 --stamp-tax-rate 0.001 --slippage-pct 0.05 --min-commission 5
+```
+
+Supported execution modes:
+
+- `same_close`: execute at the current close. This preserves the original simple workflow.
+- `next_open`: execute today's signal on the next trading day's open.
+- `next_close`: execute today's signal on the next trading day's close.
+
+Transaction costs reduce returns. The optional assumptions are:
+
+- `--commission-rate`: commission charged on buys and sells.
+- `--stamp-tax-rate`: tax charged on sell trades only.
+- `--slippage-pct`: price impact added to buys and subtracted from sells.
+- `--min-commission`: minimum commission per trade.
+
+These assumptions make the backtest more realistic, but the project is still an
+educational research tool and is not financial advice.
+
 ## Multi-Stock Batch Experiment
 
 Compare the default risk-control scenarios across multiple stocks:

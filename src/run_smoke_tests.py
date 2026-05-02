@@ -27,6 +27,22 @@ COMMAND_CHECKS = [
     ("run_batch_experiment help", ["src/run_batch_experiment.py", "--help"]),
     ("run_period_experiment help", ["src/run_period_experiment.py", "--help"]),
     ("analyze_period_results help", ["src/analyze_period_results.py", "--help"]),
+    (
+        "next_open cost backtest",
+        [
+            "-c",
+            (
+                "import pandas as pd; "
+                "from src.backtester import run_long_only_backtest_with_trades; "
+                "df=pd.DataFrame({'date':['2024-01-01','2024-01-02','2024-01-03'],"
+                "'open':[10,11,12],'close':[10,11,12],'signal':[1,0,-1]}); "
+                "bt,tr=run_long_only_backtest_with_trades(df, execution_mode='next_open', "
+                "commission_rate=0.001, stamp_tax_rate=0.001, slippage_pct=0.1, "
+                "min_commission=1.0); "
+                "assert 'total_transaction_cost' in bt.columns"
+            ),
+        ],
+    ),
 ]
 
 
@@ -73,7 +89,7 @@ def run_command_checks() -> bool:
 
     for label, command in COMMAND_CHECKS:
         script_path = Path(command[0])
-        if not script_path.exists():
+        if command[0] != "-c" and not script_path.exists():
             continue
 
         passed = run_command(label, command)

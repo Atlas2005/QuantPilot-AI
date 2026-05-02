@@ -64,6 +64,36 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional maximum holding period in calendar days.",
     )
+    parser.add_argument(
+        "--execution-mode",
+        choices=["same_close", "next_open", "next_close"],
+        default="same_close",
+        help="Trade execution mode. Defaults to same_close for old behavior.",
+    )
+    parser.add_argument(
+        "--commission-rate",
+        type=float,
+        default=0.0,
+        help="Commission rate per trade, for example 0.0003.",
+    )
+    parser.add_argument(
+        "--stamp-tax-rate",
+        type=float,
+        default=0.0,
+        help="Stamp tax rate applied to sell trades only.",
+    )
+    parser.add_argument(
+        "--slippage-pct",
+        type=float,
+        default=0.0,
+        help="Slippage percentage applied to execution prices.",
+    )
+    parser.add_argument(
+        "--min-commission",
+        type=float,
+        default=0.0,
+        help="Minimum commission charged per trade.",
+    )
     return parser.parse_args()
 
 
@@ -86,6 +116,17 @@ def print_risk_controls(args: argparse.Namespace) -> None:
     else:
         print(f"max_holding_days: {args.max_holding_days}")
 
+    print()
+
+
+def print_execution_settings(args: argparse.Namespace) -> None:
+    print("Execution Settings")
+    print("------------------")
+    print(f"execution_mode: {args.execution_mode}")
+    print(f"commission_rate: {args.commission_rate}")
+    print(f"stamp_tax_rate: {args.stamp_tax_rate}")
+    print(f"slippage_pct: {args.slippage_pct:.2f}%")
+    print(f"min_commission: {args.min_commission:.2f}")
     print()
 
 
@@ -154,6 +195,12 @@ def print_trade_metrics(metrics: dict) -> None:
         "open_unrealized_return_pct",
     }
     float_fields = {"profit_factor", "average_holding_days"}
+    cost_fields = {
+        "total_commission",
+        "total_stamp_tax",
+        "total_slippage_cost",
+        "total_transaction_cost",
+    }
 
     for key, value in metrics.items():
         if value is None:
@@ -162,7 +209,7 @@ def print_trade_metrics(metrics: dict) -> None:
             display_value = f"{value:.2f}"
         elif key in pct_fields:
             display_value = f"{value:.2f}%"
-        elif key in float_fields:
+        elif key in float_fields or key in cost_fields:
             display_value = f"{value:.2f}"
         else:
             display_value = value
@@ -206,11 +253,17 @@ def main() -> None:
         stop_loss_pct=args.stop_loss_pct,
         take_profit_pct=args.take_profit_pct,
         max_holding_days=args.max_holding_days,
+        execution_mode=args.execution_mode,
+        commission_rate=args.commission_rate,
+        stamp_tax_rate=args.stamp_tax_rate,
+        slippage_pct=args.slippage_pct,
+        min_commission=args.min_commission,
     )
     performance_summary = summarize_performance(backtest_result)
     report = generate_rule_based_report(performance_summary)
 
     print_risk_controls(args)
+    print_execution_settings(args)
 
     print("Performance Summary")
     print("-------------------")

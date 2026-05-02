@@ -191,6 +191,11 @@ def format_trade_log(trades_df: pd.DataFrame) -> pd.DataFrame:
         "exit_price",
         "profit",
         "unrealized_profit",
+        "entry_commission",
+        "exit_commission",
+        "stamp_tax",
+        "slippage_cost",
+        "total_transaction_cost",
     ]
     for column in money_columns:
         if column in display_df.columns:
@@ -390,6 +395,10 @@ def format_trade_metric_value(metric: str, value) -> str:
         "best_trade_profit",
         "worst_trade_profit",
         "open_unrealized_profit",
+        "total_commission",
+        "total_stamp_tax",
+        "total_slippage_cost",
+        "total_transaction_cost",
     }
     whole_number_metrics = {
         "total_trades",
@@ -1513,6 +1522,11 @@ def render_single_backtest_tab(
     stop_loss_pct: float | None,
     take_profit_pct: float | None,
     max_holding_days: int | None,
+    execution_mode: str,
+    commission_rate: float,
+    stamp_tax_rate: float,
+    slippage_pct: float,
+    min_commission: float,
 ) -> None:
     stock_data, data_label, data_details = load_selected_data()
     if stock_data is None:
@@ -1537,6 +1551,11 @@ def render_single_backtest_tab(
         stop_loss_pct=stop_loss_pct,
         take_profit_pct=take_profit_pct,
         max_holding_days=max_holding_days,
+        execution_mode=execution_mode,
+        commission_rate=commission_rate,
+        stamp_tax_rate=stamp_tax_rate,
+        slippage_pct=slippage_pct,
+        min_commission=min_commission,
     )
     performance_summary = summarize_performance(backtest_result)
     trade_metrics = summarize_trade_metrics(trades)
@@ -2167,6 +2186,37 @@ def main() -> None:
         st.sidebar.text_input("Max holding days (blank = disabled)", value=""),
         "Max holding days",
     )
+    execution_mode = st.sidebar.selectbox(
+        "Execution mode",
+        ["same_close", "next_open", "next_close"],
+    )
+    commission_rate = st.sidebar.number_input(
+        "Commission rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    stamp_tax_rate = st.sidebar.number_input(
+        "Stamp tax rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    slippage_pct = st.sidebar.number_input(
+        "Slippage %",
+        min_value=0.0,
+        value=0.0,
+        step=0.01,
+        format="%.4f",
+    )
+    min_commission = st.sidebar.number_input(
+        "Minimum commission",
+        min_value=0.0,
+        value=0.0,
+        step=1.0,
+    )
 
     single_tab, experiment_tab, period_tab = st.tabs(
         ["Single Backtest", "Parameter Experiment", "Period Experiment"]
@@ -2177,6 +2227,11 @@ def main() -> None:
             stop_loss_pct=stop_loss_pct,
             take_profit_pct=take_profit_pct,
             max_holding_days=max_holding_days,
+            execution_mode=execution_mode,
+            commission_rate=commission_rate,
+            stamp_tax_rate=stamp_tax_rate,
+            slippage_pct=slippage_pct,
+            min_commission=min_commission,
         )
 
     with experiment_tab:

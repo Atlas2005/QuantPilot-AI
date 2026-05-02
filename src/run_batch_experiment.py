@@ -74,6 +74,10 @@ RESULT_COLUMNS = [
     "final_value",
     "total_return_pct",
     "max_drawdown_pct",
+    "total_commission",
+    "total_stamp_tax",
+    "total_slippage_cost",
+    "total_transaction_cost",
     "total_trades",
     "closed_trades",
     "open_trades",
@@ -134,6 +138,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print a compact result table instead of the full wide table.",
     )
+    parser.add_argument(
+        "--execution-mode",
+        choices=["same_close", "next_open", "next_close"],
+        default="same_close",
+        help="Trade execution mode. Defaults to same_close for old behavior.",
+    )
+    parser.add_argument("--commission-rate", type=float, default=0.0)
+    parser.add_argument("--stamp-tax-rate", type=float, default=0.0)
+    parser.add_argument("--slippage-pct", type=float, default=0.0)
+    parser.add_argument("--min-commission", type=float, default=0.0)
     return parser.parse_args()
 
 
@@ -159,6 +173,7 @@ def run_scenario(
     prepared_data: pd.DataFrame,
     initial_cash: float,
     scenario: dict,
+    args: argparse.Namespace,
 ) -> dict:
     backtest_df, trades_df = run_long_only_backtest_with_trades(
         prepared_data.copy(),
@@ -166,6 +181,11 @@ def run_scenario(
         stop_loss_pct=scenario["stop_loss_pct"],
         take_profit_pct=scenario["take_profit_pct"],
         max_holding_days=scenario["max_holding_days"],
+        execution_mode=args.execution_mode,
+        commission_rate=args.commission_rate,
+        stamp_tax_rate=args.stamp_tax_rate,
+        slippage_pct=args.slippage_pct,
+        min_commission=args.min_commission,
     )
     performance = summarize_performance(backtest_df)
     trade_metrics = summarize_trade_metrics(trades_df)
@@ -179,6 +199,10 @@ def run_scenario(
         "final_value": performance["final_value"],
         "total_return_pct": performance["total_return_pct"],
         "max_drawdown_pct": performance["max_drawdown_pct"],
+        "total_commission": performance["total_commission"],
+        "total_stamp_tax": performance["total_stamp_tax"],
+        "total_slippage_cost": performance["total_slippage_cost"],
+        "total_transaction_cost": performance["total_transaction_cost"],
         "total_trades": trade_metrics["total_trades"],
         "closed_trades": trade_metrics["closed_trades"],
         "open_trades": trade_metrics["open_trades"],
@@ -209,7 +233,7 @@ def run_symbol(args: argparse.Namespace, symbol: str) -> list[dict]:
     prepared_data = generate_ma_crossover_signals(prepared_data)
 
     return [
-        run_scenario(symbol, prepared_data, args.initial_cash, scenario)
+        run_scenario(symbol, prepared_data, args.initial_cash, scenario, args)
         for scenario in SCENARIOS
     ]
 
@@ -345,7 +369,15 @@ def print_batch_results(results_df: pd.DataFrame) -> None:
     ]:
         display_df[column] = display_df[column].apply(format_pct)
 
-    for column in ["final_value", "profit_factor", "average_holding_days"]:
+    for column in [
+        "final_value",
+        "profit_factor",
+        "average_holding_days",
+        "total_commission",
+        "total_stamp_tax",
+        "total_slippage_cost",
+        "total_transaction_cost",
+    ]:
         display_df[column] = display_df[column].apply(format_number)
 
     for column in ["total_trades", "closed_trades", "open_trades"]:
