@@ -30,6 +30,7 @@ Run these commands from the project root in Windows PowerShell.
 | Task | Command |
 | --- | --- |
 | Check environment | `python src/check_setup.py` |
+| Run offline smoke tests | `python src/run_smoke_tests.py` |
 | Run offline demo | `python src/run_demo.py` |
 | Fetch real A-share data | `python src/real_data_loader.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
@@ -54,6 +55,7 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `data/real/`: Local folder for fetched real A-share data. Contents may vary by machine.
 - `reports/`: Generated CSV summaries and chart outputs. This folder is ignored by Git.
 - `src/check_setup.py`: Checks that required Python packages are installed.
+- `src/run_smoke_tests.py`: Runs offline compile, setup, demo, and help checks.
 - `src/run_demo.py`: Runs the offline demo without Baostock, AkShare, or internet access.
 - `src/real_data_loader.py`: Fetches real A-share daily data from AkShare or Baostock.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
@@ -93,6 +95,18 @@ This mode uses `data/sample/demo_000001.csv` and does not use Baostock,
 AkShare, or the internet. The demo data is fake sample data for checking that
 the project workflow runs correctly. It should not be used for real market
 conclusions.
+
+## Smoke Tests
+
+Run the offline smoke tests before committing changes or after pulling new code:
+
+```powershell
+python src/run_smoke_tests.py
+```
+
+Smoke tests compile the main scripts, check dependencies, run the offline demo,
+and run `--help` checks for command-line tools. They do not fetch real market
+data and do not call Baostock or AkShare data download commands.
 
 ## Single-Stock Backtest
 
