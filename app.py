@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
@@ -53,6 +54,18 @@ def format_trade_log(trades_df: pd.DataFrame) -> pd.DataFrame:
             ).dt.strftime("%Y-%m-%d")
 
     return display_df
+
+
+def format_metric_pct(value) -> str:
+    if value is None or pd.isna(value):
+        return "N/A"
+    return f"{value:.2f}%"
+
+
+def format_metric_number(value) -> str:
+    if value is None or pd.isna(value):
+        return "N/A"
+    return f"{value:.2f}"
 
 
 def validate_stock_data(stock_data: pd.DataFrame) -> None:
@@ -114,6 +127,98 @@ def load_selected_data() -> tuple[pd.DataFrame, str]:
     return load_uploaded_csv()
 
 
+def show_metric_cards(performance_summary: dict, trade_metrics: dict) -> None:
+    st.subheader("Key Metrics")
+    columns = st.columns(6)
+    columns[0].metric(
+        "Total return",
+        format_metric_pct(performance_summary["total_return_pct"]),
+    )
+    columns[1].metric(
+        "Maximum drawdown",
+        format_metric_pct(performance_summary["max_drawdown_pct"]),
+    )
+    columns[2].metric("Buy signals", performance_summary["buy_signals"])
+    columns[3].metric("Sell signals", performance_summary["sell_signals"])
+    columns[4].metric("Win rate", format_metric_pct(trade_metrics["win_rate_pct"]))
+    columns[5].metric(
+        "Profit factor",
+        format_metric_number(trade_metrics["profit_factor"]),
+    )
+
+
+def show_price_signal_chart(stock_data: pd.DataFrame) -> None:
+    required_columns = {"date", "close"}
+    if not required_columns.issubset(stock_data.columns):
+        st.warning("Price chart cannot be drawn because date or close is missing.")
+        return
+
+    fig, ax = plt.subplots(figsize=(11, 5))
+    ax.plot(stock_data["date"], stock_data["close"], label="Close", linewidth=1.8)
+
+    if "MA5" in stock_data.columns:
+        ax.plot(stock_data["date"], stock_data["MA5"], label="MA5", linewidth=1.2)
+    if "MA20" in stock_data.columns:
+        ax.plot(stock_data["date"], stock_data["MA20"], label="MA20", linewidth=1.2)
+
+    if "signal" in stock_data.columns:
+        buy_points = stock_data[stock_data["signal"] == 1]
+        sell_points = stock_data[stock_data["signal"] == -1]
+        if not buy_points.empty:
+            ax.scatter(
+                buy_points["date"],
+                buy_points["close"],
+                marker="^",
+                label="Buy signal",
+                color="green",
+                s=80,
+                zorder=3,
+            )
+        if not sell_points.empty:
+            ax.scatter(
+                sell_points["date"],
+                sell_points["close"],
+                marker="v",
+                label="Sell signal",
+                color="red",
+                s=80,
+                zorder=3,
+            )
+
+    ax.set_title("Price, Moving Averages, and Signals")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Price")
+    ax.legend()
+    ax.grid(True, alpha=0.25)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
+    plt.close(fig)
+
+
+def show_equity_curve(backtest_result: pd.DataFrame) -> None:
+    if "date" not in backtest_result.columns or "total_value" not in backtest_result.columns:
+        st.warning("Equity curve cannot be drawn because date or total_value is missing.")
+        return
+
+    equity_data = backtest_result.copy()
+    equity_data["date"] = pd.to_datetime(equity_data["date"])
+    equity_data = equity_data.set_index("date")
+    st.line_chart(equity_data[["total_value"]])
+
+
+def show_drawdown_curve(backtest_result: pd.DataFrame) -> None:
+    if "date" not in backtest_result.columns or "total_value" not in backtest_result.columns:
+        st.warning("Drawdown curve cannot be drawn because date or total_value is missing.")
+        return
+
+    drawdown_data = backtest_result.copy()
+    drawdown_data["date"] = pd.to_datetime(drawdown_data["date"])
+    total_value = drawdown_data["total_value"]
+    drawdown_data["drawdown"] = total_value / total_value.cummax() - 1
+    drawdown_data = drawdown_data.set_index("date")
+    st.line_chart(drawdown_data[["drawdown"]])
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -164,14 +269,16 @@ def main() -> None:
     trade_metrics = summarize_trade_metrics(trades)
     report = generate_rule_based_report(performance_summary)
 
-    chart_data = stock_data.set_index("date")
+    show_metric_cards(performance_summary, trade_metrics)
 
-    st.subheader("Closing Price")
-    st.line_chart(chart_data[["close"]])
+    st.subheader("Price and Strategy Signals")
+    show_price_signal_chart(stock_data)
 
-    if {"MA5", "MA20"}.issubset(stock_data.columns):
-        st.subheader("MA5 and MA20")
-        st.line_chart(chart_data[["MA5", "MA20"]])
+    st.subheader("Portfolio Equity Curve")
+    show_equity_curve(backtest_result)
+
+    st.subheader("Drawdown Curve")
+    show_drawdown_curve(backtest_result)
 
     st.subheader("Performance Summary")
     st.dataframe(

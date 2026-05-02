@@ -120,6 +120,9 @@ python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240
 ```
 
 The dashboard is for workflow demonstration and education, not trading advice.
+It shows key metric cards, price and moving-average charts with buy/sell
+markers, a portfolio equity curve, a drawdown curve, performance summary,
+trade log, and trade metrics.
 
 ## Smoke Tests
 
