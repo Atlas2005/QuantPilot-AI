@@ -46,7 +46,47 @@ def parse_args() -> argparse.Namespace:
         default=10000,
         help="Starting cash for the backtest.",
     )
+    parser.add_argument(
+        "--stop-loss-pct",
+        type=float,
+        default=None,
+        help="Optional stop-loss percentage, for example 3 means -3%%.",
+    )
+    parser.add_argument(
+        "--take-profit-pct",
+        type=float,
+        default=None,
+        help="Optional take-profit percentage, for example 10 means +10%%.",
+    )
+    parser.add_argument(
+        "--max-holding-days",
+        type=int,
+        default=None,
+        help="Optional maximum holding period in calendar days.",
+    )
     return parser.parse_args()
+
+
+def print_risk_controls(args: argparse.Namespace) -> None:
+    print("Risk Controls")
+    print("-------------")
+
+    if args.stop_loss_pct is None:
+        print("stop_loss_pct: disabled")
+    else:
+        print(f"stop_loss_pct: {args.stop_loss_pct:.2f}%")
+
+    if args.take_profit_pct is None:
+        print("take_profit_pct: disabled")
+    else:
+        print(f"take_profit_pct: {args.take_profit_pct:.2f}%")
+
+    if args.max_holding_days is None:
+        print("max_holding_days: disabled")
+    else:
+        print(f"max_holding_days: {args.max_holding_days}")
+
+    print()
 
 
 def print_trade_log(trades_df) -> None:
@@ -163,9 +203,14 @@ def main() -> None:
     backtest_result, trades = run_long_only_backtest_with_trades(
         stock_data,
         initial_cash=args.initial_cash,
+        stop_loss_pct=args.stop_loss_pct,
+        take_profit_pct=args.take_profit_pct,
+        max_holding_days=args.max_holding_days,
     )
     performance_summary = summarize_performance(backtest_result)
     report = generate_rule_based_report(performance_summary)
+
+    print_risk_controls(args)
 
     print("Performance Summary")
     print("-------------------")

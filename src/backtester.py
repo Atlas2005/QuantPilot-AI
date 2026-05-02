@@ -61,6 +61,9 @@ def run_long_only_backtest(
 def run_long_only_backtest_with_trades(
     df: pd.DataFrame,
     initial_cash: float = 10000.0,
+    stop_loss_pct: float | None = None,
+    take_profit_pct: float | None = None,
+    max_holding_days: int | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Run the long-only backtest and return both daily results and a trade log.
@@ -92,33 +95,56 @@ def run_long_only_backtest_with_trades(
             entry_date = date
             entry_price = close_price
 
-        elif signal == -1 and shares > 0:
-            cash = shares * close_price
-            profit = (close_price - entry_price) * shares
-            return_pct = ((close_price - entry_price) / entry_price) * 100
+        elif shares > 0:
+            current_return_pct = ((close_price - entry_price) / entry_price) * 100
             holding_days = (
                 pd.to_datetime(date) - pd.to_datetime(entry_date)
             ).days
+            exit_reason = None
 
-            trade_records.append(
-                {
-                    "entry_date": entry_date,
-                    "entry_price": entry_price,
-                    "exit_date": date,
-                    "exit_price": close_price,
-                    "shares": shares,
-                    "profit": profit,
-                    "return_pct": return_pct,
-                    "unrealized_profit": None,
-                    "unrealized_return_pct": None,
-                    "holding_days": holding_days,
-                    "status": "closed",
-                }
-            )
+            if (
+                stop_loss_pct is not None
+                and current_return_pct <= -stop_loss_pct
+            ):
+                exit_reason = "stop_loss"
+            elif (
+                take_profit_pct is not None
+                and current_return_pct >= take_profit_pct
+            ):
+                exit_reason = "take_profit"
+            elif (
+                max_holding_days is not None
+                and holding_days >= max_holding_days
+            ):
+                exit_reason = "max_holding_days"
+            elif signal == -1:
+                exit_reason = "signal"
 
-            shares = 0.0
-            entry_date = None
-            entry_price = None
+            if exit_reason is not None:
+                cash = shares * close_price
+                profit = (close_price - entry_price) * shares
+                return_pct = current_return_pct
+
+                trade_records.append(
+                    {
+                        "entry_date": entry_date,
+                        "entry_price": entry_price,
+                        "exit_date": date,
+                        "exit_price": close_price,
+                        "shares": shares,
+                        "profit": profit,
+                        "return_pct": return_pct,
+                        "unrealized_profit": None,
+                        "unrealized_return_pct": None,
+                        "holding_days": holding_days,
+                        "status": "closed",
+                        "exit_reason": exit_reason,
+                    }
+                )
+
+                shares = 0.0
+                entry_date = None
+                entry_price = None
 
         position_value = shares * close_price
         total_value = cash + position_value
@@ -158,6 +184,7 @@ def run_long_only_backtest_with_trades(
                 "unrealized_return_pct": unrealized_return_pct,
                 "holding_days": holding_days,
                 "status": "open",
+                "exit_reason": "open",
             }
         )
 
