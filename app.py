@@ -1049,6 +1049,18 @@ def render_parameter_experiment_tab() -> None:
     start_text = st.text_input("Start date", value="20240101")
     end_text = st.text_input("End date", value="20241231")
     source = st.selectbox("Source mode", EXPERIMENT_SOURCE_OPTIONS)
+    if source == "demo":
+        st.warning(
+            "Demo mode reuses the local sample CSV for each entered symbol, "
+            "so different symbols may show identical results. Use Baostock "
+            "or Akshare real data for real multi-stock comparison."
+        )
+    else:
+        st.info(
+            "Real-data mode fetches each symbol separately, then runs all "
+            "risk-control scenarios in memory."
+        )
+
     initial_cash = st.number_input(
         "Experiment initial cash",
         min_value=0.0,
@@ -1070,7 +1082,7 @@ def render_parameter_experiment_tab() -> None:
             return
 
     run_clicked = st.button(
-        label="Run parameter experiment",
+        label="Run experiment",
         key="run_parameter_experiment_button",
         type="primary",
     )
@@ -1094,7 +1106,7 @@ def render_parameter_experiment_tab() -> None:
     stored_result = st.session_state.get("parameter_experiment_result")
     current_inputs = (tuple(symbols), source, start_text, end_text, initial_cash)
     if stored_result is None or stored_result["inputs"] != current_inputs:
-        st.info("Set experiment inputs, then click 'Run parameter experiment'.")
+        st.info("Set experiment inputs, then click 'Run experiment'.")
         return
 
     display_parameter_experiment_outputs(
