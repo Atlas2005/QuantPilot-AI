@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import matplotlib.dates as mdates
@@ -9,14 +10,19 @@ import streamlit as st
 from src.backtester import run_long_only_backtest_with_trades
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
+from src.real_data_loader import fetch_a_share_daily_from_source
 from src.report_generator import generate_rule_based_report
 from src.strategy import generate_ma_crossover_signals
 from src.trade_metrics import summarize_trade_metrics
 
 
 DEMO_DATA_PATH = Path("data/sample/demo_000001.csv")
-LOCAL_REAL_DATA_DIR = Path("data/real")
 REQUIRED_COLUMNS = ["date", "open", "high", "low", "close", "volume"]
+REAL_DATA_SOURCES = {
+    "Baostock real data": "baostock",
+    "AkShare real data": "akshare",
+    "Auto real data": "auto",
+}
 
 
 def parse_optional_float(value: str, label: str) -> float | None:
@@ -243,51 +249,135 @@ def validate_stock_data(stock_data: pd.DataFrame) -> None:
         st.stop()
 
 
-def load_demo_data() -> tuple[pd.DataFrame, str]:
+def validate_non_empty_stock_data(stock_data: pd.DataFrame, label: str) -> None:
+    if stock_data.empty:
+        st.error(f"{label} returned no rows. Try another symbol or date range.")
+        st.stop()
+
+
+def format_date_for_loader(date_value: date) -> str:
+    return date_value.strftime("%Y%m%d")
+
+
+@st.cache_data(show_spinner=False)
+def fetch_real_stock_data(
+    symbol: str,
+    source: str,
+    start_date: str,
+    end_date: str,
+    adjust: str,
+) -> pd.DataFrame:
+    return fetch_a_share_daily_from_source(
+        symbol=symbol,
+        source=source,
+        start_date=start_date,
+        end_date=end_date,
+        adjust=adjust,
+    )
+
+
+def load_demo_data() -> tuple[pd.DataFrame, str, dict]:
     if not DEMO_DATA_PATH.exists():
         st.error(f"Demo CSV is missing: {DEMO_DATA_PATH}")
         st.stop()
 
-    return pd.read_csv(DEMO_DATA_PATH), f"Demo data: {DEMO_DATA_PATH}"
+    return (
+        pd.read_csv(DEMO_DATA_PATH),
+        f"Demo data: {DEMO_DATA_PATH}",
+        {"mode": "Demo data"},
+    )
 
 
-def load_local_real_csv() -> tuple[pd.DataFrame, str]:
-    csv_files = sorted(LOCAL_REAL_DATA_DIR.glob("*.csv"))
-    if not csv_files:
-        st.warning(
-            "No local real CSV files found in data/real/. "
-            "Create one with the command-line real-data workflow first."
+def load_real_data(source_mode: str) -> tuple[pd.DataFrame, str, dict]:
+    source = REAL_DATA_SOURCES[source_mode]
+    symbol = st.sidebar.text_input("Stock symbol", value="000001").strip()
+    start_date_value = st.sidebar.date_input(
+        "Start date",
+        value=date(2024, 1, 1),
+    )
+    end_date_value = st.sidebar.date_input(
+        "End date",
+        value=date(2024, 12, 31),
+    )
+    adjust = st.sidebar.text_input("Adjust mode", value="qfq").strip()
+
+    if not symbol:
+        st.sidebar.error("Stock symbol cannot be blank.")
+        st.stop()
+    if start_date_value > end_date_value:
+        st.sidebar.error("Start date must be before or equal to end date.")
+        st.stop()
+    if not adjust:
+        st.sidebar.error("Adjust mode cannot be blank. Use qfq, hfq, or none.")
+        st.stop()
+
+    start_text = format_date_for_loader(start_date_value)
+    end_text = format_date_for_loader(end_date_value)
+    fetch_key = (source, symbol, start_text, end_text, adjust)
+
+    fetch_clicked = st.sidebar.button("Fetch data and run backtest")
+    stored_result = st.session_state.get("real_data_result")
+
+    if fetch_clicked:
+        try:
+            with st.spinner(
+                "Fetching real A-share data. Free data sources can take a moment..."
+            ):
+                stock_data = fetch_real_stock_data(
+                    symbol=symbol,
+                    source=source,
+                    start_date=start_text,
+                    end_date=end_text,
+                    adjust=adjust,
+                )
+        except Exception as exc:
+            st.error(f"Real-data fetch failed: {exc}")
+            st.stop()
+
+        validate_non_empty_stock_data(stock_data, source_mode)
+        st.session_state["real_data_result"] = {
+            "key": fetch_key,
+            "data": stock_data.copy(),
+        }
+        stored_result = st.session_state["real_data_result"]
+
+    if stored_result is None or stored_result.get("key") != fetch_key:
+        st.info(
+            "Choose real-data settings in the sidebar, then click "
+            "'Fetch data and run backtest'."
         )
         st.stop()
 
-    selected_file = st.sidebar.selectbox(
-        "Local real CSV",
-        csv_files,
-        format_func=lambda path: path.name,
+    data_label = (
+        f"{source_mode}: symbol={symbol}, "
+        f"range={start_date_value:%Y-%m-%d} to {end_date_value:%Y-%m-%d}, "
+        f"adjust={adjust}"
     )
-    return pd.read_csv(selected_file), f"Local real CSV: {selected_file}"
+    details = {
+        "mode": source_mode,
+        "source": source,
+        "symbol": symbol,
+        "start": f"{start_date_value:%Y-%m-%d}",
+        "end": f"{end_date_value:%Y-%m-%d}",
+        "adjust": adjust,
+    }
+    return stored_result["data"].copy(), data_label, details
 
 
-def load_uploaded_csv() -> tuple[pd.DataFrame, str]:
-    uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
-    if uploaded_file is None:
-        st.info("Upload a CSV file to run the dashboard with browser data.")
-        st.stop()
-
-    return pd.read_csv(uploaded_file), f"Uploaded CSV: {uploaded_file.name}"
-
-
-def load_selected_data() -> tuple[pd.DataFrame, str]:
+def load_selected_data() -> tuple[pd.DataFrame, str, dict]:
     data_source_mode = st.sidebar.selectbox(
         "Data source mode",
-        ["Demo data", "Local real CSV", "Upload CSV"],
+        [
+            "Demo data",
+            "Baostock real data",
+            "AkShare real data",
+            "Auto real data",
+        ],
     )
 
     if data_source_mode == "Demo data":
         return load_demo_data()
-    if data_source_mode == "Local real CSV":
-        return load_local_real_csv()
-    return load_uploaded_csv()
+    return load_real_data(data_source_mode)
 
 
 def show_metric_cards(performance_summary: dict, trade_metrics: dict) -> None:
@@ -428,12 +518,16 @@ def main() -> None:
         "Max holding days",
     )
 
-    stock_data, data_label = load_selected_data()
+    stock_data, data_label, data_details = load_selected_data()
     validate_stock_data(stock_data)
+    validate_non_empty_stock_data(stock_data, data_details["mode"])
     stock_data["date"] = pd.to_datetime(stock_data["date"])
 
     st.subheader("Loaded Data Preview")
     st.write(f"Using data source: `{data_label}`")
+    if data_details["mode"] != "Demo data":
+        st.write(f"Selected symbol: `{data_details['symbol']}`")
+        st.write(f"Selected date range: `{data_details['start']}` to `{data_details['end']}`")
     st.dataframe(format_data_preview(stock_data.head(10)), width="stretch")
 
     stock_data = add_all_indicators(stock_data)
