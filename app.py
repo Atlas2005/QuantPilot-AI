@@ -109,14 +109,14 @@ SCENARIO_LABELS = {
     ),
 }
 SCENARIO_SHORT_LABELS = {
-    "baseline": "Baseline",
-    "sl_3": "SL 3%",
-    "sl_5": "SL 5%",
-    "tp_10": "TP 10%",
-    "max_30": "Max 30d",
-    "sl_3_tp_10": "SL 3% + TP 10%",
-    "sl_3_max_30": "SL 3% + Max 30d",
-    "sl_3_tp_10_max_30": "SL 3% + TP 10% + Max 30d",
+    "baseline": "Base",
+    "sl_3": "SL3",
+    "sl_5": "SL5",
+    "tp_10": "TP10",
+    "max_30": "Max30",
+    "sl_3_tp_10": "SL3+TP10",
+    "sl_3_max_30": "SL3+Max30",
+    "sl_3_tp_10_max_30": "SL3+TP10+Max30",
 }
 PERIOD_RESULT_COLUMNS = [
     "period",
@@ -546,7 +546,7 @@ def format_period_results_table(results_df: pd.DataFrame, compact: bool) -> pd.D
         )
 
     display_df["error"] = display_df["error"].fillna("")
-    return display_df.fillna("N/A")
+    return display_df.fillna("N/A").reset_index(drop=True)
 
 
 def format_period_summary_table(summary_df: pd.DataFrame) -> pd.DataFrame:
@@ -565,7 +565,7 @@ def format_period_summary_table(summary_df: pd.DataFrame) -> pd.DataFrame:
     for column in ["avg_profit_factor", "avg_average_holding_days"]:
         display_df[column] = display_df[column].apply(format_table_number_or_na)
 
-    return display_df.fillna("N/A")
+    return display_df.fillna("N/A").reset_index(drop=True)
 
 
 def format_period_ranking_table(ranking_df: pd.DataFrame) -> pd.DataFrame:
@@ -575,7 +575,7 @@ def format_period_ranking_table(ranking_df: pd.DataFrame) -> pd.DataFrame:
     display_df = format_period_summary_table(ranking_df)
     if "score" in display_df.columns:
         display_df["score"] = ranking_df["score"].apply(format_table_number_or_na)
-    return display_df.fillna("N/A")
+    return display_df.fillna("N/A").reset_index(drop=True)
 
 
 def get_best_metric_row(df: pd.DataFrame, metric_column: str) -> pd.Series | None:
@@ -1508,6 +1508,10 @@ def display_period_experiment_outputs(
     show_period_summary_cards(results_df, overall_summary_df, ranking_df)
 
     st.subheader("Period Experiment Charts")
+    st.caption(
+        "Charts use short scenario labels. Full scenario labels and raw codes "
+        "are shown in the tables below."
+    )
     show_period_experiment_charts(overall_summary_df, ranking_df)
 
     result_title = "Compact Period Results" if compact else "Period Experiment Results"
@@ -1701,25 +1705,29 @@ def show_period_bar_chart(
 
     chart_df["scenario_short_label"] = chart_df["scenario"].apply(scenario_short_label)
     st.write(title)
-    st.caption(
-        "Charts use short scenario labels. Full scenario labels and raw codes "
-        "are shown in the tables below."
-    )
 
     fig_height = max(3.0, 0.45 * len(chart_df))
     fig, ax = plt.subplots(figsize=(10, fig_height))
     ax.barh(chart_df["scenario_short_label"], chart_df[metric_column], color="tab:blue")
     ax.invert_yaxis()
-    ax.set_xlabel(title)
+    ax.set_xlabel("Value")
     ax.set_ylabel("Scenario")
     ax.grid(True, axis="x", alpha=0.25)
 
+    min_value = float(chart_df[metric_column].min())
+    max_value = float(chart_df[metric_column].max())
+    value_range = max(max_value - min_value, 1.0)
+    padding = value_range * 0.18
+    ax.set_xlim(min_value - padding, max_value + padding)
+    label_offset = value_range * 0.025
+
     for index, value in enumerate(chart_df[metric_column]):
         label = f"{value:.2f}{value_suffix}"
+        x_position = value + label_offset if value >= 0 else value - label_offset
         ax.text(
-            value,
+            x_position,
             index,
-            f" {label}",
+            label,
             va="center",
             ha="left" if value >= 0 else "right",
             fontsize=9,
@@ -1737,27 +1745,27 @@ def show_period_experiment_charts(
     show_period_bar_chart(
         overall_summary_df,
         "avg_total_return_pct",
-        "Average total return by scenario",
+        "Average total return (%)",
         ranking_df,
         "%",
     )
     show_period_bar_chart(
         overall_summary_df,
         "avg_max_drawdown_pct",
-        "Average maximum drawdown by scenario",
+        "Average maximum drawdown (%)",
         ranking_df,
         "%",
     )
     show_period_bar_chart(
         overall_summary_df,
         "avg_profit_factor",
-        "Average profit factor by scenario",
+        "Average profit factor",
         ranking_df,
     )
     show_period_bar_chart(
         ranking_df,
         "score",
-        "Scenario score by scenario",
+        "Scenario score",
         ranking_df,
     )
 
