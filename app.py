@@ -510,6 +510,18 @@ def format_period_ranking_table(ranking_df: pd.DataFrame) -> pd.DataFrame:
     return display_df.fillna("N/A")
 
 
+def get_best_metric_row(df: pd.DataFrame, metric_column: str) -> pd.Series | None:
+    if df.empty or metric_column not in df.columns:
+        return None
+
+    metric_values = pd.to_numeric(df[metric_column], errors="coerce")
+    available_values = metric_values.dropna()
+    if available_values.empty:
+        return None
+
+    return df.loc[available_values.idxmax()]
+
+
 def format_chart_date_axis(ax) -> None:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
@@ -1424,6 +1436,12 @@ def display_period_experiment_outputs(
             f"experiment can continue. Failed cases: {failed_labels}"
         )
 
+    st.subheader("Period Experiment Summary")
+    show_period_summary_cards(results_df, overall_summary_df, ranking_df)
+
+    st.subheader("Period Experiment Charts")
+    show_period_experiment_charts(overall_summary_df, ranking_df)
+
     result_title = "Compact Period Results" if compact else "Period Experiment Results"
     st.subheader(result_title)
     period_results_display_df = format_period_results_table(results_df, compact)
@@ -1477,6 +1495,103 @@ def display_period_experiment_outputs(
     st.subheader("Quick Interpretation")
     for line in build_quick_interpretation(ranking_df):
         st.write(line)
+
+    st.subheader("How to read this experiment")
+    st.write(
+        "Higher average return is better. Smaller drawdown loss is better, "
+        "which means a drawdown closer to 0% is usually preferred. Higher "
+        "profit factor is better, but it should be interpreted together with "
+        "return, drawdown, and trade count. A strategy should not be judged by "
+        "one stock or one year only. This is educational research, not "
+        "financial advice."
+    )
+
+
+def show_period_summary_cards(
+    results_df: pd.DataFrame,
+    overall_summary_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+) -> None:
+    columns = st.columns(5)
+
+    best_overall = get_best_metric_row(ranking_df, "score")
+    columns[0].metric(
+        "Best overall scenario",
+        "N/A" if best_overall is None else best_overall["scenario"],
+    )
+
+    best_return = get_best_metric_row(overall_summary_df, "avg_total_return_pct")
+    columns[1].metric(
+        "Best average return",
+        "N/A"
+        if best_return is None
+        else f"{best_return['scenario']} ({best_return['avg_total_return_pct']:.2f}%)",
+    )
+
+    best_drawdown = get_best_metric_row(overall_summary_df, "avg_max_drawdown_pct")
+    columns[2].metric(
+        "Best drawdown control",
+        "N/A"
+        if best_drawdown is None
+        else f"{best_drawdown['scenario']} ({best_drawdown['avg_max_drawdown_pct']:.2f}%)",
+    )
+
+    best_profit_factor = get_best_metric_row(overall_summary_df, "avg_profit_factor")
+    columns[3].metric(
+        "Best profit factor",
+        "N/A"
+        if best_profit_factor is None
+        else f"{best_profit_factor['scenario']} ({best_profit_factor['avg_profit_factor']:.2f})",
+    )
+
+    success_df = results_df[results_df["scenario"] != "ERROR"]
+    columns[4].metric("Total cases tested", str(len(success_df)))
+
+
+def show_period_bar_chart(
+    df: pd.DataFrame,
+    metric_column: str,
+    title: str,
+) -> None:
+    if df.empty or metric_column not in df.columns:
+        st.info(f"{title} is unavailable because the metric is missing.")
+        return
+
+    chart_df = df[["scenario", metric_column]].copy()
+    chart_df[metric_column] = pd.to_numeric(chart_df[metric_column], errors="coerce")
+    chart_df = chart_df.dropna(subset=[metric_column])
+    if chart_df.empty:
+        st.info(f"{title} is unavailable because all values are N/A.")
+        return
+
+    st.write(title)
+    st.bar_chart(chart_df.set_index("scenario"), width="stretch")
+
+
+def show_period_experiment_charts(
+    overall_summary_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+) -> None:
+    show_period_bar_chart(
+        overall_summary_df,
+        "avg_total_return_pct",
+        "Average total return (%) by scenario",
+    )
+    show_period_bar_chart(
+        overall_summary_df,
+        "avg_max_drawdown_pct",
+        "Average maximum drawdown (%) by scenario",
+    )
+    show_period_bar_chart(
+        overall_summary_df,
+        "avg_profit_factor",
+        "Average profit factor by scenario",
+    )
+    show_period_bar_chart(
+        ranking_df,
+        "score",
+        "Scenario score by scenario",
+    )
 
 
 def render_parameter_experiment_tab() -> None:
