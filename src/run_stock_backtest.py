@@ -7,6 +7,7 @@ from metrics import summarize_performance
 from real_data_loader import fetch_a_share_daily_from_source, save_stock_csv
 from report_generator import generate_rule_based_report
 from strategy import generate_ma_crossover_signals
+from trade_metrics import summarize_trade_metrics
 
 
 def parse_args() -> argparse.Namespace:
@@ -92,6 +93,43 @@ def print_trade_log(trades_df) -> None:
     print(display_df.to_string(index=False))
 
 
+def print_trade_metrics(metrics: dict) -> None:
+    print()
+    print("Trade Metrics")
+    print("-------------")
+
+    money_fields = {
+        "total_realized_profit",
+        "average_profit",
+        "average_loss",
+        "best_trade_profit",
+        "worst_trade_profit",
+        "open_unrealized_profit",
+    }
+    pct_fields = {
+        "win_rate_pct",
+        "average_return_pct",
+        "best_trade_return_pct",
+        "worst_trade_return_pct",
+        "open_unrealized_return_pct",
+    }
+    float_fields = {"profit_factor", "average_holding_days"}
+
+    for key, value in metrics.items():
+        if value is None:
+            display_value = "N/A"
+        elif key in money_fields:
+            display_value = f"{value:.2f}"
+        elif key in pct_fields:
+            display_value = f"{value:.2f}%"
+        elif key in float_fields:
+            display_value = f"{value:.2f}"
+        else:
+            display_value = value
+
+        print(f"{key}: {display_value}")
+
+
 def main() -> None:
     args = parse_args()
 
@@ -143,6 +181,8 @@ def main() -> None:
     print(backtest_result.tail(10))
 
     print_trade_log(trades)
+    trade_metrics = summarize_trade_metrics(trades)
+    print_trade_metrics(trade_metrics)
 
 
 if __name__ == "__main__":
