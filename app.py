@@ -53,19 +53,175 @@ def format_trade_log(trades_df: pd.DataFrame) -> pd.DataFrame:
                 errors="coerce",
             ).dt.strftime("%Y-%m-%d")
 
+    money_columns = [
+        "entry_price",
+        "exit_price",
+        "profit",
+        "unrealized_profit",
+    ]
+    for column in money_columns:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_number)
+
+    percent_columns = [
+        "return_pct",
+        "unrealized_return_pct",
+    ]
+    for column in percent_columns:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_pct)
+
+    if "shares" in display_df.columns:
+        display_df["shares"] = display_df["shares"].apply(format_table_number)
+
+    if "holding_days" in display_df.columns:
+        display_df["holding_days"] = display_df["holding_days"].apply(
+            format_table_whole_number
+        )
+
+    display_df = display_df.fillna("")
     return display_df
 
 
+def is_missing(value) -> bool:
+    return value is None or pd.isna(value)
+
+
 def format_metric_pct(value) -> str:
-    if value is None or pd.isna(value):
+    if is_missing(value):
         return "N/A"
     return f"{value:.2f}%"
 
 
 def format_metric_number(value) -> str:
-    if value is None or pd.isna(value):
+    if is_missing(value):
         return "N/A"
     return f"{value:.2f}"
+
+
+def format_table_pct(value) -> str:
+    if is_missing(value):
+        return ""
+    return f"{value:.2f}%"
+
+
+def format_table_number(value) -> str:
+    if is_missing(value):
+        return ""
+    return f"{value:.2f}"
+
+
+def format_table_whole_number(value) -> str:
+    if is_missing(value):
+        return ""
+    return f"{int(value)}"
+
+
+def format_display_date(value) -> str:
+    if is_missing(value):
+        return ""
+
+    date_value = pd.to_datetime(value, errors="coerce")
+    if pd.isna(date_value):
+        return ""
+    return date_value.strftime("%Y-%m-%d")
+
+
+def format_data_preview(stock_data: pd.DataFrame) -> pd.DataFrame:
+    display_df = stock_data.copy()
+    for column in display_df.columns:
+        if column == "date" or column.endswith("_date"):
+            display_df[column] = display_df[column].apply(format_display_date)
+
+    return display_df.fillna("")
+
+
+def format_summary_value(metric: str, value) -> str:
+    if is_missing(value):
+        return ""
+
+    percent_metrics = {
+        "total_return_pct",
+        "max_drawdown_pct",
+    }
+    whole_number_metrics = {
+        "buy_signals",
+        "sell_signals",
+    }
+    money_metrics = {
+        "initial_value",
+        "final_value",
+    }
+
+    if metric in percent_metrics:
+        return format_table_pct(value)
+    if metric == "currently_holding":
+        return "True" if bool(value) else "False"
+    if metric in whole_number_metrics:
+        return format_table_whole_number(value)
+    if metric in money_metrics:
+        return format_table_number(value)
+    return str(value)
+
+
+def format_performance_summary(performance_summary: dict) -> pd.DataFrame:
+    rows = [
+        {
+            "metric": metric,
+            "value": format_summary_value(metric, value),
+        }
+        for metric, value in performance_summary.items()
+    ]
+    return pd.DataFrame(rows)
+
+
+def format_trade_metric_value(metric: str, value) -> str:
+    if is_missing(value):
+        return ""
+
+    percent_metrics = {
+        "win_rate_pct",
+        "average_return_pct",
+        "best_trade_return_pct",
+        "worst_trade_return_pct",
+        "open_unrealized_return_pct",
+    }
+    money_metrics = {
+        "total_realized_profit",
+        "average_profit",
+        "average_loss",
+        "best_trade_profit",
+        "worst_trade_profit",
+        "open_unrealized_profit",
+    }
+    whole_number_metrics = {
+        "total_trades",
+        "closed_trades",
+        "open_trades",
+        "winning_trades",
+        "losing_trades",
+    }
+
+    if metric in percent_metrics:
+        return format_table_pct(value)
+    if metric in money_metrics:
+        return format_table_number(value)
+    if metric in whole_number_metrics:
+        return format_table_whole_number(value)
+    if metric in {"profit_factor", "average_holding_days"}:
+        return format_table_number(value)
+    return str(value)
+
+
+def format_trade_metrics_table(trade_metrics: dict) -> pd.DataFrame:
+    rows = [
+        {
+            "metric": metric,
+            "value": format_trade_metric_value(metric, value),
+        }
+        for metric, value in trade_metrics.items()
+    ]
+    return pd.DataFrame(rows)
 
 
 def validate_stock_data(stock_data: pd.DataFrame) -> None:
@@ -214,9 +370,9 @@ def show_drawdown_curve(backtest_result: pd.DataFrame) -> None:
     drawdown_data = backtest_result.copy()
     drawdown_data["date"] = pd.to_datetime(drawdown_data["date"])
     total_value = drawdown_data["total_value"]
-    drawdown_data["drawdown"] = total_value / total_value.cummax() - 1
+    drawdown_data["Drawdown %"] = (total_value / total_value.cummax() - 1) * 100
     drawdown_data = drawdown_data.set_index("date")
-    st.line_chart(drawdown_data[["drawdown"]])
+    st.line_chart(drawdown_data[["Drawdown %"]])
 
 
 def main() -> None:
@@ -254,7 +410,7 @@ def main() -> None:
 
     st.subheader("Loaded Data Preview")
     st.write(f"Using data source: `{data_label}`")
-    st.dataframe(stock_data.head(10), width="stretch")
+    st.dataframe(format_data_preview(stock_data.head(10)), width="stretch")
 
     stock_data = add_all_indicators(stock_data)
     stock_data = generate_ma_crossover_signals(stock_data)
@@ -282,10 +438,7 @@ def main() -> None:
 
     st.subheader("Performance Summary")
     st.dataframe(
-        pd.DataFrame(
-            performance_summary.items(),
-            columns=["metric", "value"],
-        ),
+        format_performance_summary(performance_summary),
         width="stretch",
     )
 
@@ -300,10 +453,7 @@ def main() -> None:
 
     st.subheader("Trade Metrics")
     st.dataframe(
-        pd.DataFrame(
-            trade_metrics.items(),
-            columns=["metric", "value"],
-        ),
+        format_trade_metrics_table(trade_metrics),
         width="stretch",
     )
 
