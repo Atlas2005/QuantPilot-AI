@@ -120,6 +120,53 @@ The CI workflow installs dependencies and runs the smoke tests only. It does not
 fetch real market data and does not call Baostock or AkShare data download
 commands.
 
+## Example Output
+
+These snippets are shortened examples. Demo results use fake sample data and
+are only for checking the project workflow, not for real market conclusions.
+
+Setup check:
+
+```text
+QuantPilot-AI Setup Check
+-------------------------
+pandas: OK
+akshare: OK
+baostock: OK
+matplotlib: OK
+
+Setup check passed.
+```
+
+Offline demo:
+
+```text
+QuantPilot-AI Offline Demo
+--------------------------
+Using demo data file: data/sample/demo_000001.csv
+
+Performance Summary
+total_return_pct: 8.51
+
+QuantPilot-AI Rule-Based Strategy Report
+Total return: 8.51%
+
+Trade Metrics
+win_rate_pct: 100.00%
+```
+
+Smoke tests:
+
+```text
+QuantPilot-AI Smoke Tests
+-------------------------
+PASS: py_compile src/run_demo.py
+PASS: setup check
+PASS: offline demo
+
+All smoke tests passed.
+```
+
 ## Single-Stock Backtest
 
 Fetch real data, save it, and run the full backtest workflow:
