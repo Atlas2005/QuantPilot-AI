@@ -37,6 +37,19 @@ Saved CSV files use the V1-compatible columns:
 date, open, high, low, close, volume
 ```
 
+## Offline Demo
+
+Run the beginner-friendly offline demo:
+
+```powershell
+python src/run_demo.py
+```
+
+This mode uses `data/sample/demo_000001.csv` and does not use Baostock,
+AkShare, or the internet. The demo data is fake sample data for checking that
+the project workflow runs correctly. It should not be used for real market
+conclusions.
+
 ## Single-Stock Backtest
 
 Fetch real data, save it, and run the full backtest workflow:
