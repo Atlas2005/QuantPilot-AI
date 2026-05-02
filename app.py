@@ -24,6 +24,7 @@ REAL_DATA_SOURCES = {
     "Auto real data": "auto",
 }
 EXPERIMENT_SOURCE_OPTIONS = ["demo", "baostock", "akshare", "auto"]
+PERIOD_SOURCE_OPTIONS = ["demo", "baostock", "akshare"]
 SCENARIOS = [
     {
         "scenario": "baseline",
@@ -75,6 +76,28 @@ SCENARIOS = [
     },
 ]
 RESULT_COLUMNS = [
+    "symbol",
+    "scenario",
+    "stop_loss_pct",
+    "take_profit_pct",
+    "max_holding_days",
+    "final_value",
+    "total_return_pct",
+    "max_drawdown_pct",
+    "total_trades",
+    "closed_trades",
+    "open_trades",
+    "win_rate_pct",
+    "profit_factor",
+    "average_return_pct",
+    "best_trade_return_pct",
+    "worst_trade_return_pct",
+    "average_holding_days",
+    "currently_holding",
+    "error",
+]
+PERIOD_RESULT_COLUMNS = [
+    "period",
     "symbol",
     "scenario",
     "stop_loss_pct",
@@ -197,9 +220,21 @@ def format_table_number_or_na(value) -> str:
     return f"{value:.2f}"
 
 
+def format_table_pct_or_na(value) -> str:
+    if is_missing(value):
+        return "N/A"
+    return f"{value:.2f}%"
+
+
 def format_table_whole_number(value) -> str:
     if is_missing(value):
         return ""
+    return f"{int(value)}"
+
+
+def format_table_whole_number_or_na(value) -> str:
+    if is_missing(value):
+        return "N/A"
     return f"{int(value)}"
 
 
@@ -386,6 +421,95 @@ def format_ranking_table(ranking_df: pd.DataFrame) -> pd.DataFrame:
     return display_df.fillna("")
 
 
+def format_period_results_table(results_df: pd.DataFrame, compact: bool) -> pd.DataFrame:
+    if results_df.empty:
+        return results_df
+
+    if compact:
+        display_columns = [
+            "period",
+            "symbol",
+            "scenario",
+            "total_return_pct",
+            "max_drawdown_pct",
+            "profit_factor",
+            "win_rate_pct",
+            "final_value",
+            "currently_holding",
+            "error",
+        ]
+    else:
+        display_columns = PERIOD_RESULT_COLUMNS
+
+    display_df = results_df[display_columns].copy()
+
+    for column in [
+        "total_return_pct",
+        "max_drawdown_pct",
+        "win_rate_pct",
+        "average_return_pct",
+        "best_trade_return_pct",
+        "worst_trade_return_pct",
+    ]:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_pct_or_na)
+
+    for column in ["profit_factor", "final_value", "average_holding_days"]:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_number_or_na)
+
+    for column in ["total_trades", "closed_trades", "open_trades"]:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(
+                format_table_whole_number_or_na
+            )
+
+    for column in ["stop_loss_pct", "take_profit_pct"]:
+        if column in display_df.columns:
+            display_df[column] = display_df[column].apply(format_table_pct_or_na)
+
+    if "max_holding_days" in display_df.columns:
+        display_df["max_holding_days"] = display_df["max_holding_days"].apply(
+            format_table_whole_number_or_na
+        )
+
+    if "currently_holding" in display_df.columns:
+        display_df["currently_holding"] = display_df["currently_holding"].apply(
+            lambda value: "N/A" if is_missing(value) else str(bool(value))
+        )
+
+    display_df["error"] = display_df["error"].fillna("")
+    return display_df.fillna("N/A")
+
+
+def format_period_summary_table(summary_df: pd.DataFrame) -> pd.DataFrame:
+    if summary_df.empty:
+        return summary_df
+
+    display_df = summary_df.copy()
+    for column in [
+        "avg_total_return_pct",
+        "avg_max_drawdown_pct",
+        "avg_win_rate_pct",
+    ]:
+        display_df[column] = display_df[column].apply(format_table_pct_or_na)
+
+    for column in ["avg_profit_factor", "avg_average_holding_days"]:
+        display_df[column] = display_df[column].apply(format_table_number_or_na)
+
+    return display_df.fillna("N/A")
+
+
+def format_period_ranking_table(ranking_df: pd.DataFrame) -> pd.DataFrame:
+    if ranking_df.empty:
+        return ranking_df
+
+    display_df = format_period_summary_table(ranking_df)
+    if "score" in display_df.columns:
+        display_df["score"] = ranking_df["score"].apply(format_table_number_or_na)
+    return display_df.fillna("N/A")
+
+
 def format_chart_date_axis(ax) -> None:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
@@ -437,8 +561,27 @@ def parse_symbols(symbols_text: str) -> list[str]:
     ]
 
 
+def parse_periods(periods_text: str) -> list[str]:
+    return [period.strip() for period in periods_text.split(",") if period.strip()]
+
+
+def period_to_dates(period: str) -> tuple[str, str]:
+    if not period.isdigit() or len(period) != 4:
+        raise ValueError(f"Invalid period year: {period}. Expected YYYY.")
+    return f"{period}0101", f"{period}1231"
+
+
 def make_error_row(symbol: str, error: str) -> dict:
     row = {column: None for column in RESULT_COLUMNS}
+    row["symbol"] = symbol
+    row["scenario"] = "ERROR"
+    row["error"] = error
+    return row
+
+
+def make_period_error_row(period: str, symbol: str, error: str) -> dict:
+    row = {column: None for column in PERIOD_RESULT_COLUMNS}
+    row["period"] = period
     row["symbol"] = symbol
     row["scenario"] = "ERROR"
     row["error"] = error
@@ -512,6 +655,23 @@ def run_experiment_scenario(
         "currently_holding": performance["currently_holding"],
         "error": None,
     }
+
+
+def run_period_experiment_scenario(
+    period: str,
+    symbol: str,
+    prepared_data: pd.DataFrame,
+    initial_cash: float,
+    scenario: dict,
+) -> dict:
+    result = run_experiment_scenario(
+        symbol=symbol,
+        prepared_data=prepared_data,
+        initial_cash=initial_cash,
+        scenario=scenario,
+    )
+    result["period"] = period
+    return {column: result.get(column) for column in PERIOD_RESULT_COLUMNS}
 
 
 def build_scenario_average_summary(results_df: pd.DataFrame) -> pd.DataFrame:
@@ -591,6 +751,138 @@ def build_scenario_ranking(summary_df: pd.DataFrame) -> pd.DataFrame:
             "rank",
             "scenario",
             "symbols_tested",
+            "avg_total_return_pct",
+            "avg_max_drawdown_pct",
+            "avg_profit_factor",
+            "avg_win_rate_pct",
+            "avg_average_holding_days",
+            "score",
+        ]
+    ]
+
+
+def build_period_summary(results_df: pd.DataFrame) -> pd.DataFrame:
+    success_df = results_df[results_df["scenario"] != "ERROR"].copy()
+    columns = [
+        "period",
+        "scenario",
+        "symbols_tested",
+        "avg_total_return_pct",
+        "avg_max_drawdown_pct",
+        "avg_profit_factor",
+        "avg_win_rate_pct",
+        "avg_average_holding_days",
+    ]
+    if success_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    for column in [
+        "total_return_pct",
+        "max_drawdown_pct",
+        "profit_factor",
+        "win_rate_pct",
+        "average_holding_days",
+    ]:
+        success_df[column] = pd.to_numeric(success_df[column], errors="coerce")
+
+    return (
+        success_df.groupby(["period", "scenario"], sort=False)
+        .agg(
+            symbols_tested=("symbol", "nunique"),
+            avg_total_return_pct=("total_return_pct", "mean"),
+            avg_max_drawdown_pct=("max_drawdown_pct", "mean"),
+            avg_profit_factor=("profit_factor", "mean"),
+            avg_win_rate_pct=("win_rate_pct", "mean"),
+            avg_average_holding_days=("average_holding_days", "mean"),
+        )
+        .reset_index()
+    )
+
+
+def build_period_overall_summary(results_df: pd.DataFrame) -> pd.DataFrame:
+    success_df = results_df[results_df["scenario"] != "ERROR"].copy()
+    columns = [
+        "scenario",
+        "periods_tested",
+        "symbols_tested",
+        "total_cases",
+        "avg_total_return_pct",
+        "avg_max_drawdown_pct",
+        "avg_profit_factor",
+        "avg_win_rate_pct",
+        "avg_average_holding_days",
+    ]
+    if success_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    for column in [
+        "total_return_pct",
+        "max_drawdown_pct",
+        "profit_factor",
+        "win_rate_pct",
+        "average_holding_days",
+    ]:
+        success_df[column] = pd.to_numeric(success_df[column], errors="coerce")
+
+    return (
+        success_df.groupby("scenario", sort=False)
+        .agg(
+            periods_tested=("period", "nunique"),
+            symbols_tested=("symbol", "nunique"),
+            total_cases=("symbol", "count"),
+            avg_total_return_pct=("total_return_pct", "mean"),
+            avg_max_drawdown_pct=("max_drawdown_pct", "mean"),
+            avg_profit_factor=("profit_factor", "mean"),
+            avg_win_rate_pct=("win_rate_pct", "mean"),
+            avg_average_holding_days=("average_holding_days", "mean"),
+        )
+        .reset_index()
+    )
+
+
+def build_period_scenario_ranking(overall_df: pd.DataFrame) -> pd.DataFrame:
+    if overall_df.empty:
+        return pd.DataFrame(
+            columns=[
+                "rank",
+                "scenario",
+                "periods_tested",
+                "symbols_tested",
+                "total_cases",
+                "avg_total_return_pct",
+                "avg_max_drawdown_pct",
+                "avg_profit_factor",
+                "avg_win_rate_pct",
+                "avg_average_holding_days",
+                "score",
+            ]
+        )
+
+    ranking_df = overall_df.copy()
+    for column in [
+        "avg_total_return_pct",
+        "avg_max_drawdown_pct",
+        "avg_profit_factor",
+    ]:
+        ranking_df[column] = pd.to_numeric(ranking_df[column], errors="coerce")
+
+    ranking_df["score"] = (
+        ranking_df["avg_total_return_pct"].fillna(0)
+        + ranking_df["avg_profit_factor"].fillna(0) * 2
+        + ranking_df["avg_max_drawdown_pct"].fillna(0) * 0.3
+    )
+    ranking_df = ranking_df.sort_values("score", ascending=False).reset_index(
+        drop=True
+    )
+    ranking_df.insert(0, "rank", range(1, len(ranking_df) + 1))
+
+    return ranking_df[
+        [
+            "rank",
+            "scenario",
+            "periods_tested",
+            "symbols_tested",
+            "total_cases",
             "avg_total_return_pct",
             "avg_max_drawdown_pct",
             "avg_profit_factor",
@@ -696,6 +988,58 @@ def run_parameter_experiment(
     ranking_df = build_scenario_ranking(summary_df)
 
     return results_df, summary_df, ranking_df
+
+
+def run_period_experiment(
+    symbols: list[str],
+    periods: list[str],
+    source: str,
+    adjust: str,
+    initial_cash: float,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    rows = []
+    for period in periods:
+        try:
+            start_date, end_date = period_to_dates(period)
+        except ValueError as exc:
+            for symbol in symbols:
+                rows.append(make_period_error_row(period, symbol, str(exc)))
+            continue
+
+        for symbol in symbols:
+            try:
+                if source == "demo":
+                    stock_data = load_cached_demo_data()
+                else:
+                    stock_data = fetch_real_stock_data(
+                        symbol=symbol,
+                        source=source,
+                        start_date=start_date,
+                        end_date=end_date,
+                        adjust=adjust,
+                    )
+
+                ensure_stock_data_or_raise(stock_data)
+                prepared_data = prepare_strategy_data(stock_data)
+                rows.extend(
+                    run_period_experiment_scenario(
+                        period=period,
+                        symbol=symbol,
+                        prepared_data=prepared_data,
+                        initial_cash=initial_cash,
+                        scenario=scenario,
+                    )
+                    for scenario in SCENARIOS
+                )
+            except Exception as exc:
+                rows.append(make_period_error_row(period, symbol, str(exc)))
+
+    results_df = pd.DataFrame(rows, columns=PERIOD_RESULT_COLUMNS)
+    period_summary_df = build_period_summary(results_df)
+    overall_summary_df = build_period_overall_summary(results_df)
+    ranking_df = build_period_scenario_ranking(overall_summary_df)
+
+    return results_df, period_summary_df, overall_summary_df, ranking_df
 
 
 def load_demo_data() -> tuple[pd.DataFrame, str, dict]:
@@ -1053,6 +1397,88 @@ def display_parameter_experiment_outputs(
         st.write(line)
 
 
+def display_period_experiment_outputs(
+    results_df: pd.DataFrame,
+    period_summary_df: pd.DataFrame,
+    overall_summary_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+    compact: bool,
+) -> None:
+    error_rows = results_df[
+        results_df["error"].notna()
+        & (results_df["error"].astype(str).str.strip() != "")
+    ]
+    if not error_rows.empty:
+        failed_pairs = (
+            error_rows[["period", "symbol"]]
+            .dropna()
+            .drop_duplicates()
+            .astype(str)
+        )
+        failed_labels = ", ".join(
+            f"{row.period}/{row.symbol}" for row in failed_pairs.itertuples()
+        )
+        st.warning(
+            "Some symbol-period fetches failed during real-data fetching or "
+            "processing. They are kept as ERROR rows so the rest of the "
+            f"experiment can continue. Failed cases: {failed_labels}"
+        )
+
+    result_title = "Compact Period Results" if compact else "Period Experiment Results"
+    st.subheader(result_title)
+    period_results_display_df = format_period_results_table(results_df, compact)
+    st.dataframe(period_results_display_df, width="stretch")
+    compact_period_df = format_period_results_table(results_df, True)
+    st.download_button(
+        label="Download compact period results CSV",
+        data=dataframe_to_csv_bytes(compact_period_df),
+        file_name="compact_period_results.csv",
+        mime="text/csv",
+        key="download_compact_period_results_csv",
+        type="secondary",
+    )
+
+    st.subheader("Scenario Period Summary")
+    period_summary_display_df = format_period_summary_table(period_summary_df)
+    st.dataframe(period_summary_display_df, width="stretch")
+    st.download_button(
+        label="Download scenario period summary CSV",
+        data=dataframe_to_csv_bytes(period_summary_df),
+        file_name="scenario_period_summary.csv",
+        mime="text/csv",
+        key="download_scenario_period_summary_csv",
+        type="secondary",
+    )
+
+    st.subheader("Overall Scenario Summary")
+    overall_summary_display_df = format_period_summary_table(overall_summary_df)
+    st.dataframe(overall_summary_display_df, width="stretch")
+    st.download_button(
+        label="Download overall scenario summary CSV",
+        data=dataframe_to_csv_bytes(overall_summary_df),
+        file_name="overall_scenario_summary.csv",
+        mime="text/csv",
+        key="download_overall_scenario_summary_csv",
+        type="secondary",
+    )
+
+    st.subheader("Scenario Ranking")
+    ranking_display_df = format_period_ranking_table(ranking_df)
+    st.dataframe(ranking_display_df, width="stretch")
+    st.download_button(
+        label="Download scenario ranking CSV",
+        data=dataframe_to_csv_bytes(ranking_df),
+        file_name="period_scenario_ranking.csv",
+        mime="text/csv",
+        key="download_period_scenario_ranking_csv",
+        type="secondary",
+    )
+
+    st.subheader("Quick Interpretation")
+    for line in build_quick_interpretation(ranking_df):
+        st.write(line)
+
+
 def render_parameter_experiment_tab() -> None:
     st.write(
         "Compare the default risk-control scenarios across multiple symbols. "
@@ -1134,6 +1560,121 @@ def render_parameter_experiment_tab() -> None:
     )
 
 
+def render_period_experiment_tab() -> None:
+    st.write(
+        "Test the same risk-control scenarios across multiple symbols and "
+        "multiple year periods."
+    )
+
+    symbols_text = st.text_input(
+        "Period experiment symbols",
+        value="000001,600519,000858,600036,601318",
+        help="Comma-separated A-share symbols.",
+    )
+    periods_text = st.text_input(
+        "Periods",
+        value="2021,2022,2023,2024,2025",
+        help="Comma-separated years, for example 2021,2022,2023.",
+    )
+    source = st.selectbox("Period source mode", PERIOD_SOURCE_OPTIONS)
+    if source == "demo":
+        st.warning(
+            "Demo mode reuses the local sample CSV for every symbol and year. "
+            "Results are useful for checking the workflow, not real multi-year "
+            "market conclusions."
+        )
+    else:
+        st.info(
+            "Real-data mode fetches each symbol-year once, then runs all "
+            "risk-control scenarios in memory."
+        )
+
+    initial_cash = st.number_input(
+        "Period experiment initial cash",
+        min_value=0.0,
+        value=10000.0,
+        step=1000.0,
+    )
+    adjust = st.text_input("Adjust mode", value="qfq")
+    compact = st.checkbox("Compact mode", value=True)
+
+    symbols = parse_symbols(symbols_text)
+    periods = parse_periods(periods_text)
+    if not symbols:
+        st.warning("Enter at least one symbol.")
+        return
+    if not periods:
+        st.warning("Enter at least one period year.")
+        return
+
+    invalid_periods = [
+        period for period in periods if not period.isdigit() or len(period) != 4
+    ]
+    if invalid_periods:
+        st.error(
+            "Periods must be four-digit years. Invalid values: "
+            + ", ".join(invalid_periods)
+        )
+        return
+
+    if not adjust.strip():
+        st.error("Adjust mode cannot be blank. Use qfq, hfq, or none.")
+        return
+
+    run_clicked = st.button(
+        label="Run period experiment",
+        key="run_period_experiment_button",
+        type="primary",
+    )
+    if run_clicked:
+        with st.spinner("Running period experiment..."):
+            results_df, period_summary_df, overall_summary_df, ranking_df = (
+                run_period_experiment(
+                    symbols=symbols,
+                    periods=periods,
+                    source=source,
+                    adjust=adjust.strip(),
+                    initial_cash=initial_cash,
+                )
+            )
+
+        st.session_state["period_experiment_result"] = {
+            "inputs": (
+                tuple(symbols),
+                tuple(periods),
+                source,
+                adjust.strip(),
+                initial_cash,
+                compact,
+            ),
+            "results": results_df,
+            "period_summary": period_summary_df,
+            "overall_summary": overall_summary_df,
+            "ranking": ranking_df,
+        }
+
+    stored_result = st.session_state.get("period_experiment_result")
+    current_inputs = (
+        tuple(symbols),
+        tuple(periods),
+        source,
+        adjust.strip(),
+        initial_cash,
+        compact,
+    )
+    if stored_result is None or stored_result["inputs"] != current_inputs:
+        st.info("Set period experiment inputs, then click 'Run period experiment'.")
+        return
+
+    display_period_experiment_outputs(
+        stored_result["results"],
+        stored_result["period_summary"],
+        stored_result["overall_summary"],
+        stored_result["ranking"],
+        compact=compact,
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -1163,7 +1704,9 @@ def main() -> None:
         "Max holding days",
     )
 
-    single_tab, experiment_tab = st.tabs(["Single Backtest", "Parameter Experiment"])
+    single_tab, experiment_tab, period_tab = st.tabs(
+        ["Single Backtest", "Parameter Experiment", "Period Experiment"]
+    )
     with single_tab:
         render_single_backtest_tab(
             initial_cash=initial_cash,
@@ -1174,6 +1717,9 @@ def main() -> None:
 
     with experiment_tab:
         render_parameter_experiment_tab()
+
+    with period_tab:
+        render_period_experiment_tab()
 
 
 if __name__ == "__main__":
