@@ -42,6 +42,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run ML signal backtest | `python src/run_ml_signal_backtest.py --model-dir models/demo_000001 --factor-csv data/factors/factors_000001.csv --initial-cash 10000 --buy-threshold 0.60 --sell-threshold 0.50` |
 | Run ML threshold experiment | `python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --output outputs/ml_threshold_experiment.csv` |
 | Run model robustness training | `python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest` |
+| Run real P0 robustness workflow | `python src/run_real_p0_robustness.py --symbols 000001,600519,000858,600036,601318 --start 20210101 --end 20241231 --output-dir outputs/model_robustness_real_v2` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -89,6 +90,7 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_ml_threshold_experiment.py`: Command-line tool for ML threshold experiments.
 - `src/batch_model_trainer.py`: Trains and compares baseline models across symbols.
 - `src/run_batch_model_training.py`: Command-line tool for model robustness training.
+- `src/run_real_p0_robustness.py`: Real Baostock workflow for rebuilding P0 factor robustness outputs.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -574,6 +576,50 @@ such as `future_return_5d` and `label_up_5d` remain separate label columns and
 must not be used as input features. The expanded P0 feature space is useful for
 safer research iteration, but it is still not enough to imply profitable
 trading or investment advice.
+
+## V4 Step 15: Real Baostock P0 Robustness Workflow
+
+Step 15 documents a real-data workflow for rebuilding Baostock factor datasets
+with the expanded P0 OHLCV columns from Step 14, then rerunning multi-symbol
+baseline model robustness comparison. It reuses the existing factor builder,
+dataset splitter, baseline model trainer, and batch robustness trainer. It does
+not change strategy rules, backtester behavior, or model-training logic.
+
+One-command real-data workflow:
+
+```powershell
+python src/run_real_p0_robustness.py --symbols 000001,600519,000858,600036,601318 --start 20210101 --end 20241231 --output-dir outputs/model_robustness_real_v2 --models logistic_regression,random_forest
+```
+
+This command fetches Baostock OHLCV data, rebuilds factor CSVs under
+`outputs/model_robustness_real_v2/factors/`, creates chronological ML splits,
+trains the selected baseline models, and saves robustness outputs such as
+`training_results.csv`, `model_summary.csv`, `model_ranking.csv`,
+`warnings.csv`, and `run_config.json`.
+
+The helper also compares against the previous robustness workflow if
+`outputs/model_robustness_real_v1/` exists:
+
+```powershell
+python src/run_real_p0_robustness.py --symbols 000001,600519,000858,600036,601318 --start 20210101 --end 20241231 --baseline-dir outputs/model_robustness_real_v1 --output-dir outputs/model_robustness_real_v2
+```
+
+When both v1 and v2 output files are present, comparison CSVs are written under
+the v2 folder:
+
+- `model_summary_comparison_vs_v1.csv`
+- `training_results_comparison_vs_v1.csv`
+
+The same workflow can be run with the existing generic batch command:
+
+```powershell
+python src/run_batch_model_training.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20210101 --end 20241231 --output-dir outputs/model_robustness_real_v2 --models logistic_regression,random_forest
+```
+
+Generated outputs under `outputs/`, `data/`, and `models/` remain ignored by
+Git. Real-data robustness metrics are educational diagnostics only. Improved
+classification metrics after adding P0 factors do not guarantee profitable
+trading.
 
 ## Smoke Tests
 
