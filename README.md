@@ -709,6 +709,49 @@ These are research decisions, not trading advice. A group marked `core_keep`
 still needs walk-forward validation, out-of-symbol checks, and realistic
 trading-cost review before being trusted in any model workflow.
 
+## V4 Step 18: Individual Factor Ablation and Pruning Plan
+
+Step 18 extends ablation from factor groups to individual feature columns. This
+fills the gap when `feature_impact_ranking.csv` is empty because `drop_feature`
+diagnostics have not been run yet.
+
+Run individual feature ablation on existing factor data:
+
+```powershell
+python src/run_factor_ablation.py --input data/factors/factors_000001.csv --output-dir outputs/factor_ablation_000001_features --models logistic_regression,random_forest --ablation-modes drop_feature
+```
+
+Run batch individual feature ablation across symbols:
+
+```powershell
+python src/run_batch_factor_ablation.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20210101 --end 20241231 --output-dir outputs/factor_ablation_real_features_v1 --models logistic_regression,random_forest --ablation-modes drop_feature
+```
+
+For a faster first pass, limit the number of dropped features:
+
+```powershell
+python src/run_batch_factor_ablation.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/factor_ablation_demo --models logistic_regression,random_forest --ablation-modes drop_feature --max-drop-features 10
+```
+
+Individual feature outputs include:
+
+- `feature_ablation_results.csv`: one row per dropped feature/model/symbol test.
+- `feature_impact_ranking.csv`: average metric changes when each feature is removed.
+- `feature_pruning_recommendations.csv`: transparent pruning decisions.
+
+Pruning decisions use simple research rules:
+
+- `keep_core`: removing the feature hurts ROC AUC/F1 consistently.
+- `keep_observe`: mixed but not clearly harmful.
+- `reduce_weight`: removing the feature improves ROC AUC on average.
+- `drop_candidate`: removing the feature improves ROC AUC and F1 consistently.
+- `needs_more_data`: evidence is insufficient or inconsistent.
+
+The `Factor Decisions` dashboard tab shows individual feature pruning
+recommendations when `feature_pruning_recommendations.csv` exists. These
+recommendations do not change model training automatically. Apply pruning only
+in controlled experiments with chronological splits and walk-forward validation.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

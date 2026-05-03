@@ -189,7 +189,9 @@ COMMAND_CHECKS = [
             "--models",
             "logistic_regression,random_forest",
             "--ablation-modes",
-            "drop_group,only_group",
+            "drop_group,only_group,drop_feature",
+            "--max-drop-features",
+            "6",
         ],
     ),
     (
@@ -199,8 +201,10 @@ COMMAND_CHECKS = [
             (
                 "from pathlib import Path; "
                 "base=Path('outputs/factor_ablation_demo'); "
-                "required=['ablation_results.csv','group_summary.csv',"
-                "'feature_impact_ranking.csv','warnings.csv','run_config.json']; "
+                "required=['ablation_results.csv','feature_ablation_results.csv',"
+                "'group_summary.csv','feature_impact_ranking.csv',"
+                "'feature_pruning_recommendations.csv','warnings.csv',"
+                "'run_config.json']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
                 "assert not missing, missing"
             ),

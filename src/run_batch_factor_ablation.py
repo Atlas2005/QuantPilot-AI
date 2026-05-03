@@ -10,6 +10,7 @@ try:
     from .build_factor_dataset import save_factor_dataset
     from .factor_ablation import (
         build_feature_impact_ranking,
+        build_feature_pruning_recommendations,
         build_group_summary,
         parse_ablation_modes,
         parse_model_types,
@@ -21,6 +22,7 @@ except ImportError:
     from build_factor_dataset import save_factor_dataset
     from factor_ablation import (
         build_feature_impact_ranking,
+        build_feature_pruning_recommendations,
         build_group_summary,
         parse_ablation_modes,
         parse_model_types,
@@ -42,6 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-col", default="label_up_5d")
     parser.add_argument("--ablation-modes", default="drop_group,only_group")
     parser.add_argument("--purge-rows", type=int, default=5)
+    parser.add_argument("--max-drop-features", type=int)
     return parser.parse_args()
 
 
@@ -98,6 +101,7 @@ def main() -> None:
                 ablation_modes=ablation_modes,
                 purge_rows=args.purge_rows,
                 symbol=symbol,
+                max_drop_features=args.max_drop_features,
             )
             all_results.append(result["ablation_results"])
             all_warnings.append(result["warnings"])
@@ -118,18 +122,36 @@ def main() -> None:
     ablation_results = _combine_frames(all_results)
     group_summary = build_group_summary(ablation_results)
     feature_impact_ranking = build_feature_impact_ranking(ablation_results)
+    feature_ablation_results = (
+        ablation_results[ablation_results["ablation_type"] == "drop_feature"].copy()
+        if not ablation_results.empty and "ablation_type" in ablation_results
+        else pd.DataFrame()
+    )
+    feature_pruning_recommendations = build_feature_pruning_recommendations(
+        ablation_results
+    )
     warnings = _combine_frames(all_warnings)
 
     output_files = {
         "ablation_results": output_dir / "ablation_results.csv",
+        "feature_ablation_results": output_dir / "feature_ablation_results.csv",
         "group_summary": output_dir / "group_summary.csv",
         "feature_impact_ranking": output_dir / "feature_impact_ranking.csv",
+        "feature_pruning_recommendations": output_dir / "feature_pruning_recommendations.csv",
         "warnings": output_dir / "warnings.csv",
         "run_config": output_dir / "run_config.json",
     }
     ablation_results.to_csv(output_files["ablation_results"], index=False)
+    feature_ablation_results.to_csv(
+        output_files["feature_ablation_results"],
+        index=False,
+    )
     group_summary.to_csv(output_files["group_summary"], index=False)
     feature_impact_ranking.to_csv(output_files["feature_impact_ranking"], index=False)
+    feature_pruning_recommendations.to_csv(
+        output_files["feature_pruning_recommendations"],
+        index=False,
+    )
     warnings.to_csv(output_files["warnings"], index=False)
 
     run_config = {
@@ -142,6 +164,7 @@ def main() -> None:
         "target_col": args.target_col,
         "ablation_modes": ablation_modes,
         "purge_rows": args.purge_rows,
+        "max_drop_features": args.max_drop_features,
     }
     output_files["run_config"].write_text(
         json.dumps(run_config, indent=2, ensure_ascii=False),

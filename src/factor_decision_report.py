@@ -45,6 +45,9 @@ def load_factor_ablation_outputs(input_dir: str | Path) -> dict[str, Any]:
         "feature_impact_ranking": load_csv_if_available(
             base / "feature_impact_ranking.csv"
         ),
+        "feature_pruning_recommendations": load_csv_if_available(
+            base / "feature_pruning_recommendations.csv"
+        ),
         "ablation_results": load_csv_if_available(base / "ablation_results.csv"),
         "warnings": load_csv_if_available(base / "warnings.csv"),
         "run_config": load_json_if_available(base / "run_config.json"),
@@ -213,6 +216,7 @@ def generate_factor_decision_report(input_dir: str | Path) -> dict[str, Any]:
     outputs = load_factor_ablation_outputs(input_dir)
     group_summary = outputs["group_summary"]
     feature_ranking = outputs["feature_impact_ranking"]
+    pruning_recommendations = outputs["feature_pruning_recommendations"]
     warnings_df = outputs["warnings"]
     run_config = outputs["run_config"]
     decision_summary = build_decision_summary(group_summary)
@@ -291,12 +295,18 @@ def generate_factor_decision_report(input_dir: str | Path) -> dict[str, Any]:
             "## Individual Feature Signals",
         ]
     )
-    if feature_ranking.empty:
+    if pruning_recommendations.empty and feature_ranking.empty:
         sections.append(
             "_feature_impact_ranking.csv is empty. Run ablation mode `drop_feature` for individual P0 feature diagnostics._"
         )
     else:
-        sections.append(markdown_table(feature_ranking.head(20)))
+        if not pruning_recommendations.empty:
+            sections.append("### Pruning Recommendations")
+            sections.append(markdown_table(pruning_recommendations.head(30)))
+            sections.append("")
+        if not feature_ranking.empty:
+            sections.append("### Feature Impact Ranking")
+            sections.append(markdown_table(feature_ranking.head(20)))
 
     sections.extend(["", "## Warnings"])
     if warnings_df.empty:
@@ -328,6 +338,7 @@ def generate_factor_decision_report(input_dir: str | Path) -> dict[str, Any]:
         "decision_summary": decision_summary,
         "strongest_groups": strongest,
         "weakest_groups": weakest,
+        "feature_pruning_recommendations": pruning_recommendations,
         "markdown_report": "\n".join(sections),
         "loaded_outputs": outputs,
     }

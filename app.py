@@ -3636,6 +3636,10 @@ def render_factor_decisions_tab() -> None:
     decision_summary = result["decision_summary"]
     strongest = result["strongest_groups"]
     weakest = result["weakest_groups"]
+    pruning_recommendations = result.get(
+        "feature_pruning_recommendations",
+        pd.DataFrame(),
+    )
     report_text = result["markdown_report"]
 
     st.subheader("Decision Summary")
@@ -3655,6 +3659,15 @@ def render_factor_decisions_tab() -> None:
         st.info("No weak or noisy groups are available.")
     else:
         st.dataframe(weakest, width="stretch")
+
+    st.subheader("Individual Feature Pruning Recommendations")
+    if pruning_recommendations.empty:
+        st.info(
+            "No individual feature recommendations are available. Run factor "
+            "ablation with drop_feature mode first."
+        )
+    else:
+        st.dataframe(pruning_recommendations, width="stretch")
 
     st.subheader("Markdown Report")
     st.markdown(report_text)
