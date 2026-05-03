@@ -2767,6 +2767,195 @@ def render_ml_threshold_experiment_tab() -> None:
     )
 
 
+def describe_roc_auc(value) -> str:
+    if is_missing(value):
+        return "ROC AUC is unavailable."
+    if value < 0.45:
+        return f"ROC AUC {value:.2f} is below random and is a serious warning."
+    if value < 0.55:
+        return f"ROC AUC {value:.2f} is close to random."
+    if value < 0.65:
+        return f"ROC AUC {value:.2f} is modestly above random."
+    if value < 0.80:
+        return f"ROC AUC {value:.2f} is meaningfully above random, but still needs robustness checks."
+    return f"ROC AUC {value:.2f} is high; verify leakage, sample size, and symbol stability."
+
+
+def build_robustness_diagnostics(
+    summary_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+    results_df: pd.DataFrame,
+    warnings_df: pd.DataFrame,
+) -> dict:
+    diagnostics = {
+        "quick_lines": [],
+        "best_model": None,
+        "weakest_pair": None,
+        "validation_test_gap": pd.DataFrame(),
+        "warnings_summary": pd.DataFrame(),
+        "consistent_model_note": "Not enough model types to compare consistency.",
+    }
+
+    if summary_df.empty or results_df.empty:
+        diagnostics["quick_lines"].append("No robustness results are available yet.")
+        return diagnostics
+
+    valid_summary = summary_df.dropna(subset=["avg_test_roc_auc"]).copy()
+    if not valid_summary.empty:
+        best_model = valid_summary.sort_values(
+            "avg_test_roc_auc",
+            ascending=False,
+        ).iloc[0]
+        diagnostics["best_model"] = best_model
+        diagnostics["quick_lines"].append(
+            f"Best average test ROC AUC model: {best_model['model_type']} "
+            f"({best_model['avg_test_roc_auc']:.2f}). "
+            + describe_roc_auc(best_model["avg_test_roc_auc"])
+        )
+
+    successful_results = results_df[results_df["error"].isna()].copy()
+    if not successful_results.empty:
+        successful_results["validation_test_roc_auc_gap"] = (
+            successful_results["validation_roc_auc"]
+            - successful_results["test_roc_auc"]
+        )
+        gap_df = successful_results[
+            [
+                "symbol",
+                "model_type",
+                "validation_roc_auc",
+                "test_roc_auc",
+                "validation_test_roc_auc_gap",
+            ]
+        ].copy()
+        diagnostics["validation_test_gap"] = gap_df.sort_values(
+            "validation_test_roc_auc_gap",
+            key=lambda values: values.abs(),
+            ascending=False,
+        ).reset_index(drop=True)
+
+        weakest_pair = successful_results.sort_values(
+            ["test_roc_auc", "test_f1"],
+            ascending=[True, True],
+        ).iloc[0]
+        diagnostics["weakest_pair"] = weakest_pair
+        diagnostics["quick_lines"].append(
+            f"Weakest symbol/model pair: {weakest_pair['symbol']} / "
+            f"{weakest_pair['model_type']} with test ROC AUC "
+            f"{weakest_pair['test_roc_auc']:.2f}."
+        )
+
+        max_gap = diagnostics["validation_test_gap"][
+            "validation_test_roc_auc_gap"
+        ].abs().max()
+        if pd.notna(max_gap) and max_gap > 0.20:
+            diagnostics["quick_lines"].append(
+                f"Validation/test ROC AUC diverges by up to {max_gap:.2f}; "
+                "this suggests unstable generalization."
+            )
+        else:
+            diagnostics["quick_lines"].append(
+                "Validation/test ROC AUC gaps are not large in this run."
+            )
+
+        small_samples = successful_results[
+            pd.to_numeric(successful_results["test_rows"], errors="coerce") < 50
+        ]
+        if not small_samples.empty:
+            diagnostics["quick_lines"].append(
+                f"{len(small_samples)} symbol/model rows have fewer than 50 test samples."
+            )
+
+        model_means = successful_results.groupby("model_type")["test_roc_auc"].mean()
+        if len(model_means) >= 2:
+            ordered_models = model_means.sort_values(ascending=False)
+            spread = ordered_models.iloc[0] - ordered_models.iloc[-1]
+            if spread >= 0.05:
+                diagnostics["consistent_model_note"] = (
+                    f"{ordered_models.index[0]} is ahead by {spread:.2f} average "
+                    "test ROC AUC versus the weakest model."
+                )
+            else:
+                diagnostics["consistent_model_note"] = (
+                    "No model is clearly better by average test ROC AUC; "
+                    "differences are small."
+                )
+
+    if not warnings_df.empty:
+        diagnostics["warnings_summary"] = (
+            warnings_df.groupby("warning_type")
+            .size()
+            .reset_index(name="count")
+            .sort_values("count", ascending=False)
+        )
+        if (warnings_df["warning_type"] == "suspicious_perfect_metrics").any():
+            diagnostics["quick_lines"].append(
+                "Suspiciously perfect metrics are present. Treat high scores as a warning, not validation."
+            )
+
+    diagnostics["quick_lines"].append(
+        "ROC AUC around 0.5 means close to random; higher test ROC AUC does not guarantee trading profit."
+    )
+    diagnostics["quick_lines"].append(
+        "Robustness across symbols is more important than one lucky symbol or split."
+    )
+    return diagnostics
+
+
+def render_robustness_interpretation(
+    summary_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+    results_df: pd.DataFrame,
+    warnings_df: pd.DataFrame,
+) -> None:
+    diagnostics = build_robustness_diagnostics(
+        summary_df,
+        ranking_df,
+        results_df,
+        warnings_df,
+    )
+
+    st.subheader("Quick Interpretation")
+    for line in diagnostics["quick_lines"]:
+        st.write(f"- {line}")
+    st.info(diagnostics["consistent_model_note"])
+
+    st.subheader("Best Model by Test ROC AUC")
+    best_model = diagnostics["best_model"]
+    if best_model is None:
+        st.info("No model has an available average test ROC AUC.")
+    else:
+        st.dataframe(pd.DataFrame([best_model]), width="stretch")
+
+    st.subheader("Weakest Symbol / Model Pair")
+    weakest_pair = diagnostics["weakest_pair"]
+    if weakest_pair is None:
+        st.info("No successful symbol/model rows are available.")
+    else:
+        st.dataframe(pd.DataFrame([weakest_pair]), width="stretch")
+
+    st.subheader("Validation-Test ROC AUC Gap")
+    gap_df = diagnostics["validation_test_gap"]
+    if gap_df.empty:
+        st.info("Validation-test gap table is unavailable.")
+    else:
+        st.dataframe(gap_df, width="stretch")
+
+    st.subheader("Warnings Summary")
+    warnings_summary = diagnostics["warnings_summary"]
+    if warnings_summary.empty:
+        st.success("No warning rows were produced.")
+    else:
+        st.dataframe(warnings_summary, width="stretch")
+
+    st.write(
+        "Educational notes: ROC AUC around 0.5 is close to random. A higher "
+        "test ROC AUC can still fail as a trading system after costs, slippage, "
+        "execution delay, and position sizing. Prefer stable behavior across "
+        "symbols and periods over one standout result."
+    )
+
+
 def render_model_robustness_tab() -> None:
     st.write(
         "Compare baseline model quality across multiple symbols and model types. "
@@ -2878,6 +3067,13 @@ def render_model_robustness_tab() -> None:
             "Some validation or test metrics are suspiciously close to perfect. "
             "Check for leakage, tiny samples, or overly regular demo data."
         )
+
+    render_robustness_interpretation(
+        summary_df=summary_df,
+        ranking_df=ranking_df,
+        results_df=results_df,
+        warnings_df=warnings_df,
+    )
 
     st.subheader("Model Summary")
     st.dataframe(summary_df, width="stretch")

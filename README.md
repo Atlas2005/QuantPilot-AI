@@ -411,6 +411,13 @@ The dashboard has a `Model Robustness` tab that runs the same workflow and
 shows summary tables, rankings, warnings, and bar charts for ROC AUC, F1, and
 robustness score.
 
+The tab also includes a `Quick Interpretation` section. It checks whether test
+ROC AUC is close to random, whether validation and test ROC AUC diverge, whether
+test samples are too small, whether one symbol/model pair is weak, whether one
+model type is consistently better, and whether high metrics look suspicious.
+ROC AUC around `0.5` is close to random. Stable behavior across symbols is more
+important than one lucky symbol or split.
+
 Suspiciously perfect metrics are a warning sign, not a success signal. This is
 not live trading, not financial advice, and not evidence that a strategy will
 work in the future.
