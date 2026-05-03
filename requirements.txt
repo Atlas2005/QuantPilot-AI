@@ -3,3 +3,5 @@ akshare
 baostock
 matplotlib
 streamlit
+scikit-learn
+joblib

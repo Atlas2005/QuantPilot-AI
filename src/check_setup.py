@@ -9,6 +9,8 @@ REQUIRED_PACKAGES = [
     "akshare",
     "baostock",
     "matplotlib",
+    "sklearn",
+    "joblib",
 ]
 
 

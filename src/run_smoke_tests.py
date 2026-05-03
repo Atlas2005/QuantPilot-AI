@@ -11,6 +11,8 @@ PY_COMPILE_FILES = [
     "src/build_factor_dataset.py",
     "src/dataset_splitter.py",
     "src/split_factor_dataset.py",
+    "src/model_trainer.py",
+    "src/train_baseline_model.py",
     "src/run_stock_backtest.py",
     "src/run_batch_experiment.py",
     "src/run_period_experiment.py",
@@ -29,6 +31,7 @@ COMMAND_CHECKS = [
     ("real_data_loader help", ["src/real_data_loader.py", "--help"]),
     ("build_factor_dataset help", ["src/build_factor_dataset.py", "--help"]),
     ("split_factor_dataset help", ["src/split_factor_dataset.py", "--help"]),
+    ("train_baseline_model help", ["src/train_baseline_model.py", "--help"]),
     (
         "demo factor dataset build",
         [
@@ -55,6 +58,20 @@ COMMAND_CHECKS = [
             "5",
             "--split-mode",
             "global_date",
+        ],
+    ),
+    (
+        "offline baseline model train",
+        [
+            "src/train_baseline_model.py",
+            "--dataset-dir",
+            "data/ml/smoke_000001",
+            "--target-col",
+            "label_up_5d",
+            "--model",
+            "random_forest",
+            "--output-dir",
+            "models/smoke_000001",
         ],
     ),
     ("run_stock_backtest help", ["src/run_stock_backtest.py", "--help"]),
