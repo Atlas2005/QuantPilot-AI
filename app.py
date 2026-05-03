@@ -10,6 +10,7 @@ import streamlit as st
 from src.backtester import run_long_only_backtest_with_trades
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
+from src.model_evaluator import evaluate_model_directory
 from src.model_predictor import run_model_prediction
 from src.real_data_loader import fetch_a_share_daily_from_source
 from src.report_generator import generate_rule_based_report
@@ -2262,6 +2263,139 @@ def render_model_prediction_tab() -> None:
     )
 
 
+def render_evaluation_split(name: str, report: dict) -> None:
+    st.subheader(f"{name.title()} Evaluation")
+    metrics = report["metrics"]
+    columns = st.columns(4)
+    columns[0].metric("Samples", metrics["sample_count"])
+    columns[1].metric("Accuracy", format_metric_number(metrics["accuracy"]))
+    columns[2].metric("F1", format_metric_number(metrics["f1"]))
+    columns[3].metric("ROC AUC", format_metric_number(metrics["roc_auc"]))
+
+    confusion_df = pd.DataFrame(
+        [
+            {"actual": "0", "predicted_0": metrics["tn"], "predicted_1": metrics["fp"]},
+            {"actual": "1", "predicted_0": metrics["fn"], "predicted_1": metrics["tp"]},
+        ]
+    )
+    st.write("Confusion matrix")
+    st.dataframe(confusion_df, width="stretch")
+
+    probability = report["probability_analysis"]
+    if probability.get("available"):
+        probability_summary = pd.DataFrame(
+            [
+                {
+                    "metric": key,
+                    "value": probability.get(key),
+                }
+                for key in [
+                    "min_probability",
+                    "max_probability",
+                    "mean_probability",
+                    "median_probability",
+                    "avg_probability_actual_positive",
+                    "avg_probability_actual_negative",
+                ]
+            ]
+        )
+        st.write("Probability summary")
+        st.dataframe(probability_summary, width="stretch")
+        st.write("Probability buckets")
+        st.dataframe(
+            pd.DataFrame(probability["bucket_distribution"]),
+            width="stretch",
+        )
+    else:
+        st.info("Probability analysis is unavailable because no probability column exists.")
+
+    threshold_df = pd.DataFrame(report["threshold_analysis"])
+    st.write("Threshold analysis")
+    if threshold_df.empty:
+        st.info("Threshold analysis is unavailable without probabilities.")
+    else:
+        st.dataframe(threshold_df, width="stretch")
+
+    signal_backtest = report["signal_backtest"]
+    st.write("Simple ML signal return check")
+    if signal_backtest.get("available"):
+        st.json(signal_backtest)
+    else:
+        st.info(signal_backtest.get("reason", "Signal check unavailable."))
+
+    st.write("Warnings")
+    for warning in report["warnings"]:
+        st.warning(warning)
+
+
+def render_model_evaluation_tab() -> None:
+    st.write(
+        "Review prediction quality for saved validation/test prediction files. "
+        "This is a diagnostic view for spotting suspicious metrics and leakage risk."
+    )
+    model_dir = st.text_input(
+        "Model directory",
+        value="models/demo_000001",
+        help="Directory containing metrics.json and prediction CSVs.",
+    )
+    target_col = st.text_input("Target column", value="label_up_5d")
+    signal_threshold = st.slider(
+        "Signal threshold",
+        min_value=0.50,
+        max_value=0.90,
+        value=0.60,
+        step=0.05,
+    )
+
+    run_clicked = st.button(
+        "Evaluate model outputs",
+        key="run_model_evaluation_button",
+        type="primary",
+    )
+    if not run_clicked:
+        st.caption(
+            "The tab automatically loads metrics.json, validation_predictions.csv, "
+            "test_predictions.csv, feature_columns.txt, and feature_importance.csv "
+            "from the selected model directory when available."
+        )
+        return
+
+    try:
+        result = evaluate_model_directory(
+            model_dir=model_dir,
+            target_col=target_col,
+            signal_threshold=signal_threshold,
+        )
+    except Exception as exc:
+        st.error(f"Model evaluation failed: {exc}")
+        return
+
+    st.subheader("Model Artifact Summary")
+    st.write(f"Model directory: `{result['model_dir']}`")
+    st.write(f"Feature count: {len(result['feature_columns'])}")
+    leakage_columns = result["feature_leakage_columns"]
+    if leakage_columns:
+        st.error("Feature leakage columns detected: " + ", ".join(leakage_columns))
+    else:
+        st.success("No target/label/future columns detected in feature_columns.txt.")
+
+    if result["feature_importance"]:
+        st.subheader("Feature Importance")
+        st.dataframe(pd.DataFrame(result["feature_importance"]).head(20), width="stretch")
+
+    render_evaluation_split("validation", result["validation"])
+    render_evaluation_split("test", result["test"])
+
+    st.subheader("Interpretation")
+    st.write(
+        "Perfect or near-perfect validation/test metrics should be treated as a "
+        "diagnostic warning, especially on small or synthetic datasets. They may "
+        "indicate leakage, an overly easy label, duplicated information, or a "
+        "demo dataset that is too regular. Classification quality is not the "
+        "same thing as profitable trading after costs and execution assumptions."
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -2326,12 +2460,13 @@ def main() -> None:
         step=1.0,
     )
 
-    single_tab, experiment_tab, period_tab, model_tab = st.tabs(
+    single_tab, experiment_tab, period_tab, model_tab, evaluation_tab = st.tabs(
         [
             "Single Backtest",
             "Parameter Experiment",
             "Period Experiment",
             "Model Prediction",
+            "Model Evaluation",
         ]
     )
     with single_tab:
@@ -2355,6 +2490,9 @@ def main() -> None:
 
     with model_tab:
         render_model_prediction_tab()
+
+    with evaluation_tab:
+        render_model_evaluation_tab()
 
 
 if __name__ == "__main__":

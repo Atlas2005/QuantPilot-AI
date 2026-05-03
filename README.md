@@ -38,6 +38,7 @@ Run these commands from the project root in Windows PowerShell.
 | Split ML dataset | `python src/split_factor_dataset.py --input data/factors/factors_000001.csv --output-dir data/ml/demo_000001 --target-col label_up_5d --purge-rows 5 --split-mode global_date` |
 | Train baseline ML model | `python src/train_baseline_model.py --dataset-dir data/ml/demo_000001 --target-col label_up_5d --model random_forest --output-dir models/demo_000001` |
 | Predict with baseline model | `python src/predict_with_model.py --model-path models/demo_000001/random_forest.joblib --input data/factors/factors_000001.csv` |
+| Evaluate model quality | `python src/evaluate_model.py --model-dir models/demo_000001 --target-col label_up_5d` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -74,6 +75,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/train_baseline_model.py`: Command-line tool for baseline ML model training.
 - `src/model_predictor.py`: Loads trained model artifacts and predicts the latest factor row.
 - `src/predict_with_model.py`: Command-line tool for model prediction.
+- `src/model_evaluator.py`: Evaluates prediction quality and leakage warnings.
+- `src/evaluate_model.py`: Command-line tool for model evaluation diagnostics.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -265,6 +268,42 @@ Enter the model path and factor CSV path in that panel to view the probability,
 signal, scored row, saved metrics, and top factors. This panel does not modify
 the rule-based strategy, backtester, or live trading behavior. Model prediction
 is educational research output, not financial advice.
+
+## Model Evaluation
+
+Use the model evaluation tool to inspect prediction quality and diagnose
+suspicious results:
+
+```powershell
+python src/evaluate_model.py --model-dir models/demo_000001 --target-col label_up_5d
+```
+
+The evaluator reads these files from the model output directory:
+
+- `metrics.json`
+- `feature_columns.txt`
+- `validation_predictions.csv`
+- `test_predictions.csv`
+- `feature_importance.csv` when available
+
+It reports classification metrics, confusion matrix values, probability
+distribution buckets, threshold analysis for 0.50 through 0.70, leakage-related
+feature-name checks, and warnings. If prediction CSVs contain `close`, it also
+runs a simple educational long/flat signal return check based on the selected
+probability threshold. This quick check is not the rule-based strategy
+backtester and does not change existing trading logic.
+
+The dashboard has a `Model Evaluation` tab:
+
+```powershell
+streamlit run app.py
+```
+
+Enter the model directory, then click `Evaluate model outputs`. Suspiciously
+perfect validation or test metrics should be treated as a warning sign. They
+may indicate leakage, duplicated information, an overly easy target, or a demo
+dataset that is too regular. Good classification metrics do not prove a
+profitable trading strategy.
 
 ## Smoke Tests
 

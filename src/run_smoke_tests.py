@@ -16,6 +16,8 @@ PY_COMPILE_FILES = [
     "src/train_baseline_model.py",
     "src/model_predictor.py",
     "src/predict_with_model.py",
+    "src/model_evaluator.py",
+    "src/evaluate_model.py",
     "src/run_stock_backtest.py",
     "src/run_batch_experiment.py",
     "src/run_period_experiment.py",
@@ -36,6 +38,7 @@ COMMAND_CHECKS = [
     ("split_factor_dataset help", ["src/split_factor_dataset.py", "--help"]),
     ("train_baseline_model help", ["src/train_baseline_model.py", "--help"]),
     ("predict_with_model help", ["src/predict_with_model.py", "--help"]),
+    ("evaluate_model help", ["src/evaluate_model.py", "--help"]),
     (
         "demo factor dataset build",
         [
@@ -88,6 +91,18 @@ COMMAND_CHECKS = [
             "data/factors/smoke_factors_000001.csv",
             "--top-n",
             "5",
+        ],
+    ),
+    (
+        "offline model evaluation",
+        [
+            "src/evaluate_model.py",
+            "--model-dir",
+            "models/smoke_000001",
+            "--target-col",
+            "label_up_5d",
+            "--signal-threshold",
+            "0.6",
         ],
     ),
     ("run_stock_backtest help", ["src/run_stock_backtest.py", "--help"]),
