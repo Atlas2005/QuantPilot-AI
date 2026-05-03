@@ -34,6 +34,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run offline demo | `python src/run_demo.py` |
 | Run dashboard | `streamlit run app.py` |
 | Fetch real A-share data | `python src/real_data_loader.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
+| Build factor dataset | `python src/build_factor_dataset.py --source csv --input data/real/000001.csv --symbol 000001 --output data/factors/factors_000001.csv` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -55,11 +56,14 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `app.py`: Offline Streamlit dashboard for the demo workflow.
 - `data/sample/`: Tracked sample and demo CSV data for offline testing.
 - `data/real/`: Local folder for fetched real A-share data. Contents may vary by machine.
+- `data/factors/`: Generated factor datasets for future ML research. This folder is ignored by Git.
 - `reports/`: Generated CSV summaries and chart outputs. This folder is ignored by Git.
 - `src/check_setup.py`: Checks that required Python packages are installed.
 - `src/run_smoke_tests.py`: Runs offline compile, setup, demo, and help checks.
 - `src/run_demo.py`: Runs the offline demo without Baostock, AkShare, or internet access.
 - `src/real_data_loader.py`: Fetches real A-share daily data from AkShare or Baostock.
+- `src/factor_builder.py`: Builds feature-and-label factor datasets from OHLCV data.
+- `src/build_factor_dataset.py`: Command-line tool for creating factor CSV files.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -123,6 +127,43 @@ The dashboard is for workflow demonstration and education, not trading advice.
 It shows key metric cards, price and moving-average charts with buy/sell
 markers, a portfolio equity curve, a drawdown curve, performance summary,
 trade log, and trade metrics.
+
+## Factor Dataset Builder
+
+The factor dataset builder prepares clean feature-and-label CSV files for
+future machine-learning research. This step does not train a model and does not
+change the trading strategy or backtester.
+
+The builder starts from standardized OHLCV data with these columns:
+
+```text
+date, open, high, low, close, volume
+```
+
+It creates identifier columns, raw market columns, price/return features, trend
+features, volatility/risk features, technical indicators, and future-return
+labels. Feature columns use only current and past data. Label columns such as
+`future_return_5d` and `label_up_5d` intentionally use future returns and must
+not be used as model input features.
+
+The structure also reserves future feature groups for valuation, fund flow,
+institutional holdings, dividend, sentiment, news, and industry data. These
+external sources can be merged later without adding paid APIs in this step.
+
+Offline CSV example:
+
+```powershell
+python src/build_factor_dataset.py --source csv --input data/real/000001.csv --symbol 000001 --output data/factors/factors_000001.csv
+```
+
+Real-data example:
+
+```powershell
+python src/build_factor_dataset.py --source baostock --symbol 000001 --start 20240101 --end 20241231 --output data/factors/factors_000001.csv
+```
+
+The generated CSV is research data for future model training. It is not a
+trading recommendation.
 
 ## Smoke Tests
 
@@ -353,6 +394,8 @@ Generated files should not be committed.
 The project `.gitignore` ignores generated reports and cache files, including:
 
 - `reports/`
+- `data/factors/`
+- `models/`
 - Python cache files
 - Matplotlib cache files
 - local editor/system files

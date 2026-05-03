@@ -236,6 +236,8 @@ env/
 
 # Generated experiment outputs
 reports/
+data/factors/
+models/
 *.png
 *.jpg
 *.jpeg
