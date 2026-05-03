@@ -24,6 +24,8 @@ PY_COMPILE_FILES = [
     "src/run_ml_threshold_experiment.py",
     "src/batch_model_trainer.py",
     "src/run_batch_model_training.py",
+    "src/model_report_generator.py",
+    "src/generate_model_report.py",
     "src/run_stock_backtest.py",
     "src/run_batch_experiment.py",
     "src/run_period_experiment.py",
@@ -52,6 +54,7 @@ COMMAND_CHECKS = [
         ["src/run_ml_threshold_experiment.py", "--help"],
     ),
     ("run_batch_model_training help", ["src/run_batch_model_training.py", "--help"]),
+    ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     (
         "demo factor dataset build",
         [
@@ -179,6 +182,29 @@ COMMAND_CHECKS = [
                 "'model_ranking.csv','warnings.csv','run_config.json']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
                 "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
+        "offline model robustness report",
+        [
+            "src/generate_model_report.py",
+            "--input-dir",
+            "outputs/model_robustness_smoke",
+            "--output",
+            "reports/model_robustness_smoke.md",
+        ],
+    ),
+    (
+        "offline model robustness report file",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "path=Path('reports/model_robustness_smoke.md'); "
+                "assert path.exists(); "
+                "text=path.read_text(encoding='utf-8'); "
+                "assert '# Model Robustness Research Report' in text"
             ),
         ],
     ),

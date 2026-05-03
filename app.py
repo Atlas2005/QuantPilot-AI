@@ -24,6 +24,7 @@ from src.ml_threshold_experiment import (
 )
 from src.model_evaluator import evaluate_model_directory
 from src.model_predictor import run_model_prediction
+from src.model_report_generator import write_model_robustness_report
 from src.real_data_loader import fetch_a_share_daily_from_source
 from src.report_generator import generate_rule_based_report
 from src.strategy import generate_ma_crossover_signals
@@ -2956,6 +2957,43 @@ def render_robustness_interpretation(
     )
 
 
+def render_model_robustness_report_export(default_input_dir: str) -> None:
+    st.subheader("Markdown Research Report")
+    st.write(
+        "Generate a readable Markdown report from an existing robustness output "
+        "directory. This uses saved CSV and JSON outputs; it does not retrain models."
+    )
+    report_input_dir = st.text_input(
+        "Report input directory",
+        value=default_input_dir,
+        key="robustness_report_input_dir",
+        help="Use a directory containing model_summary.csv, model_ranking.csv, training_results.csv, warnings.csv, and run_config.json.",
+    )
+    report_output_path = st.text_input(
+        "Report output path",
+        value="reports/model_robustness_report.md",
+        key="robustness_report_output_path",
+    )
+    if st.button("Generate robustness report", key="generate_robustness_report_button"):
+        try:
+            saved_path, report_text = write_model_robustness_report(
+                input_dir=report_input_dir,
+                output_path=report_output_path,
+            )
+        except Exception as exc:
+            st.error(f"Report generation failed: {exc}")
+        else:
+            st.success(f"Report generated: {saved_path}")
+            st.markdown(report_text)
+            st.download_button(
+                "Download Markdown report",
+                data=report_text,
+                file_name=Path(saved_path).name,
+                mime="text/markdown",
+                key="download_robustness_report_button",
+            )
+
+
 def render_model_robustness_tab() -> None:
     st.write(
         "Compare baseline model quality across multiple symbols and model types. "
@@ -3025,6 +3063,8 @@ def render_model_robustness_tab() -> None:
         ["global_date", "per_symbol"],
         key="robustness_split_mode",
     )
+
+    render_model_robustness_report_export(output_dir)
 
     run_clicked = st.button(
         "Run robustness training",

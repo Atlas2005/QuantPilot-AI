@@ -42,6 +42,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run ML signal backtest | `python src/run_ml_signal_backtest.py --model-dir models/demo_000001 --factor-csv data/factors/factors_000001.csv --initial-cash 10000 --buy-threshold 0.60 --sell-threshold 0.50` |
 | Run ML threshold experiment | `python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --output outputs/ml_threshold_experiment.csv` |
 | Run model robustness training | `python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest` |
+| Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -86,6 +87,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_ml_threshold_experiment.py`: Command-line tool for ML threshold experiments.
 - `src/batch_model_trainer.py`: Trains and compares baseline models across symbols.
 - `src/run_batch_model_training.py`: Command-line tool for model robustness training.
+- `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
+- `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -421,6 +424,34 @@ important than one lucky symbol or split.
 Suspiciously perfect metrics are a warning sign, not a success signal. This is
 not live trading, not financial advice, and not evidence that a strategy will
 work in the future.
+
+## V4 Step 11: Model Robustness Report Export
+
+The model robustness report generator converts an existing robustness output
+directory into a readable Markdown research report. It does not retrain models,
+change predictions, or change backtest behavior. It only reads saved files such
+as `model_summary.csv`, `model_ranking.csv`, `training_results.csv`,
+`warnings.csv`, and `run_config.json`.
+
+CLI example:
+
+```powershell
+python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md
+```
+
+The report explains which model performed best by test ROC AUC, whether the
+ROC AUC is close to random, whether validation and test results diverge, which
+symbol/model pair is weakest, whether sample sizes are too small, and what to
+check next. Missing optional files are handled gracefully, and an empty
+`warnings.csv` is acceptable.
+
+The `Model Robustness` dashboard tab also includes a Markdown report export
+panel. Enter a robustness output directory and a report output path, then click
+`Generate robustness report` to preview the report and download the Markdown
+text. Generated report files under `reports/` are ignored by Git.
+
+High ML metrics and polished reports do not guarantee profitable trading. This
+report is educational research output, not financial advice.
 
 ## Smoke Tests
 
