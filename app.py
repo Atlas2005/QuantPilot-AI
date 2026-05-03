@@ -10,6 +10,7 @@ import streamlit as st
 from src.backtester import run_long_only_backtest_with_trades
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
+from src.ml_signal_backtester import run_ml_signal_backtest
 from src.model_evaluator import evaluate_model_directory
 from src.model_predictor import run_model_prediction
 from src.real_data_loader import fetch_a_share_daily_from_source
@@ -2396,6 +2397,155 @@ def render_model_evaluation_tab() -> None:
     )
 
 
+def render_ml_signal_backtest_tab() -> None:
+    st.write(
+        "Run a long/flat backtest by converting saved model probabilities into "
+        "buy and sell signals. This uses the existing backtester execution and "
+        "cost assumptions without changing rule-based strategy behavior."
+    )
+
+    model_dir = st.text_input(
+        "ML model directory",
+        value="models/demo_000001",
+        help="Directory containing a trained .joblib model and feature_columns.txt.",
+    )
+    factor_csv = st.text_input(
+        "Factor CSV path",
+        value="data/factors/factors_000001.csv",
+        help="Factor CSV or ML split CSV containing OHLCV and model feature columns.",
+    )
+    columns = st.columns(3)
+    initial_cash = columns[0].number_input(
+        "ML initial cash",
+        min_value=0.0,
+        value=10000.0,
+        step=1000.0,
+    )
+    buy_threshold = columns[1].number_input(
+        "Buy threshold",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.60,
+        step=0.05,
+        format="%.2f",
+    )
+    sell_threshold = columns[2].number_input(
+        "Sell threshold",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.50,
+        step=0.05,
+        format="%.2f",
+    )
+
+    execution_mode = st.selectbox(
+        "ML execution mode",
+        ["same_close", "next_open", "next_close"],
+        key="ml_signal_execution_mode",
+    )
+    cost_columns = st.columns(4)
+    commission_rate = cost_columns[0].number_input(
+        "ML commission rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    stamp_tax_rate = cost_columns[1].number_input(
+        "ML stamp tax rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    slippage_pct = cost_columns[2].number_input(
+        "ML slippage %",
+        min_value=0.0,
+        value=0.0,
+        step=0.01,
+        format="%.4f",
+    )
+    min_commission = cost_columns[3].number_input(
+        "ML min commission",
+        min_value=0.0,
+        value=0.0,
+        step=1.0,
+    )
+    compare_rule_based = st.checkbox(
+        "Compare with existing MA crossover strategy",
+        value=True,
+    )
+
+    run_clicked = st.button(
+        "Run ML signal backtest",
+        key="run_ml_signal_backtest_button",
+        type="primary",
+    )
+    if not run_clicked:
+        st.caption(
+            "Create ignored local model and factor artifacts first using the "
+            "factor, split, and training commands in the README."
+        )
+        return
+
+    try:
+        result = run_ml_signal_backtest(
+            model_dir=model_dir,
+            factor_csv=factor_csv,
+            initial_cash=initial_cash,
+            buy_threshold=buy_threshold,
+            sell_threshold=sell_threshold,
+            execution_mode=execution_mode,
+            commission_rate=commission_rate,
+            stamp_tax_rate=stamp_tax_rate,
+            slippage_pct=slippage_pct,
+            min_commission=min_commission,
+            compare_rule_based=compare_rule_based,
+        )
+    except Exception as exc:
+        st.error(f"ML signal backtest failed: {exc}")
+        return
+
+    st.subheader("ML Strategy Metrics")
+    st.dataframe(format_performance_summary(result["performance"]), width="stretch")
+
+    st.subheader("Buy-and-Hold Benchmark")
+    benchmark_rows = [
+        {"metric": key, "value": value}
+        for key, value in result["benchmark"].items()
+    ]
+    st.dataframe(pd.DataFrame(benchmark_rows), width="stretch")
+
+    rule_based = result.get("rule_based_comparison")
+    if rule_based and rule_based.get("available"):
+        st.subheader("Existing Rule-Based Strategy Comparison")
+        st.dataframe(
+            format_performance_summary(rule_based["performance"]),
+            width="stretch",
+        )
+
+    st.subheader("Trade Log")
+    if result["trades"].empty:
+        st.info("No trades were executed.")
+    else:
+        st.dataframe(format_trade_log(result["trades"]), width="stretch")
+
+    st.subheader("Equity Curve")
+    equity_df = result["backtest"][["date", "total_value"]].copy()
+    equity_df["date"] = pd.to_datetime(equity_df["date"])
+    st.line_chart(equity_df.set_index("date"))
+
+    st.subheader("Probability / Signal Preview")
+    preview_columns = ["date", "close", "prediction_probability", "signal"]
+    st.dataframe(
+        result["signal_data"][preview_columns].tail(30),
+        width="stretch",
+    )
+
+    for warning in result["warnings"]:
+        st.warning(warning)
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -2460,13 +2610,21 @@ def main() -> None:
         step=1.0,
     )
 
-    single_tab, experiment_tab, period_tab, model_tab, evaluation_tab = st.tabs(
+    (
+        single_tab,
+        experiment_tab,
+        period_tab,
+        model_tab,
+        evaluation_tab,
+        ml_signal_tab,
+    ) = st.tabs(
         [
             "Single Backtest",
             "Parameter Experiment",
             "Period Experiment",
             "Model Prediction",
             "Model Evaluation",
+            "ML Signal Backtest",
         ]
     )
     with single_tab:
@@ -2493,6 +2651,9 @@ def main() -> None:
 
     with evaluation_tab:
         render_model_evaluation_tab()
+
+    with ml_signal_tab:
+        render_ml_signal_backtest_tab()
 
 
 if __name__ == "__main__":

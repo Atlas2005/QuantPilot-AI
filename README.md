@@ -39,6 +39,7 @@ Run these commands from the project root in Windows PowerShell.
 | Train baseline ML model | `python src/train_baseline_model.py --dataset-dir data/ml/demo_000001 --target-col label_up_5d --model random_forest --output-dir models/demo_000001` |
 | Predict with baseline model | `python src/predict_with_model.py --model-path models/demo_000001/random_forest.joblib --input data/factors/factors_000001.csv` |
 | Evaluate model quality | `python src/evaluate_model.py --model-dir models/demo_000001 --target-col label_up_5d` |
+| Run ML signal backtest | `python src/run_ml_signal_backtest.py --model-dir models/demo_000001 --factor-csv data/factors/factors_000001.csv --initial-cash 10000 --buy-threshold 0.60 --sell-threshold 0.50` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -77,6 +78,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/predict_with_model.py`: Command-line tool for model prediction.
 - `src/model_evaluator.py`: Evaluates prediction quality and leakage warnings.
 - `src/evaluate_model.py`: Command-line tool for model evaluation diagnostics.
+- `src/ml_signal_backtester.py`: Converts ML probabilities into long/flat backtest signals.
+- `src/run_ml_signal_backtest.py`: Command-line tool for ML signal backtests.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -304,6 +307,35 @@ perfect validation or test metrics should be treated as a warning sign. They
 may indicate leakage, duplicated information, an overly easy target, or a demo
 dataset that is too regular. Good classification metrics do not prove a
 profitable trading strategy.
+
+## ML Signal Backtest
+
+The ML signal backtest converts saved model prediction probabilities into
+long/flat trading actions, then sends those signals through the existing
+long-only backtester. It does not change the MA crossover strategy or existing
+backtest behavior.
+
+Run from PowerShell:
+
+```powershell
+python src/run_ml_signal_backtest.py --model-dir models/demo_000001 --factor-csv data/factors/factors_000001.csv --initial-cash 10000 --buy-threshold 0.60 --sell-threshold 0.50
+```
+
+Signal rules:
+
+- Buy/open long when predicted probability is at least `buy_threshold`.
+- Sell/close long when predicted probability falls below `sell_threshold`.
+- Stay flat or keep holding otherwise.
+- No short selling is used.
+
+The CLI prints ML strategy metrics, the trade log, buy-and-hold comparison, and
+an optional comparison against the existing MA crossover rule-based strategy.
+It also warns when saved model metrics look suspiciously perfect.
+
+The dashboard has an `ML Signal Backtest` tab with controls for model directory,
+factor CSV path, thresholds, initial cash, execution mode, commission, stamp
+tax, slippage, and minimum commission. This workflow is educational research,
+not a trading recommendation.
 
 ## Smoke Tests
 
