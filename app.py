@@ -36,6 +36,10 @@ from src.factor_ablation import (
     build_group_summary,
     run_and_save_factor_ablation,
 )
+from src.factor_decision_report import (
+    generate_factor_decision_report,
+    write_factor_decision_report,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -3579,6 +3583,90 @@ def render_factor_ablation_tab() -> None:
         )
 
 
+def render_factor_decisions_tab() -> None:
+    st.write(
+        "Convert factor ablation diagnostics into transparent research decisions "
+        "about which factor groups to keep, observe, reduce, or retest."
+    )
+    st.info(
+        "This report is a feature-selection research aid. It does not change "
+        "model training, strategy rules, or backtester behavior."
+    )
+
+    input_dir = st.text_input(
+        "Factor ablation output directory",
+        value="outputs/factor_ablation_demo",
+        key="factor_decision_input_dir",
+    )
+    output_path = st.text_input(
+        "Factor decision report path",
+        value="outputs/factor_ablation_demo/factor_decision_report.md",
+        key="factor_decision_output_path",
+    )
+    button_columns = st.columns(2)
+    generate_clicked = button_columns[0].button(
+        "Generate factor decision report",
+        key="generate_factor_decision_report_button",
+        type="primary",
+    )
+    load_clicked = button_columns[1].button(
+        "Load factor decision report",
+        key="load_factor_decision_report_button",
+    )
+
+    if generate_clicked:
+        try:
+            result = write_factor_decision_report(input_dir, output_path)
+        except Exception as exc:
+            st.error(f"Factor decision report generation failed: {exc}")
+            return
+    elif load_clicked:
+        try:
+            result = generate_factor_decision_report(input_dir)
+            report_file = Path(output_path)
+            if report_file.exists():
+                result["markdown_report"] = report_file.read_text(encoding="utf-8")
+                result["report_path"] = str(report_file)
+        except Exception as exc:
+            st.error(f"Factor decision report loading failed: {exc}")
+            return
+    else:
+        return
+
+    decision_summary = result["decision_summary"]
+    strongest = result["strongest_groups"]
+    weakest = result["weakest_groups"]
+    report_text = result["markdown_report"]
+
+    st.subheader("Decision Summary")
+    if decision_summary.empty:
+        st.info("No decision rows are available.")
+    else:
+        st.dataframe(decision_summary, width="stretch")
+
+    st.subheader("Strongest Factor Groups")
+    if strongest.empty:
+        st.info("No strongest groups are available.")
+    else:
+        st.dataframe(strongest, width="stretch")
+
+    st.subheader("Weak or Noisy Factor Groups")
+    if weakest.empty:
+        st.info("No weak or noisy groups are available.")
+    else:
+        st.dataframe(weakest, width="stretch")
+
+    st.subheader("Markdown Report")
+    st.markdown(report_text)
+    st.download_button(
+        "Download factor decision report",
+        data=report_text,
+        file_name=Path(output_path).name,
+        mime="text/markdown",
+        key="download_factor_decision_report_button",
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -3655,6 +3743,7 @@ def main() -> None:
         feature_sources_tab,
         feature_queue_tab,
         factor_ablation_tab,
+        factor_decisions_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -3668,6 +3757,7 @@ def main() -> None:
             "Feature Sources",
             "Feature Queue",
             "Factor Ablation",
+            "Factor Decisions",
         ]
     )
     with single_tab:
@@ -3712,6 +3802,9 @@ def main() -> None:
 
     with factor_ablation_tab:
         render_factor_ablation_tab()
+
+    with factor_decisions_tab:
+        render_factor_decisions_tab()
 
 
 if __name__ == "__main__":

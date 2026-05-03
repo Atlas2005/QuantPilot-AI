@@ -28,6 +28,8 @@ PY_COMPILE_FILES = [
     "src/factor_ablation.py",
     "src/run_factor_ablation.py",
     "src/run_batch_factor_ablation.py",
+    "src/factor_decision_report.py",
+    "src/generate_factor_decision_report.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -65,6 +67,10 @@ COMMAND_CHECKS = [
     ("run_real_p0_robustness help", ["src/run_real_p0_robustness.py", "--help"]),
     ("run_factor_ablation help", ["src/run_factor_ablation.py", "--help"]),
     ("run_batch_factor_ablation help", ["src/run_batch_factor_ablation.py", "--help"]),
+    (
+        "generate_factor_decision_report help",
+        ["src/generate_factor_decision_report.py", "--help"],
+    ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
     ("show_feature_queue help", ["src/show_feature_queue.py", "--help"]),
@@ -197,6 +203,29 @@ COMMAND_CHECKS = [
                 "'feature_impact_ranking.csv','warnings.csv','run_config.json']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
                 "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
+        "offline factor decision report",
+        [
+            "src/generate_factor_decision_report.py",
+            "--input-dir",
+            "outputs/factor_ablation_demo",
+            "--output",
+            "outputs/factor_ablation_demo/factor_decision_report.md",
+        ],
+    ),
+    (
+        "offline factor decision report file",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "path=Path('outputs/factor_ablation_demo/factor_decision_report.md'); "
+                "assert path.exists(); "
+                "text=path.read_text(encoding='utf-8'); "
+                "assert '# Factor Selection and Retention Decision Report' in text"
             ),
         ],
     ),

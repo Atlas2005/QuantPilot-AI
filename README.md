@@ -671,6 +671,44 @@ output files by directory. These diagnostics do not change backtester behavior,
 strategy rules, or model-training logic. Good ML metrics still do not guarantee
 profitable trading.
 
+## V4 Step 17: Factor Selection Decision Report
+
+Step 17 turns factor ablation diagnostics into human-readable research
+decisions. It reads existing ablation outputs such as `group_summary.csv`,
+`feature_impact_ranking.csv`, `ablation_results.csv`, `warnings.csv`, and
+`run_config.json`, then classifies factor groups into:
+
+- `core_keep`
+- `keep_observe`
+- `reduce_weight`
+- `weak_or_noisy`
+- `needs_more_data`
+
+Generate a Markdown decision report:
+
+```powershell
+python src/generate_factor_decision_report.py --input-dir outputs/factor_ablation_real_v1 --output outputs/factor_ablation_real_v1/factor_decision_report.md
+```
+
+For offline demo outputs:
+
+```powershell
+python src/generate_factor_decision_report.py --input-dir outputs/factor_ablation_demo --output outputs/factor_ablation_demo/factor_decision_report.md
+```
+
+The report uses simple transparent rules based on average test ROC AUC delta,
+F1 delta, only-group ROC AUC, experiment count, and consistency across model
+types. It explains strongest groups, weakest groups, what to keep, what to
+reduce, and what to test next.
+
+The dashboard has a `Factor Decisions` tab. Enter an ablation output directory,
+generate or load the report, then review the decision summary table, strongest
+groups, weak/noisy groups, Markdown report, and download button.
+
+These are research decisions, not trading advice. A group marked `core_keep`
+still needs walk-forward validation, out-of-symbol checks, and realistic
+trading-cost review before being trusted in any model workflow.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
