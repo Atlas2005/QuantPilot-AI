@@ -1,4 +1,5 @@
 from datetime import date
+import json
 from pathlib import Path
 
 import matplotlib.dates as mdates
@@ -24,6 +25,16 @@ from src.feature_implementation_queue import (
     filter_feature_queue,
     queue_to_dataframe,
     summarize_feature_queue,
+)
+from src.factor_ablation import parse_ablation_modes as parse_factor_ablation_modes
+from src.factor_ablation import parse_model_types as parse_ablation_model_types
+from src.batch_model_trainer import fetch_symbol_ohlcv
+from src.build_factor_dataset import save_factor_dataset
+from src.factor_builder import build_factor_dataset
+from src.factor_ablation import (
+    build_feature_impact_ranking,
+    build_group_summary,
+    run_and_save_factor_ablation,
 )
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
@@ -3324,6 +3335,250 @@ def render_feature_queue_tab() -> None:
     )
 
 
+def load_factor_ablation_outputs(output_dir: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    base = Path(output_dir)
+    return (
+        pd.read_csv(base / "ablation_results.csv") if (base / "ablation_results.csv").exists() else pd.DataFrame(),
+        pd.read_csv(base / "group_summary.csv") if (base / "group_summary.csv").exists() else pd.DataFrame(),
+        pd.read_csv(base / "feature_impact_ranking.csv") if (base / "feature_impact_ranking.csv").exists() else pd.DataFrame(),
+        pd.read_csv(base / "warnings.csv") if (base / "warnings.csv").exists() else pd.DataFrame(),
+    )
+
+
+def run_dashboard_factor_ablation(
+    symbols: list[str],
+    source: str,
+    start: str,
+    end: str,
+    output_dir: str,
+    model_types: list[str],
+    ablation_modes: list[str],
+    target_col: str,
+    purge_rows: int,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    base = Path(output_dir)
+    factor_dir = base / "factors"
+    symbol_dir = base / "symbols"
+    factor_dir.mkdir(parents=True, exist_ok=True)
+    symbol_dir.mkdir(parents=True, exist_ok=True)
+
+    result_frames = []
+    warning_frames = []
+    for symbol in symbols:
+        try:
+            raw_df = fetch_symbol_ohlcv(symbol, source, start, end)
+            factor_df = build_factor_dataset(raw_df, symbol=symbol)
+            factor_path = factor_dir / f"factors_{symbol}.csv"
+            save_factor_dataset(factor_df, factor_path)
+            result = run_and_save_factor_ablation(
+                input_path=factor_path,
+                output_dir=symbol_dir / symbol,
+                target_col=target_col,
+                model_types=model_types,
+                ablation_modes=ablation_modes,
+                purge_rows=purge_rows,
+                symbol=symbol,
+            )
+            result_frames.append(result["ablation_results"])
+            warning_frames.append(result["warnings"])
+        except Exception as exc:
+            warning_frames.append(
+                pd.DataFrame(
+                    [
+                        {
+                            "symbol": symbol,
+                            "model_type": None,
+                            "experiment_name": None,
+                            "warning": str(exc),
+                        }
+                    ]
+                )
+            )
+
+    ablation_results = (
+        pd.concat(result_frames, ignore_index=True) if result_frames else pd.DataFrame()
+    )
+    group_summary = build_group_summary(ablation_results)
+    feature_ranking = build_feature_impact_ranking(ablation_results)
+    warnings_df = (
+        pd.concat(warning_frames, ignore_index=True) if warning_frames else pd.DataFrame()
+    )
+
+    ablation_results.to_csv(base / "ablation_results.csv", index=False)
+    group_summary.to_csv(base / "group_summary.csv", index=False)
+    feature_ranking.to_csv(base / "feature_impact_ranking.csv", index=False)
+    warnings_df.to_csv(base / "warnings.csv", index=False)
+    (base / "run_config.json").write_text(
+        json.dumps(
+            {
+                "symbols": symbols,
+                "source": source,
+                "start": start,
+                "end": end,
+                "output_dir": output_dir,
+                "models": model_types,
+                "ablation_modes": ablation_modes,
+                "target_col": target_col,
+                "purge_rows": purge_rows,
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return ablation_results, group_summary, feature_ranking, warnings_df
+
+
+def render_factor_ablation_tab() -> None:
+    st.write(
+        "Diagnose which factor groups or individual P0 features help or hurt "
+        "baseline model metrics. This is research diagnostics only."
+    )
+    st.warning(
+        "Positive delta means the ablation experiment beat the full feature set. "
+        "If dropping a group improves test ROC AUC, that group may be noisy. "
+        "Good ML metrics do not guarantee profitable trading."
+    )
+
+    symbols_text = st.text_input(
+        "Ablation symbols",
+        value="000001,600519",
+        key="factor_ablation_symbols",
+    )
+    source = st.selectbox(
+        "Ablation source",
+        ["demo", "baostock"],
+        key="factor_ablation_source",
+    )
+    date_columns = st.columns(2)
+    start = date_columns[0].text_input(
+        "Ablation start date",
+        value="20240101",
+        key="factor_ablation_start",
+    )
+    end = date_columns[1].text_input(
+        "Ablation end date",
+        value="20241231",
+        key="factor_ablation_end",
+    )
+    models_text = st.text_input(
+        "Ablation model types",
+        value="logistic_regression,random_forest",
+        key="factor_ablation_models",
+    )
+    modes_text = st.text_input(
+        "Ablation modes",
+        value="drop_group,only_group",
+        key="factor_ablation_modes",
+    )
+    output_dir = st.text_input(
+        "Ablation output directory",
+        value="outputs/factor_ablation_demo",
+        key="factor_ablation_output_dir",
+    )
+    target_col = st.text_input(
+        "Ablation target column",
+        value="label_up_5d",
+        key="factor_ablation_target",
+    )
+    purge_rows = st.number_input(
+        "Ablation purge rows",
+        min_value=0,
+        value=5,
+        step=1,
+        key="factor_ablation_purge_rows",
+    )
+
+    button_columns = st.columns(2)
+    run_clicked = button_columns[0].button(
+        "Run factor ablation",
+        key="run_factor_ablation_button",
+        type="primary",
+    )
+    load_clicked = button_columns[1].button(
+        "Load existing ablation outputs",
+        key="load_factor_ablation_button",
+    )
+
+    if run_clicked:
+        try:
+            ablation_results, group_summary, feature_ranking, warnings_df = (
+                run_dashboard_factor_ablation(
+                    symbols=parse_batch_symbols(symbols_text),
+                    source=source,
+                    start=start,
+                    end=end,
+                    output_dir=output_dir,
+                    model_types=parse_ablation_model_types(models_text),
+                    ablation_modes=parse_factor_ablation_modes(modes_text),
+                    target_col=target_col,
+                    purge_rows=int(purge_rows),
+                )
+            )
+        except Exception as exc:
+            st.error(f"Factor ablation failed: {exc}")
+            return
+    elif load_clicked:
+        ablation_results, group_summary, feature_ranking, warnings_df = (
+            load_factor_ablation_outputs(output_dir)
+        )
+    else:
+        return
+
+    if ablation_results.empty:
+        st.info("No ablation result rows are available.")
+        return
+
+    st.subheader("Helpful Groups")
+    if group_summary.empty:
+        st.info("No group summary rows are available.")
+    else:
+        helpful = group_summary.sort_values(
+            "avg_test_roc_auc_delta_vs_full",
+            ascending=False,
+        ).head(10)
+        st.dataframe(helpful, width="stretch")
+
+    st.subheader("Potentially Harmful Groups")
+    harmful = group_summary[
+        (group_summary["ablation_type"] == "drop_group")
+        & (group_summary["avg_test_roc_auc_delta_vs_full"] > 0)
+    ] if not group_summary.empty else pd.DataFrame()
+    if harmful.empty:
+        st.info("No drop-group rows improved average test ROC AUC.")
+    else:
+        st.dataframe(harmful, width="stretch")
+
+    st.subheader("Group Summary")
+    st.dataframe(group_summary, width="stretch")
+
+    st.subheader("Feature Impact Ranking")
+    if feature_ranking.empty:
+        st.info("Run with ablation mode drop_feature to populate this table.")
+    else:
+        st.dataframe(feature_ranking, width="stretch")
+
+    st.subheader("Warnings")
+    if warnings_df.empty:
+        st.success("No warnings were recorded.")
+    else:
+        st.dataframe(warnings_df, width="stretch")
+
+    if not group_summary.empty:
+        chart_df = group_summary.copy()
+        chart_df["group_model"] = (
+            chart_df["factor_group"].astype(str)
+            + " / "
+            + chart_df["ablation_type"].astype(str)
+            + " / "
+            + chart_df["model_type"].astype(str)
+        )
+        st.subheader("Group Impact")
+        st.bar_chart(
+            chart_df.set_index("group_model")["avg_test_roc_auc_delta_vs_full"]
+        )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -3399,6 +3654,7 @@ def main() -> None:
         robustness_tab,
         feature_sources_tab,
         feature_queue_tab,
+        factor_ablation_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -3411,6 +3667,7 @@ def main() -> None:
             "Model Robustness",
             "Feature Sources",
             "Feature Queue",
+            "Factor Ablation",
         ]
     )
     with single_tab:
@@ -3452,6 +3709,9 @@ def main() -> None:
 
     with feature_queue_tab:
         render_feature_queue_tab()
+
+    with factor_ablation_tab:
+        render_factor_ablation_tab()
 
 
 if __name__ == "__main__":

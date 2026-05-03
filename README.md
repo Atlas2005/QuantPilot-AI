@@ -621,6 +621,56 @@ Git. Real-data robustness metrics are educational diagnostics only. Improved
 classification metrics after adding P0 factors do not guarantee profitable
 trading.
 
+## V4 Step 16: Factor Ablation Diagnostics
+
+Step 16 adds factor ablation diagnostics for understanding which factor groups
+or individual P0 factors help or hurt baseline ML metrics. This is useful after
+Step 15 because logistic regression improved slightly after P0 OHLCV expansion,
+while random forest declined. Ablation helps identify whether the new groups are
+useful signal, noisy features, or model-specific noise.
+
+Run ablation on one existing factor CSV:
+
+```powershell
+python src/run_factor_ablation.py --input data/factors/factors_000001.csv --output-dir outputs/factor_ablation_000001 --models logistic_regression,random_forest --ablation-modes drop_group,only_group,drop_feature --max-drop-features 15
+```
+
+Run offline/demo batch ablation:
+
+```powershell
+python src/run_batch_factor_ablation.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/factor_ablation_demo --models logistic_regression,random_forest --ablation-modes drop_group,only_group
+```
+
+Run real Baostock batch ablation on rebuilt P0 factors:
+
+```powershell
+python src/run_batch_factor_ablation.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20210101 --end 20241231 --output-dir outputs/factor_ablation_real_v2 --models logistic_regression,random_forest --ablation-modes drop_group,only_group,drop_feature
+```
+
+Outputs include:
+
+- `ablation_results.csv`: row-level experiment metrics.
+- `group_summary.csv`: average group-level contribution diagnostics.
+- `feature_impact_ranking.csv`: individual P0 feature impact when `drop_feature` is used.
+- `warnings.csv`: failures, empty splits, or other diagnostic warnings.
+- `run_config.json`: symbols, source, target, models, modes, and split settings.
+
+Interpretation:
+
+- Positive `test_roc_auc_delta_vs_full` means the ablation experiment performed
+  better than the full feature set.
+- Negative `test_roc_auc_delta_vs_full` means the ablation experiment performed
+  worse than the full feature set.
+- If dropping a group improves performance, that group may be noisy or harmful
+  for that model and period.
+- If `only_group` performs well, that group may contain useful standalone
+  signal.
+
+The `Factor Ablation` dashboard tab can run the same workflow or load existing
+output files by directory. These diagnostics do not change backtester behavior,
+strategy rules, or model-training logic. Good ML metrics still do not guarantee
+profitable trading.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

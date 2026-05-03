@@ -25,6 +25,9 @@ PY_COMPILE_FILES = [
     "src/batch_model_trainer.py",
     "src/run_batch_model_training.py",
     "src/run_real_p0_robustness.py",
+    "src/factor_ablation.py",
+    "src/run_factor_ablation.py",
+    "src/run_batch_factor_ablation.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -60,6 +63,8 @@ COMMAND_CHECKS = [
     ),
     ("run_batch_model_training help", ["src/run_batch_model_training.py", "--help"]),
     ("run_real_p0_robustness help", ["src/run_real_p0_robustness.py", "--help"]),
+    ("run_factor_ablation help", ["src/run_factor_ablation.py", "--help"]),
+    ("run_batch_factor_ablation help", ["src/run_batch_factor_ablation.py", "--help"]),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
     ("show_feature_queue help", ["src/show_feature_queue.py", "--help"]),
@@ -159,6 +164,40 @@ COMMAND_CHECKS = [
             "5",
             "--split-mode",
             "global_date",
+        ],
+    ),
+    (
+        "offline batch factor ablation",
+        [
+            "src/run_batch_factor_ablation.py",
+            "--symbols",
+            "000001,600519",
+            "--source",
+            "demo",
+            "--start",
+            "20240101",
+            "--end",
+            "20241231",
+            "--output-dir",
+            "outputs/factor_ablation_demo",
+            "--models",
+            "logistic_regression,random_forest",
+            "--ablation-modes",
+            "drop_group,only_group",
+        ],
+    ),
+    (
+        "offline batch factor ablation output files",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "base=Path('outputs/factor_ablation_demo'); "
+                "required=['ablation_results.csv','group_summary.csv',"
+                "'feature_impact_ranking.csv','warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing"
+            ),
         ],
     ),
     (
