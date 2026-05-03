@@ -246,7 +246,7 @@ def evaluate_model(
             metrics["roc_auc"] = None
 
     prediction_df = pd.DataFrame()
-    for column in ["symbol", "date"]:
+    for column in ["symbol", "date", "close"]:
         if column in cleaned_df.columns:
             prediction_df[column] = cleaned_df[column]
     prediction_df[target_col] = y_true
