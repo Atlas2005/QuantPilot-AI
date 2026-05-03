@@ -32,6 +32,8 @@ PY_COMPILE_FILES = [
     "src/generate_factor_decision_report.py",
     "src/factor_pruning_experiment.py",
     "src/run_factor_pruning_experiment.py",
+    "src/pruning_summary_report.py",
+    "src/generate_pruning_summary_report.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -76,6 +78,10 @@ COMMAND_CHECKS = [
     (
         "run_factor_pruning_experiment help",
         ["src/run_factor_pruning_experiment.py", "--help"],
+    ),
+    (
+        "generate_pruning_summary_report help",
+        ["src/generate_pruning_summary_report.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -264,6 +270,50 @@ COMMAND_CHECKS = [
                 "base=Path('outputs/factor_pruning_demo'); "
                 "required=['pruning_results.csv','pruning_summary.csv',"
                 "'feature_set_details.csv','warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic pruning summary inputs",
+        [
+            "-c",
+            (
+                "from pathlib import Path; import json; import pandas as pd; "
+                "base=Path('outputs/pruning_summary_smoke_inputs'); "
+                "rows=["
+                "{'pruning_mode':'full','model_count':2,'avg_feature_count':40,'avg_test_roc_auc':0.50,'avg_test_f1':0.45,'avg_validation_roc_auc':0.51,'avg_delta_test_roc_auc_vs_full':0.0,'avg_delta_test_f1_vs_full':0.0},"
+                "{'pruning_mode':'drop_reduce_weight','model_count':2,'avg_feature_count':36,'avg_test_roc_auc':0.53,'avg_test_f1':0.46,'avg_validation_roc_auc':0.52,'avg_delta_test_roc_auc_vs_full':0.03,'avg_delta_test_f1_vs_full':0.01},"
+                "{'pruning_mode':'keep_core_and_observe','model_count':2,'avg_feature_count':28,'avg_test_roc_auc':0.54,'avg_test_f1':0.455,'avg_validation_roc_auc':0.53,'avg_delta_test_roc_auc_vs_full':0.04,'avg_delta_test_f1_vs_full':0.005}"
+                "]; "
+                "dirs=[base/f'factor_pruning_real_{symbol}' for symbol in ['000001','600519']]; "
+                "[d.mkdir(parents=True, exist_ok=True) for d in dirs]; "
+                "[pd.DataFrame(rows).to_csv(d/'pruning_summary.csv', index=False) for d in dirs]; "
+                "[(d/'run_config.json').write_text(json.dumps({'factor_csv':f\"data/factors/factors_{d.name.replace('factor_pruning_real_','')}.csv\"}), encoding='utf-8') for d in dirs]"
+            ),
+        ],
+    ),
+    (
+        "offline pruning summary report",
+        [
+            "src/generate_pruning_summary_report.py",
+            "--input-dirs",
+            "outputs/pruning_summary_smoke_inputs/factor_pruning_real_000001,outputs/pruning_summary_smoke_inputs/factor_pruning_real_600519",
+            "--output-dir",
+            "outputs/pruning_summary_smoke",
+        ],
+    ),
+    (
+        "offline pruning summary output files",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "base=Path('outputs/pruning_summary_smoke'); "
+                "required=['combined_pruning_results.csv','pruning_mode_summary.csv',"
+                "'per_symbol_best_modes.csv','pruning_summary_report.md',"
+                "'warnings.csv','run_config.json']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
                 "assert not missing, missing"
             ),

@@ -790,6 +790,38 @@ experiments. Pruning can overfit one sample, so any reduced feature set should
 be retested with walk-forward validation, multiple symbols, and realistic cost
 assumptions. This is research only, not financial advice.
 
+## V4 Step 20: Multi-Symbol Pruning Summary Report
+
+Step 20 aggregates multiple symbol-level pruning experiment folders before
+choosing a default reduced feature set for the next research round. It reads
+each `pruning_summary.csv`, combines pruning modes across symbols and models,
+and reports whether reduced feature sets outperform the full feature baseline.
+
+Example:
+
+```powershell
+python src/generate_pruning_summary_report.py --input-dirs outputs/factor_pruning_real_000001,outputs/factor_pruning_real_600519,outputs/factor_pruning_real_000858,outputs/factor_pruning_real_600036,outputs/factor_pruning_real_601318 --output-dir outputs/pruning_summary_real_v1
+```
+
+Outputs:
+
+- `combined_pruning_results.csv`: all symbol-level pruning summary rows.
+- `pruning_mode_summary.csv`: aggregate metrics by pruning mode.
+- `per_symbol_best_modes.csv`: best pruning mode per symbol by ROC AUC and F1.
+- `pruning_summary_report.md`: Markdown interpretation and recommendation.
+- `warnings.csv`: missing or unreadable input directory warnings.
+- `run_config.json`: input directories and output settings.
+
+The report identifies the best mode by average ROC AUC, average F1, and a
+transparent stability score using ROC delta, F1 delta, and win rates versus the
+full feature set. A recommended mode such as `keep_core_and_observe` is only a
+candidate for further experiments. It should not automatically replace the full
+feature set without walk-forward validation and more symbol coverage.
+
+The dashboard has a `Pruning Summary` tab for generating or loading the same
+multi-symbol report. This is educational research diagnostics, not financial
+advice.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

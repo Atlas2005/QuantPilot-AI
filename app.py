@@ -44,6 +44,12 @@ from src.factor_pruning_experiment import (
     parse_pruning_modes,
     run_and_save_factor_pruning_experiment,
 )
+from src.pruning_summary_report import (
+    DEFAULT_INPUT_DIRS as DEFAULT_PRUNING_SUMMARY_DIRS,
+    build_pruning_summary_report,
+    parse_input_dirs as parse_pruning_summary_input_dirs,
+    save_pruning_summary_report,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -3802,6 +3808,114 @@ def render_factor_pruning_tab() -> None:
         st.bar_chart(chart_df.set_index("mode_model")["delta_test_roc_auc_vs_full"])
 
 
+def load_pruning_summary_outputs(output_dir: str, report_name: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / report_name
+    return {
+        "pruning_mode_summary": pd.read_csv(base / "pruning_mode_summary.csv")
+        if (base / "pruning_mode_summary.csv").exists()
+        else pd.DataFrame(),
+        "per_symbol_best_modes": pd.read_csv(base / "per_symbol_best_modes.csv")
+        if (base / "per_symbol_best_modes.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(base / "warnings.csv")
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
+def render_pruning_summary_tab() -> None:
+    st.write(
+        "Aggregate symbol-level pruning experiments to decide whether a reduced "
+        "feature set is stable enough for the next research round."
+    )
+    st.warning(
+        "This summary is educational diagnostics only. A better reduced feature "
+        "set still needs walk-forward validation and out-of-symbol retesting."
+    )
+
+    input_dirs_text = st.text_area(
+        "Pruning output directories",
+        value=",".join(DEFAULT_PRUNING_SUMMARY_DIRS),
+        key="pruning_summary_input_dirs",
+    )
+    output_dir = st.text_input(
+        "Pruning summary output directory",
+        value="outputs/pruning_summary_real_v1",
+        key="pruning_summary_output_dir",
+    )
+    report_name = st.text_input(
+        "Pruning summary report name",
+        value="pruning_summary_report.md",
+        key="pruning_summary_report_name",
+    )
+
+    buttons = st.columns(2)
+    generate_clicked = buttons[0].button(
+        "Generate pruning summary",
+        key="generate_pruning_summary_button",
+        type="primary",
+    )
+    load_clicked = buttons[1].button(
+        "Load pruning summary",
+        key="load_pruning_summary_button",
+    )
+
+    if generate_clicked:
+        try:
+            result = save_pruning_summary_report(
+                input_dirs=parse_pruning_summary_input_dirs(input_dirs_text),
+                output_dir=output_dir,
+                report_name=report_name,
+            )
+        except Exception as exc:
+            st.error(f"Pruning summary generation failed: {exc}")
+            return
+    elif load_clicked:
+        result = load_pruning_summary_outputs(output_dir, report_name)
+    else:
+        return
+
+    mode_summary = result["pruning_mode_summary"]
+    per_symbol_best = result["per_symbol_best_modes"]
+    warnings_df = result["warnings"]
+    report_text = result["markdown_report"]
+
+    st.subheader("Pruning Mode Summary")
+    if mode_summary.empty:
+        st.info("No pruning mode summary rows are available.")
+    else:
+        st.dataframe(mode_summary, width="stretch")
+
+    st.subheader("Per-Symbol Best Modes")
+    if per_symbol_best.empty:
+        st.info("No per-symbol best mode rows are available.")
+    else:
+        st.dataframe(per_symbol_best, width="stretch")
+
+    st.subheader("Warnings")
+    if warnings_df.empty:
+        st.success("No warnings were recorded.")
+    else:
+        st.dataframe(warnings_df, width="stretch")
+
+    st.subheader("Markdown Report")
+    if report_text:
+        st.markdown(report_text)
+        st.download_button(
+            "Download pruning summary report",
+            data=report_text,
+            file_name=report_name,
+            mime="text/markdown",
+            key="download_pruning_summary_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -3880,6 +3994,7 @@ def main() -> None:
         factor_ablation_tab,
         factor_decisions_tab,
         factor_pruning_tab,
+        pruning_summary_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -3895,6 +4010,7 @@ def main() -> None:
             "Factor Ablation",
             "Factor Decisions",
             "Factor Pruning",
+            "Pruning Summary",
         ]
     )
     with single_tab:
@@ -3945,6 +4061,9 @@ def main() -> None:
 
     with factor_pruning_tab:
         render_factor_pruning_tab()
+
+    with pruning_summary_tab:
+        render_pruning_summary_tab()
 
 
 if __name__ == "__main__":
