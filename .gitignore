@@ -236,6 +236,7 @@ env/
 
 # Generated experiment outputs
 reports/
+outputs/
 data/factors/
 data/ml/
 models/

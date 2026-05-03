@@ -40,6 +40,7 @@ Run these commands from the project root in Windows PowerShell.
 | Predict with baseline model | `python src/predict_with_model.py --model-path models/demo_000001/random_forest.joblib --input data/factors/factors_000001.csv` |
 | Evaluate model quality | `python src/evaluate_model.py --model-dir models/demo_000001 --target-col label_up_5d` |
 | Run ML signal backtest | `python src/run_ml_signal_backtest.py --model-dir models/demo_000001 --factor-csv data/factors/factors_000001.csv --initial-cash 10000 --buy-threshold 0.60 --sell-threshold 0.50` |
+| Run ML threshold experiment | `python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --output outputs/ml_threshold_experiment.csv` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -80,6 +81,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/evaluate_model.py`: Command-line tool for model evaluation diagnostics.
 - `src/ml_signal_backtester.py`: Converts ML probabilities into long/flat backtest signals.
 - `src/run_ml_signal_backtest.py`: Command-line tool for ML signal backtests.
+- `src/ml_threshold_experiment.py`: Runs ML threshold and walk-forward research experiments.
+- `src/run_ml_threshold_experiment.py`: Command-line tool for ML threshold experiments.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -337,6 +340,38 @@ factor CSV path, thresholds, initial cash, execution mode, commission, stamp
 tax, slippage, and minimum commission. This workflow is educational research,
 not a trading recommendation.
 
+## ML Threshold Experiment
+
+The ML threshold experiment tests multiple probability threshold pairs over the
+same factor data. It converts each threshold pair into long/flat ML signals and
+runs the existing long-only backtester. Invalid pairs where the sell threshold
+is greater than or equal to the buy threshold are skipped.
+
+Basic threshold grid:
+
+```powershell
+python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --output outputs/ml_threshold_experiment.csv
+```
+
+Custom thresholds and transaction costs:
+
+```powershell
+python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --buy-thresholds 0.55,0.60,0.65,0.70 --sell-thresholds 0.40,0.45,0.50 --initial-cash 10000 --commission-rate 0 --stamp-tax-rate 0 --slippage-pct 0 --min-commission 0
+```
+
+Simple walk-forward research mode:
+
+```powershell
+python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --walk-forward --train-window 120 --test-window 40 --step-size 40
+```
+
+The dashboard has an `ML Threshold Experiment` tab. It shows the best threshold
+pair by score, best total return pair, best drawdown-control pair, full results,
+a ranking table, and a bar chart of threshold scores.
+
+This is threshold research only. Optimizing thresholds on past data can overfit,
+and good threshold results do not imply future profitability.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
@@ -566,6 +601,7 @@ Generated files should not be committed.
 The project `.gitignore` ignores generated reports and cache files, including:
 
 - `reports/`
+- `outputs/`
 - `data/factors/`
 - `data/ml/`
 - `models/`

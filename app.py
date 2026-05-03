@@ -11,6 +11,12 @@ from src.backtester import run_long_only_backtest_with_trades
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
+from src.ml_threshold_experiment import (
+    parse_thresholds as parse_ml_thresholds,
+    rank_threshold_results,
+    run_threshold_experiment,
+    run_walk_forward_threshold_experiment,
+)
 from src.model_evaluator import evaluate_model_directory
 from src.model_predictor import run_model_prediction
 from src.real_data_loader import fetch_a_share_daily_from_source
@@ -2546,6 +2552,216 @@ def render_ml_signal_backtest_tab() -> None:
         st.warning(warning)
 
 
+def render_threshold_summary_card(column, title: str, row: pd.Series | None) -> None:
+    if row is None:
+        column.markdown(f"**{title}**\n\nN/A")
+        return
+
+    column.markdown(
+        f"""
+        **{title}**
+
+        Buy threshold: `{row['buy_threshold']:.2f}`  
+        Sell threshold: `{row['sell_threshold']:.2f}`  
+        Total return: {row['total_return_pct']:.2f}%  
+        Max drawdown: {row['max_drawdown_pct']:.2f}%  
+        Score: {row['score']:.2f}
+        """
+    )
+
+
+def render_ml_threshold_experiment_tab() -> None:
+    st.write(
+        "Test multiple ML probability thresholds with the existing long-only "
+        "backtester. This is research-only threshold analysis."
+    )
+    st.warning(
+        "This is threshold research only. Optimizing thresholds on past data can overfit."
+    )
+
+    model_dir = st.text_input(
+        "Threshold experiment model directory",
+        value="models/demo_000001",
+    )
+    input_path = st.text_input(
+        "Threshold experiment factor CSV",
+        value="data/factors/factors_000001.csv",
+    )
+    buy_thresholds_text = st.text_input(
+        "Buy thresholds",
+        value="0.50,0.55,0.60,0.65,0.70,0.75",
+    )
+    sell_thresholds_text = st.text_input(
+        "Sell thresholds",
+        value="0.40,0.45,0.50,0.55",
+    )
+
+    columns = st.columns(3)
+    initial_cash = columns[0].number_input(
+        "Threshold initial cash",
+        min_value=0.0,
+        value=10000.0,
+        step=1000.0,
+    )
+    execution_mode = columns[1].selectbox(
+        "Threshold execution mode",
+        ["same_close", "next_open", "next_close"],
+        key="threshold_execution_mode",
+    )
+    walk_forward = columns[2].checkbox("Walk-forward mode", value=False)
+
+    cost_columns = st.columns(4)
+    commission_rate = cost_columns[0].number_input(
+        "Threshold commission rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    stamp_tax_rate = cost_columns[1].number_input(
+        "Threshold stamp tax rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    slippage_pct = cost_columns[2].number_input(
+        "Threshold slippage %",
+        min_value=0.0,
+        value=0.0,
+        step=0.01,
+        format="%.4f",
+    )
+    min_commission = cost_columns[3].number_input(
+        "Threshold min commission",
+        min_value=0.0,
+        value=0.0,
+        step=1.0,
+    )
+
+    with st.expander("Walk-forward settings"):
+        target_col = st.text_input("Walk-forward target", value="label_up_5d")
+        model_name = st.selectbox(
+            "Walk-forward model",
+            ["random_forest", "logistic_regression"],
+        )
+        wf_columns = st.columns(3)
+        train_window = wf_columns[0].number_input(
+            "Train window rows",
+            min_value=20,
+            value=120,
+            step=10,
+        )
+        test_window = wf_columns[1].number_input(
+            "Test window rows",
+            min_value=10,
+            value=40,
+            step=10,
+        )
+        step_size = wf_columns[2].number_input(
+            "Step size rows",
+            min_value=10,
+            value=40,
+            step=10,
+        )
+
+    run_clicked = st.button(
+        "Run ML threshold experiment",
+        key="run_ml_threshold_experiment_button",
+        type="primary",
+    )
+    if not run_clicked:
+        return
+
+    try:
+        buy_thresholds = parse_ml_thresholds(buy_thresholds_text, [])
+        sell_thresholds = parse_ml_thresholds(sell_thresholds_text, [])
+        if walk_forward:
+            results_df = run_walk_forward_threshold_experiment(
+                model_dir=model_dir,
+                input_path=input_path,
+                target_col=target_col,
+                model_name=model_name,
+                buy_thresholds=buy_thresholds,
+                sell_thresholds=sell_thresholds,
+                train_window=int(train_window),
+                test_window=int(test_window),
+                step_size=int(step_size),
+                initial_cash=initial_cash,
+                execution_mode=execution_mode,
+                commission_rate=commission_rate,
+                stamp_tax_rate=stamp_tax_rate,
+                slippage_pct=slippage_pct,
+                min_commission=min_commission,
+            )
+        else:
+            results_df = run_threshold_experiment(
+                model_dir=model_dir,
+                input_path=input_path,
+                buy_thresholds=buy_thresholds,
+                sell_thresholds=sell_thresholds,
+                initial_cash=initial_cash,
+                execution_mode=execution_mode,
+                commission_rate=commission_rate,
+                stamp_tax_rate=stamp_tax_rate,
+                slippage_pct=slippage_pct,
+                min_commission=min_commission,
+            )
+    except Exception as exc:
+        st.error(f"ML threshold experiment failed: {exc}")
+        return
+
+    if results_df.empty:
+        st.warning("No threshold experiment rows were produced.")
+        return
+
+    ranking_df = rank_threshold_results(results_df)
+    best_score = ranking_df.iloc[0]
+    best_return = results_df.sort_values(
+        "total_return_pct",
+        ascending=False,
+    ).iloc[0]
+    best_drawdown = results_df.sort_values(
+        "max_drawdown_pct",
+        ascending=False,
+    ).iloc[0]
+
+    summary_columns = st.columns(3)
+    render_threshold_summary_card(summary_columns[0], "Best by score", best_score)
+    render_threshold_summary_card(summary_columns[1], "Best total return", best_return)
+    render_threshold_summary_card(
+        summary_columns[2],
+        "Best drawdown control",
+        best_drawdown,
+    )
+
+    st.subheader("Ranking Table")
+    st.dataframe(ranking_df, width="stretch")
+
+    st.subheader("Results Table")
+    st.dataframe(results_df, width="stretch")
+
+    st.subheader("Threshold Result Chart")
+    chart_df = ranking_df.head(20).copy()
+    chart_df["threshold_pair"] = chart_df.apply(
+        lambda row: f"B{row['buy_threshold']:.2f}/S{row['sell_threshold']:.2f}",
+        axis=1,
+    )
+    if "window_id" in chart_df.columns:
+        chart_df["threshold_pair"] = (
+            "W"
+            + chart_df["window_id"].astype(str)
+            + " "
+            + chart_df["threshold_pair"]
+        )
+    st.bar_chart(chart_df.set_index("threshold_pair")["score"])
+
+    st.warning(
+        "Good threshold results on past data do not imply future profitability. "
+        "Review stability across windows, costs, and drawdowns."
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -2617,6 +2833,7 @@ def main() -> None:
         model_tab,
         evaluation_tab,
         ml_signal_tab,
+        threshold_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -2625,6 +2842,7 @@ def main() -> None:
             "Model Prediction",
             "Model Evaluation",
             "ML Signal Backtest",
+            "ML Threshold Experiment",
         ]
     )
     with single_tab:
@@ -2654,6 +2872,9 @@ def main() -> None:
 
     with ml_signal_tab:
         render_ml_signal_backtest_tab()
+
+    with threshold_tab:
+        render_ml_threshold_experiment_tab()
 
 
 if __name__ == "__main__":

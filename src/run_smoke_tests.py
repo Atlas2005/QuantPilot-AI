@@ -20,6 +20,8 @@ PY_COMPILE_FILES = [
     "src/evaluate_model.py",
     "src/ml_signal_backtester.py",
     "src/run_ml_signal_backtest.py",
+    "src/ml_threshold_experiment.py",
+    "src/run_ml_threshold_experiment.py",
     "src/run_stock_backtest.py",
     "src/run_batch_experiment.py",
     "src/run_period_experiment.py",
@@ -42,6 +44,10 @@ COMMAND_CHECKS = [
     ("predict_with_model help", ["src/predict_with_model.py", "--help"]),
     ("evaluate_model help", ["src/evaluate_model.py", "--help"]),
     ("run_ml_signal_backtest help", ["src/run_ml_signal_backtest.py", "--help"]),
+    (
+        "run_ml_threshold_experiment help",
+        ["src/run_ml_threshold_experiment.py", "--help"],
+    ),
     (
         "demo factor dataset build",
         [
@@ -122,6 +128,22 @@ COMMAND_CHECKS = [
             "0.60",
             "--sell-threshold",
             "0.50",
+        ],
+    ),
+    (
+        "offline ML threshold experiment",
+        [
+            "src/run_ml_threshold_experiment.py",
+            "--model-dir",
+            "models/smoke_000001",
+            "--input",
+            "data/factors/smoke_factors_000001.csv",
+            "--buy-thresholds",
+            "0.55,0.60",
+            "--sell-thresholds",
+            "0.40,0.50",
+            "--initial-cash",
+            "10000",
         ],
     ),
     ("run_stock_backtest help", ["src/run_stock_backtest.py", "--help"]),
