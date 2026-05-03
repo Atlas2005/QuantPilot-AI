@@ -34,6 +34,8 @@ PY_COMPILE_FILES = [
     "src/run_factor_pruning_experiment.py",
     "src/pruning_summary_report.py",
     "src/generate_pruning_summary_report.py",
+    "src/reduced_feature_backtest.py",
+    "src/run_reduced_feature_backtest.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -82,6 +84,10 @@ COMMAND_CHECKS = [
     (
         "generate_pruning_summary_report help",
         ["src/generate_pruning_summary_report.py", "--help"],
+    ),
+    (
+        "run_reduced_feature_backtest help",
+        ["src/run_reduced_feature_backtest.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -314,6 +320,37 @@ COMMAND_CHECKS = [
                 "required=['combined_pruning_results.csv','pruning_mode_summary.csv',"
                 "'per_symbol_best_modes.csv','pruning_summary_report.md',"
                 "'warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
+        "offline reduced feature backtest",
+        [
+            "src/run_reduced_feature_backtest.py",
+            "--factor-csv",
+            "data/factors/smoke_factors_000001.csv",
+            "--recommendations",
+            "outputs/factor_ablation_demo/feature_pruning_recommendations.csv",
+            "--output-dir",
+            "outputs/reduced_feature_backtest_demo",
+            "--models",
+            "logistic_regression,random_forest",
+            "--target-col",
+            "label_up_5d",
+        ],
+    ),
+    (
+        "offline reduced feature backtest output files",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "base=Path('outputs/reduced_feature_backtest_demo'); "
+                "required=['reduced_feature_backtest_results.csv',"
+                "'reduced_feature_backtest_summary.csv','warnings.csv',"
+                "'run_config.json']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
                 "assert not missing, missing"
             ),

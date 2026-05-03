@@ -50,6 +50,7 @@ from src.pruning_summary_report import (
     parse_input_dirs as parse_pruning_summary_input_dirs,
     save_pruning_summary_report,
 )
+from src.reduced_feature_backtest import run_and_save_reduced_feature_backtest
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -3916,6 +3917,183 @@ def render_pruning_summary_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def load_reduced_feature_backtest_outputs(output_dir: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    base = Path(output_dir)
+    return (
+        pd.read_csv(base / "reduced_feature_backtest_summary.csv")
+        if (base / "reduced_feature_backtest_summary.csv").exists()
+        else pd.DataFrame(),
+        pd.read_csv(base / "reduced_feature_backtest_results.csv")
+        if (base / "reduced_feature_backtest_results.csv").exists()
+        else pd.DataFrame(),
+        pd.read_csv(base / "warnings.csv")
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+    )
+
+
+def render_reduced_feature_backtest_tab() -> None:
+    st.write(
+        "Compare trading backtest performance across reduced feature sets. "
+        "This tests trading behavior, not just ROC/F1 metrics."
+    )
+    st.warning(
+        "Better ROC/F1 does not necessarily mean better trading return. This "
+        "panel is educational research only, not financial advice."
+    )
+
+    factor_csv = st.text_input(
+        "Reduced feature factor CSV",
+        value="data/factors/smoke_factors_000001.csv",
+        key="reduced_feature_factor_csv",
+    )
+    recommendations_path = st.text_input(
+        "Reduced feature recommendations CSV",
+        value="outputs/factor_ablation_demo/feature_pruning_recommendations.csv",
+        key="reduced_feature_recommendations",
+    )
+    output_dir = st.text_input(
+        "Reduced feature backtest output directory",
+        value="outputs/reduced_feature_backtest_demo",
+        key="reduced_feature_output_dir",
+    )
+    models_text = st.text_input(
+        "Reduced feature model types",
+        value="logistic_regression,random_forest",
+        key="reduced_feature_models",
+    )
+    modes_text = st.text_input(
+        "Reduced feature modes",
+        value="full,drop_reduce_weight,keep_core_only,keep_core_and_observe",
+        key="reduced_feature_modes",
+    )
+    target_col = st.text_input(
+        "Reduced feature target column",
+        value="label_up_5d",
+        key="reduced_feature_target",
+    )
+
+    threshold_cols = st.columns(3)
+    buy_threshold = threshold_cols[0].number_input(
+        "Reduced buy threshold",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.60,
+        step=0.01,
+    )
+    sell_threshold = threshold_cols[1].number_input(
+        "Reduced sell threshold",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.50,
+        step=0.01,
+    )
+    initial_cash = threshold_cols[2].number_input(
+        "Reduced initial cash",
+        min_value=0.0,
+        value=10000.0,
+        step=1000.0,
+    )
+
+    cost_cols = st.columns(4)
+    commission_rate = cost_cols[0].number_input(
+        "Reduced commission rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    stamp_tax_rate = cost_cols[1].number_input(
+        "Reduced stamp tax rate",
+        min_value=0.0,
+        value=0.0,
+        step=0.0001,
+        format="%.6f",
+    )
+    slippage_pct = cost_cols[2].number_input(
+        "Reduced slippage %",
+        min_value=0.0,
+        value=0.0,
+        step=0.01,
+        format="%.4f",
+    )
+    min_commission = cost_cols[3].number_input(
+        "Reduced minimum commission",
+        min_value=0.0,
+        value=0.0,
+        step=1.0,
+    )
+
+    buttons = st.columns(2)
+    run_clicked = buttons[0].button(
+        "Run reduced feature backtest",
+        key="run_reduced_feature_backtest_button",
+        type="primary",
+    )
+    load_clicked = buttons[1].button(
+        "Load reduced feature outputs",
+        key="load_reduced_feature_backtest_button",
+    )
+
+    if run_clicked:
+        try:
+            result = run_and_save_reduced_feature_backtest(
+                factor_csv=factor_csv,
+                recommendations_path=recommendations_path,
+                output_dir=output_dir,
+                model_types=parse_ablation_model_types(models_text),
+                pruning_modes=parse_pruning_modes(modes_text),
+                target_col=target_col,
+                initial_cash=initial_cash,
+                buy_threshold=buy_threshold,
+                sell_threshold=sell_threshold,
+                commission_rate=commission_rate,
+                stamp_tax_rate=stamp_tax_rate,
+                slippage_pct=slippage_pct,
+                min_commission=min_commission,
+            )
+            summary_df = result["summary"]
+            results_df = result["results"]
+            warnings_df = result["warnings"]
+        except Exception as exc:
+            st.error(f"Reduced feature backtest failed: {exc}")
+            return
+    elif load_clicked:
+        summary_df, results_df, warnings_df = load_reduced_feature_backtest_outputs(
+            output_dir
+        )
+    else:
+        return
+
+    st.subheader("Reduced Feature Backtest Summary")
+    st.dataframe(summary_df, width="stretch")
+
+    st.subheader("Full Results")
+    st.dataframe(results_df, width="stretch")
+
+    st.subheader("Warnings")
+    if warnings_df.empty:
+        st.success("No warnings were recorded.")
+    else:
+        st.dataframe(warnings_df, width="stretch")
+
+    if not results_df.empty:
+        chart_df = results_df.copy()
+        chart_df["mode_model"] = (
+            chart_df["pruning_mode"].astype(str)
+            + " / "
+            + chart_df["model_type"].astype(str)
+        )
+        st.subheader("Total Return")
+        st.bar_chart(chart_df.set_index("mode_model")["total_return_pct"])
+        st.subheader("Max Drawdown")
+        st.bar_chart(chart_df.set_index("mode_model")["max_drawdown_pct"])
+        st.subheader("Trade Count")
+        st.bar_chart(chart_df.set_index("mode_model")["trade_count"])
+        st.subheader("Strategy vs Benchmark")
+        st.bar_chart(chart_df.set_index("mode_model")["strategy_vs_benchmark_pct"])
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -3995,6 +4173,7 @@ def main() -> None:
         factor_decisions_tab,
         factor_pruning_tab,
         pruning_summary_tab,
+        reduced_feature_backtest_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -4011,6 +4190,7 @@ def main() -> None:
             "Factor Decisions",
             "Factor Pruning",
             "Pruning Summary",
+            "Reduced Feature Backtest",
         ]
     )
     with single_tab:
@@ -4064,6 +4244,9 @@ def main() -> None:
 
     with pruning_summary_tab:
         render_pruning_summary_tab()
+
+    with reduced_feature_backtest_tab:
+        render_reduced_feature_backtest_tab()
 
 
 if __name__ == "__main__":

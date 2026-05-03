@@ -822,6 +822,37 @@ The dashboard has a `Pruning Summary` tab for generating or loading the same
 multi-symbol report. This is educational research diagnostics, not financial
 advice.
 
+## V4 Step 21: Reduced Feature Set ML Signal Backtest
+
+Step 21 compares trading backtest behavior across pruning modes. Earlier steps
+compared ROC AUC and F1; this step asks whether the same reduced feature sets
+also improve long/flat ML signal backtests.
+
+Example:
+
+```powershell
+python src/run_reduced_feature_backtest.py --factor-csv outputs/model_robustness_real_v2/factors/factors_000001.csv --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --output-dir outputs/reduced_feature_backtest_000001 --models logistic_regression,random_forest --target-col label_up_5d --buy-threshold 0.60 --sell-threshold 0.50 --initial-cash 10000
+```
+
+Supported modes:
+
+- `full`
+- `drop_reduce_weight`
+- `keep_core_only`
+- `keep_core_and_observe`
+
+Outputs:
+
+- `reduced_feature_backtest_results.csv`: per model/mode backtest metrics.
+- `reduced_feature_backtest_summary.csv`: average return, drawdown, trade count, and benchmark comparison.
+- `warnings.csv`: small sample, no-trade, or training warnings.
+- `run_config.json`: input paths, thresholds, costs, and model settings.
+
+The dashboard has a `Reduced Feature Backtest` tab for running or loading the
+same comparison. Better ROC AUC or F1 does not necessarily mean better trading
+return after costs, slippage, thresholds, and execution timing. This is
+educational research only, not financial advice.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
