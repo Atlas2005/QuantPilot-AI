@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 PY_COMPILE_FILES = [
+    "app.py",
     "src/check_setup.py",
     "src/run_demo.py",
     "src/real_data_loader.py",
@@ -13,6 +14,8 @@ PY_COMPILE_FILES = [
     "src/split_factor_dataset.py",
     "src/model_trainer.py",
     "src/train_baseline_model.py",
+    "src/model_predictor.py",
+    "src/predict_with_model.py",
     "src/run_stock_backtest.py",
     "src/run_batch_experiment.py",
     "src/run_period_experiment.py",
@@ -32,6 +35,7 @@ COMMAND_CHECKS = [
     ("build_factor_dataset help", ["src/build_factor_dataset.py", "--help"]),
     ("split_factor_dataset help", ["src/split_factor_dataset.py", "--help"]),
     ("train_baseline_model help", ["src/train_baseline_model.py", "--help"]),
+    ("predict_with_model help", ["src/predict_with_model.py", "--help"]),
     (
         "demo factor dataset build",
         [
@@ -72,6 +76,18 @@ COMMAND_CHECKS = [
             "random_forest",
             "--output-dir",
             "models/smoke_000001",
+        ],
+    ),
+    (
+        "offline model prediction",
+        [
+            "src/predict_with_model.py",
+            "--model-path",
+            "models/smoke_000001/random_forest.joblib",
+            "--input",
+            "data/factors/smoke_factors_000001.csv",
+            "--top-n",
+            "5",
         ],
     ),
     ("run_stock_backtest help", ["src/run_stock_backtest.py", "--help"]),

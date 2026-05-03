@@ -10,6 +10,7 @@ import streamlit as st
 from src.backtester import run_long_only_backtest_with_trades
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
+from src.model_predictor import run_model_prediction
 from src.real_data_loader import fetch_a_share_daily_from_source
 from src.report_generator import generate_rule_based_report
 from src.strategy import generate_ma_crossover_signals
@@ -2154,6 +2155,113 @@ def render_period_experiment_tab() -> None:
     )
 
 
+def render_model_prediction_tab() -> None:
+    st.write(
+        "Load a trained baseline model and run one latest-row prediction from "
+        "a factor CSV or an ML split CSV."
+    )
+    st.info(
+        "The prediction panel uses saved feature_columns.txt to select model "
+        "inputs. It does not change strategy rules or backtest behavior."
+    )
+
+    model_path = st.text_input(
+        "Model path",
+        value="models/demo_000001/random_forest.joblib",
+        help="Path to a trained .joblib model.",
+    )
+    factor_csv_path = st.text_input(
+        "Factor or ML CSV path",
+        value="data/factors/factors_000001.csv",
+        help="CSV containing the latest row to score.",
+    )
+    top_n = st.number_input(
+        "Top factors",
+        min_value=1,
+        max_value=30,
+        value=10,
+        step=1,
+    )
+
+    with st.expander("Optional artifact paths"):
+        metrics_path = st.text_input(
+            "Metrics path",
+            value="",
+            help="Blank uses metrics.json beside the model.",
+        )
+        feature_columns_path = st.text_input(
+            "Feature columns path",
+            value="",
+            help="Blank uses feature_columns.txt beside the model.",
+        )
+        feature_importance_path = st.text_input(
+            "Feature importance path",
+            value="",
+            help="Blank uses feature_importance.csv beside the model when available.",
+        )
+
+    run_clicked = st.button(
+        "Run model prediction",
+        key="run_model_prediction_button",
+        type="primary",
+    )
+    if not run_clicked:
+        st.caption(
+            "Generated model and factor files are local ignored artifacts. "
+            "Create them with the README commands before using this panel."
+        )
+        return
+
+    try:
+        result = run_model_prediction(
+            model_path=model_path,
+            input_path=factor_csv_path,
+            metrics_path=metrics_path.strip() or None,
+            feature_columns_path=feature_columns_path.strip() or None,
+            feature_importance_path=feature_importance_path.strip() or None,
+            top_n=int(top_n),
+        )
+    except Exception as exc:
+        st.error(f"Model prediction failed: {exc}")
+        return
+
+    columns = st.columns(3)
+    probability = result["predicted_probability"]
+    columns[0].metric(
+        "P(label_up_5d)",
+        "N/A" if probability is None else f"{probability:.2%}",
+    )
+    columns[1].metric("Predicted class", str(result["predicted_class"]))
+    columns[2].metric("Model signal", result["model_signal"].title())
+
+    st.subheader("Scored Row")
+    st.json(result["row_info"])
+
+    st.subheader("Top Factors")
+    importance_df = pd.DataFrame(result["top_feature_importance"])
+    if importance_df.empty:
+        st.info("Feature importance is unavailable for this model artifact.")
+    else:
+        st.dataframe(importance_df, width="stretch")
+
+    st.subheader("Saved Model Metrics")
+    metrics = result.get("metrics", {})
+    validation_metrics = metrics.get("validation_metrics")
+    test_metrics = metrics.get("test_metrics")
+    if validation_metrics:
+        st.write("Validation metrics")
+        st.json(validation_metrics)
+    if test_metrics:
+        st.write("Test metrics")
+        st.json(test_metrics)
+
+    st.warning(
+        "This ML output is an educational research signal, not a trading "
+        "recommendation. Good prediction metrics do not guarantee profitable "
+        "trading."
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -2218,8 +2326,13 @@ def main() -> None:
         step=1.0,
     )
 
-    single_tab, experiment_tab, period_tab = st.tabs(
-        ["Single Backtest", "Parameter Experiment", "Period Experiment"]
+    single_tab, experiment_tab, period_tab, model_tab = st.tabs(
+        [
+            "Single Backtest",
+            "Parameter Experiment",
+            "Period Experiment",
+            "Model Prediction",
+        ]
     )
     with single_tab:
         render_single_backtest_tab(
@@ -2239,6 +2352,9 @@ def main() -> None:
 
     with period_tab:
         render_period_experiment_tab()
+
+    with model_tab:
+        render_model_prediction_tab()
 
 
 if __name__ == "__main__":

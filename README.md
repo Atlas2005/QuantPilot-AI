@@ -37,6 +37,7 @@ Run these commands from the project root in Windows PowerShell.
 | Build factor dataset | `python src/build_factor_dataset.py --source csv --input data/real/000001.csv --symbol 000001 --output data/factors/factors_000001.csv` |
 | Split ML dataset | `python src/split_factor_dataset.py --input data/factors/factors_000001.csv --output-dir data/ml/demo_000001 --target-col label_up_5d --purge-rows 5 --split-mode global_date` |
 | Train baseline ML model | `python src/train_baseline_model.py --dataset-dir data/ml/demo_000001 --target-col label_up_5d --model random_forest --output-dir models/demo_000001` |
+| Predict with baseline model | `python src/predict_with_model.py --model-path models/demo_000001/random_forest.joblib --input data/factors/factors_000001.csv` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -71,6 +72,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/split_factor_dataset.py`: Command-line tool for ML dataset splitting and leakage checks.
 - `src/model_trainer.py`: Trains and evaluates baseline supervised ML models.
 - `src/train_baseline_model.py`: Command-line tool for baseline ML model training.
+- `src/model_predictor.py`: Loads trained model artifacts and predicts the latest factor row.
+- `src/predict_with_model.py`: Command-line tool for model prediction.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -227,6 +230,7 @@ Outputs are saved under the selected model output directory:
 
 - `random_forest.joblib` or `logistic_regression.joblib`
 - `metrics.json`
+- `feature_columns.txt`
 - `validation_predictions.csv`
 - `test_predictions.csv`
 - `feature_importance.csv` when the selected model supports it
@@ -235,6 +239,32 @@ This is educational baseline ML, not a trading recommendation. Good validation
 or test metrics do not guarantee profitable trading, because trading results
 also depend on execution assumptions, transaction costs, risk controls, market
 regime changes, and position sizing.
+
+## Model Prediction
+
+After training a baseline model, use the prediction tool to score the latest
+row in a factor CSV or ML split CSV:
+
+```powershell
+python src/predict_with_model.py --model-path models/demo_000001/random_forest.joblib --input data/factors/factors_000001.csv
+```
+
+The predictor loads the `.joblib` model, `metrics.json`, and
+`feature_columns.txt` from the model output directory. It reports the predicted
+class, the predicted probability of `label_up_5d` when available, a simple
+`bullish` / `neutral` / `bearish` model signal, and top feature importance when
+the model artifact provides it.
+
+The Streamlit dashboard also has a `Model Prediction` tab:
+
+```powershell
+streamlit run app.py
+```
+
+Enter the model path and factor CSV path in that panel to view the probability,
+signal, scored row, saved metrics, and top factors. This panel does not modify
+the rule-based strategy, backtester, or live trading behavior. Model prediction
+is educational research output, not financial advice.
 
 ## Smoke Tests
 

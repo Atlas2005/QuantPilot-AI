@@ -325,6 +325,7 @@ def run_training_workflow(
         model=model,
         output_dir=output_dir,
         model_name=model_name,
+        feature_columns=feature_columns,
         metrics={
             "dataset_dir": str(dataset_dir),
             "target_col": target_col,
@@ -359,6 +360,7 @@ def save_model_outputs(
     model: Pipeline,
     output_dir: str | Path,
     model_name: str,
+    feature_columns: list[str],
     metrics: dict[str, Any],
     validation_predictions: pd.DataFrame,
     test_predictions: pd.DataFrame,
@@ -370,6 +372,7 @@ def save_model_outputs(
 
     model_path = output_path / f"{model_name}.joblib"
     metrics_path = output_path / "metrics.json"
+    feature_columns_path = output_path / "feature_columns.txt"
     validation_path = output_path / "validation_predictions.csv"
     test_path = output_path / "test_predictions.csv"
     importance_path = output_path / "feature_importance.csv"
@@ -377,6 +380,10 @@ def save_model_outputs(
     joblib.dump(model, model_path)
     metrics_path.write_text(
         json.dumps(metrics, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    feature_columns_path.write_text(
+        "\n".join(feature_columns) + "\n",
         encoding="utf-8",
     )
     validation_predictions.to_csv(validation_path, index=False)
@@ -390,6 +397,7 @@ def save_model_outputs(
     return {
         "model": str(model_path),
         "metrics": str(metrics_path),
+        "feature_columns": str(feature_columns_path),
         "validation_predictions": str(validation_path),
         "test_predictions": str(test_path),
         "feature_importance": saved_importance_path,
