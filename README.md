@@ -35,6 +35,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run dashboard | `streamlit run app.py` |
 | Fetch real A-share data | `python src/real_data_loader.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Build factor dataset | `python src/build_factor_dataset.py --source csv --input data/real/000001.csv --symbol 000001 --output data/factors/factors_000001.csv` |
+| Split ML dataset | `python src/split_factor_dataset.py --input data/factors/factors_000001.csv --output-dir data/ml/demo_000001 --target-col label_up_5d --purge-rows 5 --split-mode global_date` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -57,6 +58,7 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `data/sample/`: Tracked sample and demo CSV data for offline testing.
 - `data/real/`: Local folder for fetched real A-share data. Contents may vary by machine.
 - `data/factors/`: Generated factor datasets for future ML research. This folder is ignored by Git.
+- `data/ml/`: Generated chronological train/validation/test datasets. This folder is ignored by Git.
 - `reports/`: Generated CSV summaries and chart outputs. This folder is ignored by Git.
 - `src/check_setup.py`: Checks that required Python packages are installed.
 - `src/run_smoke_tests.py`: Runs offline compile, setup, demo, and help checks.
@@ -64,6 +66,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/real_data_loader.py`: Fetches real A-share daily data from AkShare or Baostock.
 - `src/factor_builder.py`: Builds feature-and-label factor datasets from OHLCV data.
 - `src/build_factor_dataset.py`: Command-line tool for creating factor CSV files.
+- `src/dataset_splitter.py`: Splits factor datasets into chronological ML datasets.
+- `src/split_factor_dataset.py`: Command-line tool for ML dataset splitting and leakage checks.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -164,6 +168,31 @@ python src/build_factor_dataset.py --source baostock --symbol 000001 --start 202
 
 The generated CSV is research data for future model training. It is not a
 trading recommendation.
+
+## V4 Step 3: ML Dataset Split and Leakage Check
+
+V4 Step 3 prepares safe train/validation/test CSV files from a factor dataset.
+The split is chronological and never shuffles rows.
+
+Create a demo factor dataset:
+
+```powershell
+python src/build_factor_dataset.py --symbol 000001 --source demo --start 20240101 --end 20241231 --output data/factors/factors_000001.csv
+```
+
+Split the factor dataset:
+
+```powershell
+python src/split_factor_dataset.py --input data/factors/factors_000001.csv --output-dir data/ml/demo_000001 --target-col label_up_5d --purge-rows 5 --split-mode global_date
+```
+
+The splitter infers feature columns by excluding `date`, `symbol`, and any
+column name containing `future`, `label`, or `target`. This keeps future-return
+labels out of model inputs. `purge_rows` removes rows before split boundaries
+to reduce label-window leakage for targets such as `label_up_5d`.
+
+This step still does not train a model. It only prepares educational research
+datasets and is not financial advice.
 
 ## Smoke Tests
 
@@ -395,6 +424,7 @@ The project `.gitignore` ignores generated reports and cache files, including:
 
 - `reports/`
 - `data/factors/`
+- `data/ml/`
 - `models/`
 - Python cache files
 - Matplotlib cache files

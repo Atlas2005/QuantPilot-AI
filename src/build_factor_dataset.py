@@ -24,9 +24,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--source",
-        choices=["akshare", "baostock", "auto", "csv"],
+        choices=["akshare", "baostock", "auto", "csv", "demo"],
         default="csv",
-        help="Data source to use. csv is offline and uses --input.",
+        help="Data source to use. csv and demo are offline.",
     )
     parser.add_argument(
         "--input",
@@ -63,6 +63,9 @@ def load_source_data(args: argparse.Namespace) -> pd.DataFrame:
             raise FileNotFoundError(f"Input CSV does not exist: {input_path}")
         return pd.read_csv(input_path)
 
+    if args.source == "demo":
+        return build_demo_ohlcv(args.start, args.end)
+
     return fetch_a_share_daily_from_source(
         symbol=args.symbol,
         start_date=args.start,
@@ -70,6 +73,43 @@ def load_source_data(args: argparse.Namespace) -> pd.DataFrame:
         adjust=args.adjust,
         source=args.source,
     )
+
+
+def build_demo_ohlcv(start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Build deterministic offline demo OHLCV data for smoke tests and examples.
+
+    This uses simple generated prices instead of network data. It is only for
+    workflow validation and should not be used for market conclusions.
+    """
+    start = pd.to_datetime(start_date, format="%Y%m%d")
+    end = pd.to_datetime(end_date, format="%Y%m%d")
+    dates = pd.bdate_range(start=start, end=end)
+    if dates.empty:
+        raise ValueError(f"No demo business days found from {start_date} to {end_date}.")
+
+    rows = []
+    close = 10.0
+    for index, date in enumerate(dates):
+        drift = 0.01
+        cycle = ((index % 11) - 5) * 0.006
+        close = max(1.0, close + drift + cycle)
+        open_price = close - 0.03 + ((index % 3) * 0.02)
+        high = max(open_price, close) + 0.08
+        low = min(open_price, close) - 0.08
+        volume = 1_000_000 + (index % 20) * 12_000
+        rows.append(
+            {
+                "date": date,
+                "open": round(open_price, 4),
+                "high": round(high, 4),
+                "low": round(low, 4),
+                "close": round(close, 4),
+                "volume": volume,
+            }
+        )
+
+    return pd.DataFrame(rows)
 
 
 def save_factor_dataset(factor_df: pd.DataFrame, output_path: Path) -> None:
@@ -102,6 +142,8 @@ def main() -> None:
     print(f"Selected source: {args.source}")
     if args.source == "csv":
         print(f"Input path: {args.input}")
+    elif args.source == "demo":
+        print("Input path: generated offline demo data")
     else:
         print(f"Date range: {args.start} to {args.end}")
         print(f"Adjust mode: {args.adjust}")
