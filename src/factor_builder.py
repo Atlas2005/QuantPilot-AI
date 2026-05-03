@@ -19,8 +19,13 @@ FEATURE_GROUPS = {
         "volume_change_1d",
         "volume_change_5d",
         "dollar_volume",
+        "turnover_proxy",
         "high_low_range_pct",
         "close_open_return_pct",
+        "intraday_range_pct",
+        "candle_body_pct",
+        "upper_shadow_pct",
+        "lower_shadow_pct",
     ],
     "trend": [
         "ma5",
@@ -31,16 +36,29 @@ FEATURE_GROUPS = {
         "ma60_gap_pct",
         "ma5_ma20_gap_pct",
         "ma20_ma60_gap_pct",
+        "price_position_20d",
+        "price_position_60d",
+        "breakout_20d",
+        "breakdown_20d",
+        "trend_strength_20d",
     ],
     "volatility": [
         "volatility_5d",
         "volatility_20d",
+        "volatility_ratio_5d_20d",
         "drawdown_20d",
         "drawdown_60d",
         "rolling_high_20d",
         "rolling_low_20d",
     ],
-    "technical": ["RSI", "CCI"],
+    "technical": [
+        "volume_ma5",
+        "volume_ma20",
+        "volume_ratio_5d",
+        "volume_ratio_20d",
+        "RSI",
+        "CCI",
+    ],
     "future_labels": [
         "future_return_1d",
         "future_return_5d",
@@ -172,9 +190,10 @@ def build_factor_dataset(df: pd.DataFrame, symbol: str = "UNKNOWN") -> pd.DataFr
     normalized_df.columns = [column.strip().lower() for column in normalized_df.columns]
     _require_columns(normalized_df)
 
-    normalized_df = normalized_df[REQUIRED_COLUMNS].copy()
+    optional_columns = [column for column in ["amount"] if column in normalized_df.columns]
+    normalized_df = normalized_df[REQUIRED_COLUMNS + optional_columns].copy()
     normalized_df["date"] = pd.to_datetime(normalized_df["date"], errors="coerce")
-    for column in ["open", "high", "low", "close", "volume"]:
+    for column in ["open", "high", "low", "close", "volume", *optional_columns]:
         normalized_df[column] = pd.to_numeric(normalized_df[column], errors="coerce")
 
     normalized_df = normalized_df.dropna(subset=["date", "close"])
@@ -191,6 +210,7 @@ def build_factor_dataset(df: pd.DataFrame, symbol: str = "UNKNOWN") -> pd.DataFr
     high = result["high"]
     low = result["low"]
     volume = result["volume"]
+    amount = normalized_df["amount"] if "amount" in normalized_df.columns else None
 
     # Current/past-only market features. These are safe to use for training inputs.
     result["return_1d"] = close.pct_change(1)
@@ -199,8 +219,13 @@ def build_factor_dataset(df: pd.DataFrame, symbol: str = "UNKNOWN") -> pd.DataFr
     result["volume_change_1d"] = volume.pct_change(1)
     result["volume_change_5d"] = volume.pct_change(5)
     result["dollar_volume"] = close * volume
+    result["turnover_proxy"] = amount if amount is not None else result["dollar_volume"]
     result["high_low_range_pct"] = (high - low) / close
     result["close_open_return_pct"] = (close - open_price) / open_price
+    result["intraday_range_pct"] = (high - low) / open_price
+    result["candle_body_pct"] = (close - open_price).abs() / open_price
+    result["upper_shadow_pct"] = (high - pd.concat([open_price, close], axis=1).max(axis=1)) / open_price
+    result["lower_shadow_pct"] = (pd.concat([open_price, close], axis=1).min(axis=1) - low) / open_price
 
     result["ma5"] = close.rolling(window=5).mean()
     result["ma20"] = close.rolling(window=20).mean()
@@ -213,11 +238,31 @@ def build_factor_dataset(df: pd.DataFrame, symbol: str = "UNKNOWN") -> pd.DataFr
 
     result["volatility_5d"] = result["return_1d"].rolling(window=5).std()
     result["volatility_20d"] = result["return_1d"].rolling(window=20).std()
+    result["volatility_ratio_5d_20d"] = result["volatility_5d"] / result["volatility_20d"]
     result["rolling_high_20d"] = close.rolling(window=20).max()
     result["rolling_low_20d"] = close.rolling(window=20).min()
     rolling_high_60d = close.rolling(window=60).max()
+    rolling_low_60d = close.rolling(window=60).min()
+    previous_high_20d = high.shift(1).rolling(window=20).max()
+    previous_low_20d = low.shift(1).rolling(window=20).min()
     result["drawdown_20d"] = close / result["rolling_high_20d"] - 1
     result["drawdown_60d"] = close / rolling_high_60d - 1
+    result["price_position_20d"] = (
+        close - result["rolling_low_20d"]
+    ) / (result["rolling_high_20d"] - result["rolling_low_20d"])
+    result["price_position_60d"] = (
+        close - rolling_low_60d
+    ) / (rolling_high_60d - rolling_low_60d)
+    result["breakout_20d"] = (close > previous_high_20d).astype("Int64")
+    result["breakout_20d"] = result["breakout_20d"].where(previous_high_20d.notna(), pd.NA)
+    result["breakdown_20d"] = (close < previous_low_20d).astype("Int64")
+    result["breakdown_20d"] = result["breakdown_20d"].where(previous_low_20d.notna(), pd.NA)
+    result["trend_strength_20d"] = (close - close.shift(20)) / (20 * close.shift(20))
+
+    result["volume_ma5"] = volume.rolling(window=5).mean()
+    result["volume_ma20"] = volume.rolling(window=20).mean()
+    result["volume_ratio_5d"] = volume / result["volume_ma5"]
+    result["volume_ratio_20d"] = volume / result["volume_ma20"]
 
     result["RSI"] = calculate_rsi(result)
     result["CCI"] = calculate_cci(result)

@@ -544,6 +544,37 @@ period. Features should be added in controlled batches and evaluated with
 chronological splits, walk-forward validation, and out-of-symbol robustness
 checks. Future-return labels must never be used as model input features.
 
+## V4 Step 14: P0 OHLCV Factor Expansion
+
+Step 14 starts converting the feature implementation queue into actual training
+columns. It only adds safe P0 factors that can be calculated from existing OHLCV
+data, so it does not require paid APIs, tokens, broker terminals, DeepSeek, QMT,
+PTrade, or external network calls.
+
+New exported factor columns include candle and intraday structure, volume and
+liquidity proxies, price position, breakout/breakdown flags, trend strength, and
+volatility ratio:
+
+- `intraday_range_pct`, `candle_body_pct`, `upper_shadow_pct`, `lower_shadow_pct`
+- `volume_ma5`, `volume_ma20`, `volume_ratio_5d`, `volume_ratio_20d`
+- `turnover_proxy`
+- `price_position_20d`, `price_position_60d`
+- `breakout_20d`, `breakdown_20d`
+- `trend_strength_20d`
+- `volatility_ratio_5d_20d`
+
+Build a demo factor dataset:
+
+```powershell
+python src/build_factor_dataset.py --symbol 000001 --source demo --start 20240101 --end 20241231 --output data/factors/factors_000001.csv
+```
+
+These features use current and historical OHLCV rows only. Future-return labels
+such as `future_return_5d` and `label_up_5d` remain separate label columns and
+must not be used as input features. The expanded P0 feature space is useful for
+safer research iteration, but it is still not enough to imply profitable
+trading or investment advice.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

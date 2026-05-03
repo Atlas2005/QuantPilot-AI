@@ -124,6 +124,26 @@ COMMAND_CHECKS = [
         ],
     ),
     (
+        "demo factor dataset P0 columns",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "path=Path('data/factors/smoke_factors_000001.csv'); "
+                "df=pd.read_csv(path); "
+                "required=['intraday_range_pct','candle_body_pct',"
+                "'upper_shadow_pct','lower_shadow_pct','volume_ma5',"
+                "'volume_ma20','volume_ratio_5d','volume_ratio_20d',"
+                "'turnover_proxy','price_position_20d','price_position_60d',"
+                "'breakout_20d','breakdown_20d','trend_strength_20d',"
+                "'volatility_ratio_5d_20d']; "
+                "missing=[column for column in required if column not in df.columns]; "
+                "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
         "offline factor dataset split",
         [
             "src/split_factor_dataset.py",
