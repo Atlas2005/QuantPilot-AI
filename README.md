@@ -853,6 +853,45 @@ same comparison. Better ROC AUC or F1 does not necessarily mean better trading
 return after costs, slippage, thresholds, and execution timing. This is
 educational research only, not financial advice.
 
+## V4 Step 22: Multi-Symbol Reduced Feature Backtest Summary
+
+Step 22 aggregates the per-symbol Step 21 outputs so pruning modes and model
+types can be compared across several stocks. This checks whether a reduced
+feature set looks stable in trading backtests instead of only looking good on a
+single symbol.
+
+Example:
+
+```powershell
+python src/generate_reduced_feature_backtest_report.py --input-dirs outputs/reduced_feature_backtest_real_000001,outputs/reduced_feature_backtest_real_600519,outputs/reduced_feature_backtest_real_000858,outputs/reduced_feature_backtest_real_600036,outputs/reduced_feature_backtest_real_601318 --output-dir outputs/reduced_feature_backtest_summary_real_v1
+```
+
+Generated files:
+
+- `combined_reduced_feature_backtest_results.csv`: all Step 21 result rows.
+- `reduced_feature_backtest_mode_summary.csv`: pruning mode comparison.
+- `reduced_feature_backtest_model_summary.csv`: model type comparison.
+- `reduced_feature_backtest_mode_model_summary.csv`: pruning mode and model pair comparison.
+- `per_symbol_best_backtest_modes.csv`: best mode/model per symbol.
+- `underperformance_cases.csv`: negative return, benchmark underperformance, or low-trade cases.
+- `warnings.csv`: source warnings and research warnings.
+- `run_config.json`: input directories and report settings.
+- `reduced_feature_backtest_report.md`: readable research report.
+
+Interpretation notes:
+
+- A high excess return with very few trades may be unreliable.
+- A pruning mode should not become default unless it is stable across symbols,
+  model types, drawdown, and trade count.
+- Better ROC/F1 from earlier steps does not necessarily imply better trading
+  return.
+- The next research step should be walk-forward validation and threshold
+  sensitivity testing before adding more features.
+
+The dashboard has a `Reduced Feature Backtest Summary` tab for generating or
+loading the same report. This is educational research only, not financial
+advice.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

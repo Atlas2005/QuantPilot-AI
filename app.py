@@ -51,6 +51,11 @@ from src.pruning_summary_report import (
     save_pruning_summary_report,
 )
 from src.reduced_feature_backtest import run_and_save_reduced_feature_backtest
+from src.reduced_feature_backtest_report import (
+    DEFAULT_INPUT_DIRS as DEFAULT_REDUCED_FEATURE_SUMMARY_DIRS,
+    parse_input_dirs as parse_reduced_feature_summary_input_dirs,
+    save_reduced_feature_backtest_report,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -4094,6 +4099,168 @@ def render_reduced_feature_backtest_tab() -> None:
         st.bar_chart(chart_df.set_index("mode_model")["strategy_vs_benchmark_pct"])
 
 
+def load_reduced_feature_backtest_summary_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "reduced_feature_backtest_report.md"
+    return {
+        "mode_summary": pd.read_csv(
+            base / "reduced_feature_backtest_mode_summary.csv"
+        )
+        if (base / "reduced_feature_backtest_mode_summary.csv").exists()
+        else pd.DataFrame(),
+        "model_summary": pd.read_csv(
+            base / "reduced_feature_backtest_model_summary.csv"
+        )
+        if (base / "reduced_feature_backtest_model_summary.csv").exists()
+        else pd.DataFrame(),
+        "mode_model_summary": pd.read_csv(
+            base / "reduced_feature_backtest_mode_model_summary.csv"
+        )
+        if (base / "reduced_feature_backtest_mode_model_summary.csv").exists()
+        else pd.DataFrame(),
+        "per_symbol_best": pd.read_csv(base / "per_symbol_best_backtest_modes.csv")
+        if (base / "per_symbol_best_backtest_modes.csv").exists()
+        else pd.DataFrame(),
+        "underperformance": pd.read_csv(base / "underperformance_cases.csv")
+        if (base / "underperformance_cases.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(base / "warnings.csv")
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
+def render_reduced_feature_backtest_summary_tab() -> None:
+    st.write(
+        "Aggregate reduced feature backtest results across symbols to compare "
+        "pruning modes and model types by trading performance."
+    )
+    st.warning(
+        "Reduced feature backtest summaries are research diagnostics only. "
+        "A pruning mode should not become a default unless it is stable across "
+        "symbols, models, drawdown, and trade count."
+    )
+
+    input_dirs_text = st.text_area(
+        "Reduced feature backtest output directories",
+        value=",".join(DEFAULT_REDUCED_FEATURE_SUMMARY_DIRS),
+        key="reduced_feature_summary_input_dirs",
+    )
+    output_dir = st.text_input(
+        "Reduced feature summary output directory",
+        value="outputs/reduced_feature_backtest_summary_real_v1",
+        key="reduced_feature_summary_output_dir",
+    )
+    min_trades = st.number_input(
+        "Minimum trades warning threshold",
+        min_value=0,
+        value=3,
+        step=1,
+        key="reduced_feature_summary_min_trades",
+    )
+
+    buttons = st.columns(2)
+    generate_clicked = buttons[0].button(
+        "Generate reduced feature summary",
+        key="generate_reduced_feature_summary_button",
+        type="primary",
+    )
+    load_clicked = buttons[1].button(
+        "Load reduced feature summary",
+        key="load_reduced_feature_summary_button",
+    )
+
+    if generate_clicked:
+        try:
+            result = save_reduced_feature_backtest_report(
+                input_dirs=parse_reduced_feature_summary_input_dirs(input_dirs_text),
+                output_dir=output_dir,
+                min_trades=int(min_trades),
+            )
+            mode_summary = result["reduced_feature_backtest_mode_summary"]
+            model_summary = result["reduced_feature_backtest_model_summary"]
+            mode_model_summary = result[
+                "reduced_feature_backtest_mode_model_summary"
+            ]
+            per_symbol_best = result["per_symbol_best_backtest_modes"]
+            underperformance = result["underperformance_cases"]
+            warnings_df = result["warnings"]
+            report_text = result["markdown_report"]
+        except Exception as exc:
+            st.error(f"Reduced feature summary generation failed: {exc}")
+            return
+    elif load_clicked:
+        result = load_reduced_feature_backtest_summary_outputs(output_dir)
+        mode_summary = result["mode_summary"]
+        model_summary = result["model_summary"]
+        mode_model_summary = result["mode_model_summary"]
+        per_symbol_best = result["per_symbol_best"]
+        underperformance = result["underperformance"]
+        warnings_df = result["warnings"]
+        report_text = result["markdown_report"]
+    else:
+        return
+
+    card_cols = st.columns(4)
+    card_cols[0].metric("Pruning modes", len(mode_summary))
+    card_cols[1].metric("Model types", len(model_summary))
+    card_cols[2].metric("Per-symbol rows", len(per_symbol_best))
+    card_cols[3].metric("Warnings", len(warnings_df))
+
+    st.subheader("Pruning Mode Summary")
+    if mode_summary.empty:
+        st.info("No pruning mode summary rows are available.")
+    else:
+        st.dataframe(mode_summary, width="stretch")
+
+    st.subheader("Model Type Summary")
+    st.dataframe(model_summary, width="stretch")
+
+    st.subheader("Pruning Mode + Model Summary")
+    st.dataframe(mode_model_summary, width="stretch")
+
+    st.subheader("Per-Symbol Best Backtest Modes")
+    st.dataframe(per_symbol_best, width="stretch")
+
+    st.subheader("Underperformance Cases")
+    if underperformance.empty:
+        st.success("No underperformance cases were flagged.")
+    else:
+        st.dataframe(underperformance, width="stretch")
+
+    st.subheader("Warnings")
+    if warnings_df.empty:
+        st.success("No warnings were recorded.")
+    else:
+        st.dataframe(warnings_df, width="stretch")
+
+    if not mode_summary.empty:
+        st.subheader("Average Strategy vs Benchmark by Mode")
+        st.bar_chart(
+            mode_summary.set_index("pruning_mode")[
+                "avg_strategy_vs_benchmark_pct"
+            ]
+        )
+        st.subheader("Stability Score by Mode")
+        st.bar_chart(mode_summary.set_index("pruning_mode")["stability_score"])
+
+    st.subheader("Markdown Report")
+    if report_text:
+        st.markdown(report_text)
+        st.download_button(
+            "Download reduced feature backtest report",
+            data=report_text,
+            file_name="reduced_feature_backtest_report.md",
+            mime="text/markdown",
+            key="download_reduced_feature_summary_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -4174,6 +4341,7 @@ def main() -> None:
         factor_pruning_tab,
         pruning_summary_tab,
         reduced_feature_backtest_tab,
+        reduced_feature_backtest_summary_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -4191,6 +4359,7 @@ def main() -> None:
             "Factor Pruning",
             "Pruning Summary",
             "Reduced Feature Backtest",
+            "Reduced Feature Backtest Summary",
         ]
     )
     with single_tab:
@@ -4247,6 +4416,9 @@ def main() -> None:
 
     with reduced_feature_backtest_tab:
         render_reduced_feature_backtest_tab()
+
+    with reduced_feature_backtest_summary_tab:
+        render_reduced_feature_backtest_summary_tab()
 
 
 if __name__ == "__main__":

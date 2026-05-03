@@ -36,6 +36,8 @@ PY_COMPILE_FILES = [
     "src/generate_pruning_summary_report.py",
     "src/reduced_feature_backtest.py",
     "src/run_reduced_feature_backtest.py",
+    "src/reduced_feature_backtest_report.py",
+    "src/generate_reduced_feature_backtest_report.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -88,6 +90,10 @@ COMMAND_CHECKS = [
     (
         "run_reduced_feature_backtest help",
         ["src/run_reduced_feature_backtest.py", "--help"],
+    ),
+    (
+        "generate_reduced_feature_backtest_report help",
+        ["src/generate_reduced_feature_backtest_report.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -351,6 +357,66 @@ COMMAND_CHECKS = [
                 "required=['reduced_feature_backtest_results.csv',"
                 "'reduced_feature_backtest_summary.csv','warnings.csv',"
                 "'run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic reduced feature summary inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import json\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/reduced_feature_summary_smoke_inputs')\\n"
+                "rows=[\\n"
+                "{'symbol':'000001','model_type':'logistic_regression','pruning_mode':'full','feature_count':44,'buy_threshold':0.6,'sell_threshold':0.5,'total_return_pct':1.0,'benchmark_return_pct':2.0,'strategy_vs_benchmark_pct':-1.0,'max_drawdown_pct':-3.0,'trade_count':2,'win_rate_pct':50.0,'final_value':10100,'warning':'low trades'},\\n"
+                "{'symbol':'000001','model_type':'random_forest','pruning_mode':'drop_reduce_weight','feature_count':40,'buy_threshold':0.6,'sell_threshold':0.5,'total_return_pct':4.0,'benchmark_return_pct':2.0,'strategy_vs_benchmark_pct':2.0,'max_drawdown_pct':-2.0,'trade_count':5,'win_rate_pct':60.0,'final_value':10400},\\n"
+                "{'symbol':'600519','model_type':'logistic_regression','pruning_mode':'full','feature_count':44,'buy_threshold':0.6,'sell_threshold':0.5,'total_return_pct':-1.0,'benchmark_return_pct':1.0,'strategy_vs_benchmark_pct':-2.0,'max_drawdown_pct':-4.0,'trade_count':4,'win_rate_pct':40.0,'final_value':9900},\\n"
+                "{'symbol':'600519','model_type':'random_forest','pruning_mode':'drop_reduce_weight','feature_count':40,'buy_threshold':0.6,'sell_threshold':0.5,'total_return_pct':3.0,'benchmark_return_pct':1.0,'strategy_vs_benchmark_pct':2.0,'max_drawdown_pct':-2.5,'trade_count':6,'win_rate_pct':66.7,'final_value':10300}\\n"
+                "]\\n"
+                "for symbol in ['000001','600519']:\\n"
+                "    d=base/f'reduced_feature_backtest_real_{symbol}'\\n"
+                "    d.mkdir(parents=True, exist_ok=True)\\n"
+                "    df=pd.DataFrame([row for row in rows if row['symbol']==symbol])\\n"
+                "    df.to_csv(d/'reduced_feature_backtest_results.csv', index=False)\\n"
+                "    summary=df.groupby(['pruning_mode','model_type']).agg(symbol_count=('symbol','nunique'),avg_feature_count=('feature_count','mean'),avg_total_return_pct=('total_return_pct','mean'),avg_benchmark_return_pct=('benchmark_return_pct','mean'),avg_strategy_vs_benchmark_pct=('strategy_vs_benchmark_pct','mean'),avg_max_drawdown_pct=('max_drawdown_pct','mean'),avg_trade_count=('trade_count','mean'),avg_win_rate_pct=('win_rate_pct','mean'),avg_final_value=('final_value','mean')).reset_index()\\n"
+                "    summary.to_csv(d/'reduced_feature_backtest_summary.csv', index=False)\\n"
+                "    pd.DataFrame(columns=['symbol','model_type','pruning_mode','warning']).to_csv(d/'warnings.csv', index=False)\\n"
+                "    (d/'run_config.json').write_text(json.dumps({'factor_csv':f'data/factors/factors_{symbol}.csv'}), encoding='utf-8')\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline reduced feature summary report",
+        [
+            "src/generate_reduced_feature_backtest_report.py",
+            "--input-dirs",
+            "outputs/reduced_feature_summary_smoke_inputs/reduced_feature_backtest_real_000001,outputs/reduced_feature_summary_smoke_inputs/reduced_feature_backtest_real_600519",
+            "--output-dir",
+            "outputs/reduced_feature_backtest_summary_smoke",
+            "--min-trades",
+            "3",
+        ],
+    ),
+    (
+        "offline reduced feature summary output files",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "base=Path('outputs/reduced_feature_backtest_summary_smoke'); "
+                "required=['combined_reduced_feature_backtest_results.csv',"
+                "'reduced_feature_backtest_mode_summary.csv',"
+                "'reduced_feature_backtest_model_summary.csv',"
+                "'reduced_feature_backtest_mode_model_summary.csv',"
+                "'per_symbol_best_backtest_modes.csv','underperformance_cases.csv',"
+                "'warnings.csv','run_config.json',"
+                "'reduced_feature_backtest_report.md']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
                 "assert not missing, missing"
             ),
