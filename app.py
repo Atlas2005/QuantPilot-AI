@@ -13,6 +13,13 @@ from src.batch_model_trainer import (
     parse_symbols as parse_batch_symbols,
     run_batch_model_training,
 )
+from src.feature_source_registry import (
+    get_high_leakage_risk_features,
+    get_token_required_features,
+    get_training_ready_features,
+    registry_to_dataframe,
+    summarize_factor_families,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -3145,6 +3152,77 @@ def render_model_robustness_tab() -> None:
     st.json(result["output_files"])
 
 
+def render_feature_sources_tab() -> None:
+    st.write(
+        "Review the planned multi-factor feature roadmap for future model "
+        "training. This registry is metadata only; it does not fetch external data."
+    )
+    st.info(
+        "Every future feature source needs point-in-time lag control. More data "
+        "does not automatically improve prediction, and no factor guarantees profit."
+    )
+
+    registry_df = registry_to_dataframe()
+    family_options = ["All", *sorted(registry_df["factor_family"].unique())]
+    priority_options = ["All", "P0", "P1", "P2", "P3"]
+
+    filters = st.columns(2)
+    selected_family = filters[0].selectbox(
+        "Factor family filter",
+        family_options,
+        key="feature_source_family_filter",
+    )
+    selected_priority = filters[1].selectbox(
+        "Priority filter",
+        priority_options,
+        key="feature_source_priority_filter",
+    )
+
+    filtered_df = registry_df.copy()
+    if selected_family != "All":
+        filtered_df = filtered_df[filtered_df["factor_family"] == selected_family]
+    if selected_priority != "All":
+        filtered_df = filtered_df[
+            filtered_df["implementation_priority"] == selected_priority
+        ]
+
+    st.subheader("Feature Registry")
+    st.dataframe(filtered_df, width="stretch")
+
+    csv_bytes = registry_df.to_csv(index=False, encoding="utf-8-sig").encode(
+        "utf-8-sig"
+    )
+    st.download_button(
+        "Download full registry CSV",
+        data=csv_bytes,
+        file_name="feature_source_registry.csv",
+        mime="text/csv",
+        key="download_feature_source_registry_button",
+    )
+
+    st.subheader("Factor Family Summary")
+    st.dataframe(summarize_factor_families(), width="stretch")
+
+    st.subheader("Training-Ready Features")
+    st.dataframe(
+        registry_to_dataframe(get_training_ready_features()),
+        width="stretch",
+    )
+
+    st.subheader("High Leakage Risk Features")
+    st.dataframe(
+        registry_to_dataframe(get_high_leakage_risk_features()),
+        width="stretch",
+    )
+
+    st.subheader("Token-Required Features")
+    token_df = registry_to_dataframe(get_token_required_features())
+    if token_df.empty:
+        st.success("No registry rows currently require tokens.")
+    else:
+        st.dataframe(token_df, width="stretch")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -3218,6 +3296,7 @@ def main() -> None:
         ml_signal_tab,
         threshold_tab,
         robustness_tab,
+        feature_sources_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -3228,6 +3307,7 @@ def main() -> None:
             "ML Signal Backtest",
             "ML Threshold Experiment",
             "Model Robustness",
+            "Feature Sources",
         ]
     )
     with single_tab:
@@ -3263,6 +3343,9 @@ def main() -> None:
 
     with robustness_tab:
         render_model_robustness_tab()
+
+    with feature_sources_tab:
+        render_feature_sources_tab()
 
 
 if __name__ == "__main__":

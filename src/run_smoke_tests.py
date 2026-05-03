@@ -26,6 +26,8 @@ PY_COMPILE_FILES = [
     "src/run_batch_model_training.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
+    "src/feature_source_registry.py",
+    "src/show_feature_sources.py",
     "src/run_stock_backtest.py",
     "src/run_batch_experiment.py",
     "src/run_period_experiment.py",
@@ -55,6 +57,28 @@ COMMAND_CHECKS = [
     ),
     ("run_batch_model_training help", ["src/run_batch_model_training.py", "--help"]),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
+    ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
+    (
+        "offline feature registry export",
+        [
+            "src/show_feature_sources.py",
+            "--export",
+            "outputs/feature_source_registry_smoke.csv",
+        ],
+    ),
+    (
+        "offline feature registry export file",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "path=Path('outputs/feature_source_registry_smoke.csv'); "
+                "assert path.exists(); "
+                "text=path.read_text(encoding='utf-8-sig'); "
+                "assert 'factor_family' in text and 'valuation' in text"
+            ),
+        ],
+    ),
     (
         "demo factor dataset build",
         [

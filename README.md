@@ -43,6 +43,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run ML threshold experiment | `python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --output outputs/ml_threshold_experiment.csv` |
 | Run model robustness training | `python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
+| Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -89,6 +90,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_batch_model_training.py`: Command-line tool for model robustness training.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
+- `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
+- `src/show_feature_sources.py`: Command-line tool for viewing or exporting the feature registry.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -452,6 +455,56 @@ text. Generated report files under `reports/` are ignored by Git.
 
 High ML metrics and polished reports do not guarantee profitable trading. This
 report is educational research output, not financial advice.
+
+## V4 Step 12: Feature Source Registry and Multi-Factor Roadmap
+
+The feature source registry is a structured roadmap for improving future ML
+datasets beyond basic OHLCV features. It documents planned factor families,
+expected raw fields, possible engineered features, update frequency, required
+lag controls, cost level, access method, token requirements, leakage risk,
+expected predictive value, and P0/P1/P2/P3 implementation priority.
+
+CLI examples:
+
+```powershell
+python src/show_feature_sources.py --list
+python src/show_feature_sources.py --family valuation
+python src/show_feature_sources.py --priority P0
+python src/show_feature_sources.py --training-ready
+python src/show_feature_sources.py --high-leakage-risk
+python src/show_feature_sources.py --export outputs/feature_source_registry.csv
+```
+
+The dashboard has a `Feature Sources` tab with a full registry table, factor
+family and priority filters, training-ready rows, high-leakage-risk rows,
+token-required rows, a factor-family summary, and a CSV download button.
+
+The project is moving from basic OHLCV features toward multi-factor research
+because price and volume alone often miss valuation, profitability, growth,
+balance-sheet quality, cash flow, dividends, institutional holdings, capital
+flow, sentiment, macro context, industry strength, and market regime. These
+families should be added gradually so each source can be tested and documented.
+
+More data does not automatically improve prediction. Extra fields can add
+noise, duplicate existing signals, reduce sample size, introduce vendor bias,
+or create hidden future leakage. Every feature needs lag control based on when
+the data was actually known, not just the fiscal period, event date, or file
+label.
+
+Valuation should include more than PE. A useful valuation roadmap should
+compare PE, PB, PS, PCF, EV/EBITDA, dividend yield, market cap, own-history
+percentiles, industry percentiles, and growth or profitability matching such as
+PE-to-growth and PB-to-ROE.
+
+P0/P1/P2/P3 priority keeps the roadmap practical. P0 covers features closest to
+the existing pipeline. P1 covers high-value next integrations that still need
+careful lag checks. P2 covers useful but slower or more complex sources. P3 is
+reserved for future or difficult sources that need clearer access, timestamps,
+or reproducibility before model training.
+
+This registry does not fetch paid or private data, does not include API tokens,
+and does not claim that any factor guarantees profit. It is an educational
+research roadmap, not financial advice.
 
 ## Smoke Tests
 
