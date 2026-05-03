@@ -4,13 +4,22 @@ import sys
 
 import pandas as pd
 
-from factor_builder import (
-    build_factor_dataset,
-    get_feature_columns,
-    get_label_columns,
-    validate_no_future_leakage,
-)
-from real_data_loader import fetch_a_share_daily_from_source
+try:
+    from .factor_builder import (
+        build_factor_dataset,
+        get_feature_columns,
+        get_label_columns,
+        validate_no_future_leakage,
+    )
+    from .real_data_loader import fetch_a_share_daily_from_source
+except ImportError:
+    from factor_builder import (
+        build_factor_dataset,
+        get_feature_columns,
+        get_label_columns,
+        validate_no_future_leakage,
+    )
+    from real_data_loader import fetch_a_share_daily_from_source
 
 
 def parse_args() -> argparse.Namespace:

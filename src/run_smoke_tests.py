@@ -38,6 +38,7 @@ PY_COMPILE_FILES = [
 
 COMMAND_CHECKS = [
     ("setup check", ["src/check_setup.py"]),
+    ("app import check", ["-c", "import app"]),
     ("offline demo", ["src/run_demo.py"]),
     ("real_data_loader help", ["src/real_data_loader.py", "--help"]),
     ("build_factor_dataset help", ["src/build_factor_dataset.py", "--help"]),
