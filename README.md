@@ -892,6 +892,42 @@ The dashboard has a `Reduced Feature Backtest Summary` tab for generating or
 loading the same report. This is educational research only, not financial
 advice.
 
+## V4 Step 23: Reduced Feature Threshold Sensitivity
+
+Step 23 tests whether reduced feature backtest results depend too much on one
+fixed probability threshold pair. It runs the same reduced feature ML signal
+backtest across buy/sell threshold grids and can optionally retrain/test through
+chronological walk-forward windows.
+
+Single-symbol example:
+
+```powershell
+python src/run_reduced_feature_threshold_experiment.py --factor-csv outputs/model_robustness_real_v2/factors/factors_000001.csv --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --output-dir outputs/reduced_feature_threshold_real_000001 --models logistic_regression,random_forest --buy-thresholds 0.50,0.55,0.60,0.65 --sell-thresholds 0.35,0.40,0.45,0.50 --enable-walk-forward
+```
+
+Multi-symbol report example:
+
+```powershell
+python src/generate_threshold_experiment_report.py --input-dirs outputs/reduced_feature_threshold_real_000001,outputs/reduced_feature_threshold_real_600519,outputs/reduced_feature_threshold_real_000858,outputs/reduced_feature_threshold_real_600036,outputs/reduced_feature_threshold_real_601318 --output-dir outputs/reduced_feature_threshold_summary_real_v1
+```
+
+Single-symbol outputs:
+
+- `threshold_backtest_results.csv`: every model, pruning mode, and valid threshold pair.
+- `threshold_summary_by_mode.csv`: pruning mode ranking across thresholds.
+- `threshold_summary_by_model.csv`: model type ranking across thresholds.
+- `threshold_summary_by_mode_model.csv`: mode/model pair summary.
+- `best_thresholds.csv`: best threshold pair per symbol/model/mode.
+- `walk_forward_results.csv`: optional rolling chronological window results.
+- `walk_forward_summary.csv`: optional walk-forward aggregation.
+- `warnings.csv`: low trade count, negative return, and benchmark underperformance warnings.
+- `run_config.json`: input paths, thresholds, costs, and walk-forward settings.
+
+The aggregation report writes combined CSVs plus
+`threshold_experiment_report.md`. Fixed thresholds can overfit, and better
+threshold backtests do not guarantee future profitability. This is educational
+research only, not financial advice.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

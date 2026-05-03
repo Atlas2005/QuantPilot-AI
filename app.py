@@ -56,6 +56,16 @@ from src.reduced_feature_backtest_report import (
     parse_input_dirs as parse_reduced_feature_summary_input_dirs,
     save_reduced_feature_backtest_report,
 )
+from src.reduced_feature_threshold_experiment import (
+    DEFAULT_BUY_THRESHOLDS as DEFAULT_REDUCED_THRESHOLD_BUYS,
+    DEFAULT_SELL_THRESHOLDS as DEFAULT_REDUCED_THRESHOLD_SELLS,
+    parse_thresholds as parse_reduced_thresholds,
+    run_and_save_threshold_experiment,
+)
+from src.generate_threshold_experiment_report import (
+    parse_input_dirs as parse_threshold_report_input_dirs,
+    save_threshold_experiment_report,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -4261,6 +4271,232 @@ def render_reduced_feature_backtest_summary_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def load_threshold_sensitivity_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    return {
+        "threshold_summary_by_mode": pd.read_csv(
+            base / "threshold_summary_by_mode.csv"
+        )
+        if (base / "threshold_summary_by_mode.csv").exists()
+        else pd.DataFrame(),
+        "best_thresholds": pd.read_csv(base / "best_thresholds.csv")
+        if (base / "best_thresholds.csv").exists()
+        else pd.DataFrame(),
+        "walk_forward_summary": pd.read_csv(base / "walk_forward_summary.csv")
+        if (base / "walk_forward_summary.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(base / "warnings.csv")
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+    }
+
+
+def load_threshold_report_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "threshold_experiment_report.md"
+    return {
+        "mode_summary": pd.read_csv(base / "threshold_mode_summary.csv")
+        if (base / "threshold_mode_summary.csv").exists()
+        else pd.DataFrame(),
+        "per_symbol_best": pd.read_csv(base / "per_symbol_best_thresholds.csv")
+        if (base / "per_symbol_best_thresholds.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(base / "warnings.csv")
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
+def render_threshold_sensitivity_tab() -> None:
+    st.write(
+        "Test reduced feature ML signal backtests across probability thresholds "
+        "and optional chronological walk-forward windows."
+    )
+    st.warning(
+        "Threshold tuning can overfit historical data. This panel is educational "
+        "research only, not financial advice."
+    )
+
+    mode = st.radio(
+        "Threshold sensitivity action",
+        ["Single-symbol experiment", "Multi-symbol report"],
+        horizontal=True,
+        key="threshold_sensitivity_action",
+    )
+
+    if mode == "Single-symbol experiment":
+        factor_csv = st.text_input(
+            "Threshold factor CSV",
+            value="data/factors/smoke_factors_000001.csv",
+            key="threshold_factor_csv",
+        )
+        recommendations_path = st.text_input(
+            "Threshold recommendations CSV",
+            value="outputs/factor_ablation_demo/feature_pruning_recommendations.csv",
+            key="threshold_recommendations",
+        )
+        output_dir = st.text_input(
+            "Threshold experiment output directory",
+            value="outputs/reduced_feature_threshold_demo",
+            key="threshold_output_dir",
+        )
+        models_text = st.text_input(
+            "Threshold model types",
+            value="logistic_regression,random_forest",
+            key="threshold_models",
+        )
+        pruning_modes_text = st.text_input(
+            "Threshold pruning modes",
+            value="full,drop_reduce_weight,keep_core_only,keep_core_and_observe",
+            key="threshold_pruning_modes",
+        )
+        threshold_cols = st.columns(2)
+        buy_thresholds_text = threshold_cols[0].text_input(
+            "Buy thresholds",
+            value=",".join(f"{value:.2f}" for value in DEFAULT_REDUCED_THRESHOLD_BUYS),
+            key="threshold_buy_values",
+        )
+        sell_thresholds_text = threshold_cols[1].text_input(
+            "Sell thresholds",
+            value=",".join(f"{value:.2f}" for value in DEFAULT_REDUCED_THRESHOLD_SELLS),
+            key="threshold_sell_values",
+        )
+        enable_walk_forward = st.checkbox(
+            "Enable walk-forward validation",
+            value=False,
+            key="threshold_enable_walk_forward",
+        )
+
+        buttons = st.columns(2)
+        run_clicked = buttons[0].button(
+            "Run threshold experiment",
+            key="run_threshold_sensitivity_button",
+            type="primary",
+        )
+        load_clicked = buttons[1].button(
+            "Load threshold outputs",
+            key="load_threshold_sensitivity_button",
+        )
+
+        if run_clicked:
+            try:
+                result = run_and_save_threshold_experiment(
+                    factor_csv=factor_csv,
+                    recommendations_path=recommendations_path,
+                    output_dir=output_dir,
+                    model_types=parse_ablation_model_types(models_text),
+                    pruning_modes=parse_pruning_modes(pruning_modes_text),
+                    buy_thresholds=parse_reduced_thresholds(
+                        buy_thresholds_text,
+                        DEFAULT_REDUCED_THRESHOLD_BUYS,
+                    ),
+                    sell_thresholds=parse_reduced_thresholds(
+                        sell_thresholds_text,
+                        DEFAULT_REDUCED_THRESHOLD_SELLS,
+                    ),
+                    enable_walk_forward=enable_walk_forward,
+                )
+                output = {
+                    "threshold_summary_by_mode": result["threshold_summary_by_mode"],
+                    "best_thresholds": result["best_thresholds"],
+                    "walk_forward_summary": result.get(
+                        "walk_forward_summary",
+                        pd.DataFrame(),
+                    ),
+                    "warnings": result["warnings"],
+                }
+            except Exception as exc:
+                st.error(f"Threshold experiment failed: {exc}")
+                return
+        elif load_clicked:
+            output = load_threshold_sensitivity_outputs(output_dir)
+        else:
+            return
+
+        st.subheader("Threshold Summary by Mode")
+        st.dataframe(output["threshold_summary_by_mode"], width="stretch")
+        st.subheader("Best Thresholds")
+        st.dataframe(output["best_thresholds"], width="stretch")
+        st.subheader("Walk-Forward Summary")
+        if output["walk_forward_summary"].empty:
+            st.info("No walk-forward summary is available.")
+        else:
+            st.dataframe(output["walk_forward_summary"], width="stretch")
+        st.subheader("Warnings")
+        if output["warnings"].empty:
+            st.success("No warnings were recorded.")
+        else:
+            st.dataframe(output["warnings"], width="stretch")
+        if not output["threshold_summary_by_mode"].empty:
+            st.subheader("Average Excess Return by Mode")
+            st.bar_chart(
+                output["threshold_summary_by_mode"].set_index("pruning_mode")[
+                    "avg_strategy_vs_benchmark_pct"
+                ]
+            )
+    else:
+        input_dirs_text = st.text_area(
+            "Threshold experiment output directories",
+            value="outputs/reduced_feature_threshold_demo",
+            key="threshold_report_input_dirs",
+        )
+        output_dir = st.text_input(
+            "Threshold report output directory",
+            value="outputs/reduced_feature_threshold_summary_demo",
+            key="threshold_report_output_dir",
+        )
+
+        buttons = st.columns(2)
+        generate_clicked = buttons[0].button(
+            "Generate threshold report",
+            key="generate_threshold_report_button",
+            type="primary",
+        )
+        load_clicked = buttons[1].button(
+            "Load threshold report",
+            key="load_threshold_report_button",
+        )
+        if generate_clicked:
+            try:
+                result = save_threshold_experiment_report(
+                    parse_threshold_report_input_dirs(input_dirs_text),
+                    output_dir,
+                )
+                output = {
+                    "mode_summary": result["threshold_mode_summary"],
+                    "per_symbol_best": result["per_symbol_best_thresholds"],
+                    "warnings": result["warnings"],
+                    "markdown_report": result["markdown_report"],
+                }
+            except Exception as exc:
+                st.error(f"Threshold report generation failed: {exc}")
+                return
+        elif load_clicked:
+            output = load_threshold_report_outputs(output_dir)
+        else:
+            return
+
+        st.subheader("Threshold Mode Summary")
+        st.dataframe(output["mode_summary"], width="stretch")
+        st.subheader("Per-Symbol Best Thresholds")
+        st.dataframe(output["per_symbol_best"], width="stretch")
+        st.subheader("Warnings")
+        st.dataframe(output["warnings"], width="stretch")
+        st.subheader("Markdown Report")
+        if output["markdown_report"]:
+            st.markdown(output["markdown_report"])
+            st.download_button(
+                "Download threshold experiment report",
+                data=output["markdown_report"],
+                file_name="threshold_experiment_report.md",
+                mime="text/markdown",
+                key="download_threshold_experiment_report_button",
+            )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -4342,6 +4578,7 @@ def main() -> None:
         pruning_summary_tab,
         reduced_feature_backtest_tab,
         reduced_feature_backtest_summary_tab,
+        threshold_sensitivity_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -4360,6 +4597,7 @@ def main() -> None:
             "Pruning Summary",
             "Reduced Feature Backtest",
             "Reduced Feature Backtest Summary",
+            "Threshold Sensitivity",
         ]
     )
     with single_tab:
@@ -4419,6 +4657,9 @@ def main() -> None:
 
     with reduced_feature_backtest_summary_tab:
         render_reduced_feature_backtest_summary_tab()
+
+    with threshold_sensitivity_tab:
+        render_threshold_sensitivity_tab()
 
 
 if __name__ == "__main__":

@@ -38,6 +38,9 @@ PY_COMPILE_FILES = [
     "src/run_reduced_feature_backtest.py",
     "src/reduced_feature_backtest_report.py",
     "src/generate_reduced_feature_backtest_report.py",
+    "src/reduced_feature_threshold_experiment.py",
+    "src/run_reduced_feature_threshold_experiment.py",
+    "src/generate_threshold_experiment_report.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -94,6 +97,14 @@ COMMAND_CHECKS = [
     (
         "generate_reduced_feature_backtest_report help",
         ["src/generate_reduced_feature_backtest_report.py", "--help"],
+    ),
+    (
+        "run_reduced_feature_threshold_experiment help",
+        ["src/run_reduced_feature_threshold_experiment.py", "--help"],
+    ),
+    (
+        "generate_threshold_experiment_report help",
+        ["src/generate_threshold_experiment_report.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -417,6 +428,87 @@ COMMAND_CHECKS = [
                 "'per_symbol_best_backtest_modes.csv','underperformance_cases.csv',"
                 "'warnings.csv','run_config.json',"
                 "'reduced_feature_backtest_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
+        "offline reduced feature threshold experiment",
+        [
+            "src/run_reduced_feature_threshold_experiment.py",
+            "--factor-csv",
+            "data/factors/smoke_factors_000001.csv",
+            "--recommendations",
+            "outputs/factor_ablation_demo/feature_pruning_recommendations.csv",
+            "--output-dir",
+            "outputs/reduced_feature_threshold_demo",
+            "--models",
+            "logistic_regression",
+            "--pruning-modes",
+            "full,keep_core_and_observe",
+            "--buy-thresholds",
+            "0.55,0.60",
+            "--sell-thresholds",
+            "0.40,0.50",
+            "--minimum-commission",
+            "0",
+            "--commission-rate",
+            "0",
+            "--stamp-tax-rate",
+            "0",
+            "--slippage-pct",
+            "0",
+            "--enable-walk-forward",
+            "--walk-forward-train-ratio",
+            "0.45",
+            "--walk-forward-validation-ratio",
+            "0.15",
+            "--walk-forward-test-ratio",
+            "0.20",
+            "--walk-forward-step-ratio",
+            "0.20",
+        ],
+    ),
+    (
+        "offline reduced feature threshold output files",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "base=Path('outputs/reduced_feature_threshold_demo'); "
+                "required=['threshold_backtest_results.csv',"
+                "'threshold_summary_by_mode.csv','threshold_summary_by_model.csv',"
+                "'threshold_summary_by_mode_model.csv','best_thresholds.csv',"
+                "'walk_forward_results.csv','walk_forward_summary.csv',"
+                "'warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing"
+            ),
+        ],
+    ),
+    (
+        "offline threshold experiment report",
+        [
+            "src/generate_threshold_experiment_report.py",
+            "--input-dirs",
+            "outputs/reduced_feature_threshold_demo",
+            "--output-dir",
+            "outputs/reduced_feature_threshold_summary_demo",
+        ],
+    ),
+    (
+        "offline threshold experiment report output files",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "base=Path('outputs/reduced_feature_threshold_summary_demo'); "
+                "required=['combined_threshold_results.csv',"
+                "'threshold_mode_summary.csv','threshold_model_summary.csv',"
+                "'threshold_mode_model_summary.csv','per_symbol_best_thresholds.csv',"
+                "'walk_forward_combined_results.csv','walk_forward_summary.csv',"
+                "'threshold_experiment_report.md','warnings.csv','run_config.json']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
                 "assert not missing, missing"
             ),
