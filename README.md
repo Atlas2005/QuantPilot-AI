@@ -41,6 +41,7 @@ Run these commands from the project root in Windows PowerShell.
 | Evaluate model quality | `python src/evaluate_model.py --model-dir models/demo_000001 --target-col label_up_5d` |
 | Run ML signal backtest | `python src/run_ml_signal_backtest.py --model-dir models/demo_000001 --factor-csv data/factors/factors_000001.csv --initial-cash 10000 --buy-threshold 0.60 --sell-threshold 0.50` |
 | Run ML threshold experiment | `python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --output outputs/ml_threshold_experiment.csv` |
+| Run model robustness training | `python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -83,6 +84,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_ml_signal_backtest.py`: Command-line tool for ML signal backtests.
 - `src/ml_threshold_experiment.py`: Runs ML threshold and walk-forward research experiments.
 - `src/run_ml_threshold_experiment.py`: Command-line tool for ML threshold experiments.
+- `src/batch_model_trainer.py`: Trains and compares baseline models across symbols.
+- `src/run_batch_model_training.py`: Command-line tool for model robustness training.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -371,6 +374,46 @@ a ranking table, and a bar chart of threshold scores.
 
 This is threshold research only. Optimizing thresholds on past data can overfit,
 and good threshold results do not imply future profitability.
+
+## V4 Step 9: Model Robustness Training
+
+Model robustness training repeats the factor, split, training, and evaluation
+workflow across multiple symbols and model types. The goal is to check whether
+a baseline model is reasonably stable across symbols and periods instead of
+only looking good on one stock or one split.
+
+Multi-symbol and multi-period testing matters because a model can look strong
+on one symbol due to leakage, a tiny sample, duplicated patterns, or a market
+period that happens to fit the target. Robustness checks are still not proof of
+profitability, but they make weak assumptions easier to spot.
+
+Demo command:
+
+```powershell
+python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest
+```
+
+Real-data command:
+
+```powershell
+python src/run_batch_model_training.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20210101 --end 20241231 --output-dir outputs/model_robustness_baostock --models logistic_regression,random_forest
+```
+
+The output directory contains:
+
+- `training_results.csv`: one row per symbol/model with validation and test metrics.
+- `model_summary.csv`: average metrics by model type.
+- `model_ranking.csv`: simple educational robustness ranking.
+- `warnings.csv`: warnings for small samples, suspicious perfect metrics, failed symbols, and missing feature importance.
+- `run_config.json`: symbols, source, date range, model types, split settings, and timestamp.
+
+The dashboard has a `Model Robustness` tab that runs the same workflow and
+shows summary tables, rankings, warnings, and bar charts for ROC AUC, F1, and
+robustness score.
+
+Suspiciously perfect metrics are a warning sign, not a success signal. This is
+not live trading, not financial advice, and not evidence that a strategy will
+work in the future.
 
 ## Smoke Tests
 

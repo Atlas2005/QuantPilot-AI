@@ -8,6 +8,11 @@ import pandas as pd
 import streamlit as st
 
 from src.backtester import run_long_only_backtest_with_trades
+from src.batch_model_trainer import (
+    parse_model_types as parse_batch_model_types,
+    parse_symbols as parse_batch_symbols,
+    run_batch_model_training,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -2762,6 +2767,148 @@ def render_ml_threshold_experiment_tab() -> None:
     )
 
 
+def render_model_robustness_tab() -> None:
+    st.write(
+        "Compare baseline model quality across multiple symbols and model types. "
+        "This checks whether a model looks stable beyond one symbol or one split."
+    )
+    st.info(
+        "High ML metrics do not guarantee profitable trading. This panel checks "
+        "model robustness across symbols and periods for educational research only."
+    )
+
+    symbols_text = st.text_input(
+        "Robustness symbols",
+        value="000001,600519",
+        help="Comma-separated A-share symbols.",
+    )
+    source = st.selectbox(
+        "Robustness source mode",
+        ["demo", "baostock"],
+        key="robustness_source_mode",
+    )
+    columns = st.columns(2)
+    start = columns[0].text_input("Robustness start date", value="20240101")
+    end = columns[1].text_input("Robustness end date", value="20241231")
+    models_text = st.text_input(
+        "Model types",
+        value="logistic_regression,random_forest",
+    )
+    target_col = st.text_input("Robustness target column", value="label_up_5d")
+    output_dir = st.text_input(
+        "Robustness output directory",
+        value="outputs/model_robustness_demo",
+    )
+
+    settings_columns = st.columns(4)
+    purge_rows = settings_columns[0].number_input(
+        "Robustness purge rows",
+        min_value=0,
+        value=5,
+        step=1,
+    )
+    train_ratio = settings_columns[1].number_input(
+        "Train ratio",
+        min_value=0.1,
+        max_value=0.9,
+        value=0.6,
+        step=0.05,
+        format="%.2f",
+    )
+    val_ratio = settings_columns[2].number_input(
+        "Validation ratio",
+        min_value=0.05,
+        max_value=0.8,
+        value=0.2,
+        step=0.05,
+        format="%.2f",
+    )
+    test_ratio = settings_columns[3].number_input(
+        "Test ratio",
+        min_value=0.05,
+        max_value=0.8,
+        value=0.2,
+        step=0.05,
+        format="%.2f",
+    )
+    split_mode = st.selectbox(
+        "Robustness split mode",
+        ["global_date", "per_symbol"],
+        key="robustness_split_mode",
+    )
+
+    run_clicked = st.button(
+        "Run robustness training",
+        key="run_model_robustness_button",
+        type="primary",
+    )
+    if not run_clicked:
+        return
+
+    try:
+        symbols = parse_batch_symbols(symbols_text)
+        model_types = parse_batch_model_types(models_text)
+        result = run_batch_model_training(
+            symbols=symbols,
+            model_types=model_types,
+            source=source,
+            start=start,
+            end=end,
+            output_dir=output_dir,
+            target_col=target_col,
+            purge_rows=int(purge_rows),
+            train_ratio=train_ratio,
+            val_ratio=val_ratio,
+            test_ratio=test_ratio,
+            split_mode=split_mode,
+        )
+    except Exception as exc:
+        st.error(f"Model robustness training failed: {exc}")
+        return
+
+    summary_df = result["model_summary"]
+    ranking_df = result["model_ranking"]
+    results_df = result["training_results"]
+    warnings_df = result["warnings"]
+
+    if not warnings_df.empty and (
+        warnings_df["warning_type"] == "suspicious_perfect_metrics"
+    ).any():
+        st.warning(
+            "Some validation or test metrics are suspiciously close to perfect. "
+            "Check for leakage, tiny samples, or overly regular demo data."
+        )
+
+    st.subheader("Model Summary")
+    st.dataframe(summary_df, width="stretch")
+
+    st.subheader("Model Ranking")
+    st.dataframe(ranking_df, width="stretch")
+
+    st.subheader("Full Training Results")
+    st.dataframe(results_df, width="stretch")
+
+    st.subheader("Warnings")
+    if warnings_df.empty:
+        st.success("No warnings were produced.")
+    else:
+        st.dataframe(warnings_df, width="stretch")
+
+    if not summary_df.empty:
+        chart_df = summary_df.set_index("model_type")
+        st.subheader("Average Test ROC AUC")
+        st.bar_chart(chart_df["avg_test_roc_auc"])
+        st.subheader("Average Test F1")
+        st.bar_chart(chart_df["avg_test_f1"])
+
+    if not ranking_df.empty:
+        st.subheader("Robustness Score")
+        st.bar_chart(ranking_df.set_index("model_type")["score"])
+
+    st.subheader("Output Files")
+    st.json(result["output_files"])
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -2834,6 +2981,7 @@ def main() -> None:
         evaluation_tab,
         ml_signal_tab,
         threshold_tab,
+        robustness_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -2843,6 +2991,7 @@ def main() -> None:
             "Model Evaluation",
             "ML Signal Backtest",
             "ML Threshold Experiment",
+            "Model Robustness",
         ]
     )
     with single_tab:
@@ -2875,6 +3024,9 @@ def main() -> None:
 
     with threshold_tab:
         render_ml_threshold_experiment_tab()
+
+    with robustness_tab:
+        render_model_robustness_tab()
 
 
 if __name__ == "__main__":

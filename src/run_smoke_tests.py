@@ -22,6 +22,8 @@ PY_COMPILE_FILES = [
     "src/run_ml_signal_backtest.py",
     "src/ml_threshold_experiment.py",
     "src/run_ml_threshold_experiment.py",
+    "src/batch_model_trainer.py",
+    "src/run_batch_model_training.py",
     "src/run_stock_backtest.py",
     "src/run_batch_experiment.py",
     "src/run_period_experiment.py",
@@ -48,6 +50,7 @@ COMMAND_CHECKS = [
         "run_ml_threshold_experiment help",
         ["src/run_ml_threshold_experiment.py", "--help"],
     ),
+    ("run_batch_model_training help", ["src/run_batch_model_training.py", "--help"]),
     (
         "demo factor dataset build",
         [
@@ -144,6 +147,38 @@ COMMAND_CHECKS = [
             "0.40,0.50",
             "--initial-cash",
             "10000",
+        ],
+    ),
+    (
+        "offline batch model training",
+        [
+            "src/run_batch_model_training.py",
+            "--symbols",
+            "000001,600519",
+            "--source",
+            "demo",
+            "--start",
+            "20240101",
+            "--end",
+            "20241231",
+            "--output-dir",
+            "outputs/model_robustness_smoke",
+            "--models",
+            "logistic_regression,random_forest",
+        ],
+    ),
+    (
+        "offline batch model output files",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "base=Path('outputs/model_robustness_smoke'); "
+                "required=['training_results.csv','model_summary.csv',"
+                "'model_ranking.csv','warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing"
+            ),
         ],
     ),
     ("run_stock_backtest help", ["src/run_stock_backtest.py", "--help"]),
