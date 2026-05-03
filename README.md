@@ -44,6 +44,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run model robustness training | `python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
+| Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
 | Run single-stock backtest | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231` |
 | Run single-stock backtest with risk controls | `python src/run_stock_backtest.py --symbol 000001 --source baostock --start 20240101 --end 20241231 --stop-loss-pct 3 --take-profit-pct 10 --max-holding-days 30` |
 | Run multi-stock experiment | `python src/run_batch_experiment.py --symbols 000001,600519,000858,600036,601318 --source baostock --start 20240101 --end 20241231 --compact` |
@@ -92,6 +93,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
 - `src/show_feature_sources.py`: Command-line tool for viewing or exporting the feature registry.
+- `src/feature_implementation_queue.py`: Scores and prioritizes future factor engineering work.
+- `src/show_feature_queue.py`: Command-line tool for viewing or exporting the feature queue.
 - `src/run_stock_backtest.py`: Runs one real-data stock backtest with optional risk controls.
 - `src/run_batch_experiment.py`: Compares risk-control scenarios across multiple stocks.
 - `src/run_period_experiment.py`: Compares scenarios across multiple stocks and years.
@@ -505,6 +508,41 @@ or reproducibility before model training.
 This registry does not fetch paid or private data, does not include API tokens,
 and does not claim that any factor guarantees profit. It is an educational
 research roadmap, not financial advice.
+
+## V4 Step 13: Feature Implementation Queue
+
+The feature implementation queue turns the feature source registry into a
+practical engineering roadmap. It scores each planned feature group by priority,
+expected training value, leakage risk, cost, token requirement, and
+implementation difficulty so future work can start with safer and easier
+features.
+
+CLI examples:
+
+```powershell
+python src/show_feature_queue.py
+python src/show_feature_queue.py --priority P0_now
+python src/show_feature_queue.py --category valuation
+python src/show_feature_queue.py --max-rows 20
+python src/show_feature_queue.py --output outputs/feature_implementation_queue.csv
+```
+
+The dashboard has a `Feature Queue` tab with summary cards, filters for
+priority/category/leakage/token/difficulty, the scored queue table, top P0
+recommendations, and a CSV download button.
+
+Feature priority matters because the project should first add features that are
+free or token-free, easy to validate, useful for training, and low leakage risk.
+Leakage risk matters because future-return labels, future close prices,
+restated financials, future holdings disclosures, or post-event news must never
+be used as input features. Validation checks matter because every new factor
+needs missing-value, timestamp, lag, and walk-forward tests before it is trusted.
+
+More data does not automatically mean better prediction. Extra factors can add
+noise, shrink the usable sample, duplicate existing signals, or overfit a small
+period. Features should be added in controlled batches and evaluated with
+chronological splits, walk-forward validation, and out-of-symbol robustness
+checks. Future-return labels must never be used as model input features.
 
 ## Smoke Tests
 

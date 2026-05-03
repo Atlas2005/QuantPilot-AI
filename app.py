@@ -20,6 +20,11 @@ from src.feature_source_registry import (
     registry_to_dataframe,
     summarize_factor_families,
 )
+from src.feature_implementation_queue import (
+    filter_feature_queue,
+    queue_to_dataframe,
+    summarize_feature_queue,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -3223,6 +3228,102 @@ def render_feature_sources_tab() -> None:
         st.dataframe(token_df, width="stretch")
 
 
+def render_feature_queue_tab() -> None:
+    st.write(
+        "Prioritize future factor engineering work by implementation score, "
+        "leakage risk, cost, token requirements, and expected training value."
+    )
+    st.warning(
+        "Feature expansion may improve research coverage, but more features can "
+        "also increase overfitting and leakage risk. This is not financial advice."
+    )
+
+    full_queue_df = queue_to_dataframe()
+    full_queue = full_queue_df.to_dict(orient="records")
+    summary = summarize_feature_queue()
+
+    metric_columns = st.columns(5)
+    metric_columns[0].metric("Total items", summary["total_items"])
+    metric_columns[1].metric("P0 items", summary["p0_item_count"])
+    metric_columns[2].metric("Low leakage", summary["low_leakage_item_count"])
+    metric_columns[3].metric("Token-free", summary["token_free_item_count"])
+    metric_columns[4].metric("High training value", summary["high_training_value_item_count"])
+
+    filter_columns = st.columns(5)
+    priority_filter = filter_columns[0].selectbox(
+        "Queue priority",
+        ["All", "P0_now", "P1_next", "P2_later", "P3_research_only"],
+        key="feature_queue_priority_filter",
+    )
+    category_filter = filter_columns[1].selectbox(
+        "Queue category",
+        ["All", *sorted(full_queue_df["category"].unique())],
+        key="feature_queue_category_filter",
+    )
+    leakage_filter = filter_columns[2].selectbox(
+        "Leakage risk",
+        ["All", "low", "medium", "high"],
+        key="feature_queue_leakage_filter",
+    )
+    token_filter = filter_columns[3].selectbox(
+        "Token required",
+        ["All", "false", "true"],
+        key="feature_queue_token_filter",
+    )
+    difficulty_filter = filter_columns[4].selectbox(
+        "Difficulty",
+        ["All", "low", "medium", "high"],
+        key="feature_queue_difficulty_filter",
+    )
+
+    filtered_queue = filter_feature_queue(
+        queue=full_queue,
+        priority=None if priority_filter == "All" else priority_filter,
+        category=None if category_filter == "All" else category_filter,
+        leakage_risk=None if leakage_filter == "All" else leakage_filter,
+        token_required=None if token_filter == "All" else token_filter == "true",
+        implementation_difficulty=None
+        if difficulty_filter == "All"
+        else difficulty_filter,
+    )
+    filtered_df = queue_to_dataframe(filtered_queue)
+
+    st.subheader("Feature Implementation Queue")
+    st.dataframe(filtered_df, width="stretch")
+
+    st.subheader("Top P0 Recommendations")
+    p0_df = queue_to_dataframe(
+        filter_feature_queue(queue=full_queue, priority="P0_now")
+    ).head(10)
+    if p0_df.empty:
+        st.info("No P0 queue items are available.")
+    else:
+        st.dataframe(
+            p0_df[
+                [
+                    "queue_id",
+                    "feature_group",
+                    "feature_name",
+                    "implementation_score",
+                    "recommended_action",
+                    "validation_checks",
+                ]
+            ],
+            width="stretch",
+        )
+
+    csv_bytes = full_queue_df.to_csv(index=False, encoding="utf-8-sig").encode(
+        "utf-8-sig"
+    )
+    st.download_button(
+        "Download feature queue CSV",
+        data=csv_bytes,
+        file_name="feature_implementation_queue.csv",
+        mime="text/csv",
+        key="download_feature_queue_button",
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -3297,6 +3398,7 @@ def main() -> None:
         threshold_tab,
         robustness_tab,
         feature_sources_tab,
+        feature_queue_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -3308,6 +3410,7 @@ def main() -> None:
             "ML Threshold Experiment",
             "Model Robustness",
             "Feature Sources",
+            "Feature Queue",
         ]
     )
     with single_tab:
@@ -3346,6 +3449,9 @@ def main() -> None:
 
     with feature_sources_tab:
         render_feature_sources_tab()
+
+    with feature_queue_tab:
+        render_feature_queue_tab()
 
 
 if __name__ == "__main__":
