@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from indicators import calculate_cci, calculate_rsi
+try:
+    from .indicators import calculate_cci, calculate_rsi
+except ImportError:
+    from indicators import calculate_cci, calculate_rsi
 
 
 REQUIRED_COLUMNS = ["date", "open", "high", "low", "close", "volume"]
