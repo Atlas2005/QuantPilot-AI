@@ -40,6 +40,10 @@ from src.factor_decision_report import (
     generate_factor_decision_report,
     write_factor_decision_report,
 )
+from src.factor_pruning_experiment import (
+    parse_pruning_modes,
+    run_and_save_factor_pruning_experiment,
+)
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -3680,6 +3684,124 @@ def render_factor_decisions_tab() -> None:
     )
 
 
+def load_factor_pruning_outputs(output_dir: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    base = Path(output_dir)
+    return (
+        pd.read_csv(base / "pruning_summary.csv") if (base / "pruning_summary.csv").exists() else pd.DataFrame(),
+        pd.read_csv(base / "pruning_results.csv") if (base / "pruning_results.csv").exists() else pd.DataFrame(),
+        pd.read_csv(base / "feature_set_details.csv") if (base / "feature_set_details.csv").exists() else pd.DataFrame(),
+        pd.read_csv(base / "warnings.csv") if (base / "warnings.csv").exists() else pd.DataFrame(),
+    )
+
+
+def render_factor_pruning_tab() -> None:
+    st.write(
+        "Use individual feature pruning recommendations to compare reduced "
+        "feature sets against the full feature baseline."
+    )
+    st.warning(
+        "Pruning can overfit one sample. Retest any reduced feature set with "
+        "walk-forward validation and more symbols before trusting it."
+    )
+
+    factor_csv = st.text_input(
+        "Pruning factor CSV path",
+        value="data/factors/smoke_factors_000001.csv",
+        key="factor_pruning_factor_csv",
+    )
+    recommendations_path = st.text_input(
+        "Pruning recommendations CSV",
+        value="outputs/factor_ablation_demo/feature_pruning_recommendations.csv",
+        key="factor_pruning_recommendations",
+    )
+    output_dir = st.text_input(
+        "Pruning output directory",
+        value="outputs/factor_pruning_demo",
+        key="factor_pruning_output_dir",
+    )
+    models_text = st.text_input(
+        "Pruning model types",
+        value="logistic_regression,random_forest",
+        key="factor_pruning_models",
+    )
+    target_col = st.text_input(
+        "Pruning target column",
+        value="label_up_5d",
+        key="factor_pruning_target",
+    )
+    pruning_modes_text = st.text_input(
+        "Pruning modes",
+        value="full,drop_reduce_weight,keep_core_only,keep_core_and_observe",
+        key="factor_pruning_modes",
+    )
+
+    buttons = st.columns(2)
+    run_clicked = buttons[0].button(
+        "Run pruning experiment",
+        key="run_factor_pruning_button",
+        type="primary",
+    )
+    load_clicked = buttons[1].button(
+        "Load pruning outputs",
+        key="load_factor_pruning_button",
+    )
+
+    if run_clicked:
+        try:
+            result = run_and_save_factor_pruning_experiment(
+                factor_csv=factor_csv,
+                recommendations_path=recommendations_path,
+                output_dir=output_dir,
+                model_types=parse_ablation_model_types(models_text),
+                pruning_modes=parse_pruning_modes(pruning_modes_text),
+                target_col=target_col,
+            )
+            pruning_summary = result["pruning_summary"]
+            pruning_results = result["pruning_results"]
+            feature_set_details = result["feature_set_details"]
+            warnings_df = result["warnings"]
+        except Exception as exc:
+            st.error(f"Factor pruning experiment failed: {exc}")
+            return
+    elif load_clicked:
+        pruning_summary, pruning_results, feature_set_details, warnings_df = (
+            load_factor_pruning_outputs(output_dir)
+        )
+    else:
+        return
+
+    st.subheader("Pruning Summary")
+    if pruning_summary.empty:
+        st.info("No pruning summary rows are available.")
+    else:
+        st.dataframe(pruning_summary, width="stretch")
+
+    st.subheader("Pruning Results")
+    st.dataframe(pruning_results, width="stretch")
+
+    st.subheader("Feature Set Details")
+    st.dataframe(feature_set_details, width="stretch")
+
+    st.subheader("Warnings")
+    if warnings_df.empty:
+        st.success("No warnings were recorded.")
+    else:
+        st.dataframe(warnings_df, width="stretch")
+
+    if not pruning_results.empty:
+        chart_df = pruning_results.copy()
+        chart_df["mode_model"] = (
+            chart_df["pruning_mode"].astype(str)
+            + " / "
+            + chart_df["model_type"].astype(str)
+        )
+        st.subheader("Test ROC AUC by Mode")
+        st.bar_chart(chart_df.set_index("mode_model")["test_roc_auc"])
+
+        st.subheader("Delta Test ROC AUC vs Full")
+        st.bar_chart(chart_df.set_index("mode_model")["delta_test_roc_auc_vs_full"])
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -3757,6 +3879,7 @@ def main() -> None:
         feature_queue_tab,
         factor_ablation_tab,
         factor_decisions_tab,
+        factor_pruning_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -3771,6 +3894,7 @@ def main() -> None:
             "Feature Queue",
             "Factor Ablation",
             "Factor Decisions",
+            "Factor Pruning",
         ]
     )
     with single_tab:
@@ -3818,6 +3942,9 @@ def main() -> None:
 
     with factor_decisions_tab:
         render_factor_decisions_tab()
+
+    with factor_pruning_tab:
+        render_factor_pruning_tab()
 
 
 if __name__ == "__main__":

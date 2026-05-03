@@ -752,6 +752,44 @@ recommendations when `feature_pruning_recommendations.csv` exists. These
 recommendations do not change model training automatically. Apply pruning only
 in controlled experiments with chronological splits and walk-forward validation.
 
+## V4 Step 19: Factor Pruning / Reduced Feature Set Experiment
+
+Step 19 uses `feature_pruning_recommendations.csv` to create reduced feature
+sets, retrain baseline models, and compare them against the full feature set.
+This tests whether pruning noisy features improves validation/test metrics.
+
+Pruning modes:
+
+- `full`: use all leakage-safe features.
+- `drop_reduce_weight`: remove features marked `reduce_weight`.
+- `keep_core_only`: use only features marked `keep_core`.
+- `keep_core_and_observe`: use features marked `keep_core` or `keep_observe`.
+
+Example:
+
+```powershell
+python src/run_factor_pruning_experiment.py --factor-csv data/factors/factors_000001.csv --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --output-dir outputs/factor_pruning_demo --models logistic_regression,random_forest --target-col label_up_5d
+```
+
+Outputs:
+
+- `pruning_results.csv`: model metrics for each pruning mode and model type.
+- `pruning_summary.csv`: average metrics and deltas by pruning mode.
+- `feature_set_details.csv`: selected feature columns per pruning mode.
+- `warnings.csv`: empty feature sets or split warnings.
+- `run_config.json`: input paths and experiment settings.
+
+`reduce_weight` does not mean permanently delete a feature. It means this
+feature looked noisy in the current ablation sample and should be tested in a
+reduced feature experiment. `keep_core` also does not guarantee trading profit;
+it only means removing the feature hurt model metrics in the observed ablation
+tests.
+
+The dashboard has a `Factor Pruning` tab for running or loading pruning
+experiments. Pruning can overfit one sample, so any reduced feature set should
+be retested with walk-forward validation, multiple symbols, and realistic cost
+assumptions. This is research only, not financial advice.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
