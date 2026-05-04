@@ -1056,6 +1056,36 @@ Generated files:
 The dashboard has a `Candidate Equivalence Audit` tab for generating or loading
 the same audit.
 
+## V4 Step 28: Candidate Mode Simplification
+
+Step 28 converts equivalent legacy pruning modes into canonical candidate names
+for future reporting. Based on the Step 27 audit, `drop_reduce_weight` and
+`keep_core_and_observe` can be represented as `canonical_reduced_40` when their
+selected feature sets are identical across the current real symbols. `full`
+remains the baseline, and `keep_core_only` remains the distinct low-feature
+challenger.
+
+Example:
+
+```powershell
+python src/run_candidate_mode_normalization.py --equivalence-dir outputs/candidate_equivalence_real_v1 --output-dir outputs/candidate_mode_normalization_real_v1
+```
+
+Generated files:
+
+- `canonical_mode_summary.csv`: canonical candidate modes, aliases, feature counts, and comparison meaning.
+- `legacy_alias_map.csv`: legacy pruning mode to canonical mode mapping.
+- `canonical_mode_report.md`: readable cleanup report.
+- `run_config.json`: normalization settings.
+
+This is reporting cleanup only. It does not add data sources, models, factors,
+or new backtest behavior. Future candidate comparison reports should avoid
+treating `drop_reduce_weight` and `keep_core_and_observe` as independent
+candidates when they map to `canonical_reduced_40`.
+
+The dashboard has a `Candidate Mode Normalization` tab for generating or
+loading the same report.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

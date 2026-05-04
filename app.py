@@ -19,6 +19,7 @@ from src.candidate_expanded_validation import (
     save_candidate_expanded_validation,
 )
 from src.candidate_equivalence_audit import save_candidate_equivalence_audit
+from src.candidate_mode_normalization import save_canonical_mode_report
 from src.candidate_stress_test import save_candidate_stress_test
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
@@ -4425,6 +4426,22 @@ def load_candidate_equivalence_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_candidate_mode_normalization_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "canonical_mode_report.md"
+    return {
+        "canonical_summary": pd.read_csv(base / "canonical_mode_summary.csv")
+        if (base / "canonical_mode_summary.csv").exists()
+        else pd.DataFrame(),
+        "alias_map": pd.read_csv(base / "legacy_alias_map.csv")
+        if (base / "legacy_alias_map.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -4968,6 +4985,76 @@ def render_candidate_equivalence_audit_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_candidate_mode_normalization_tab() -> None:
+    st.write(
+        "Export canonical candidate mode aliases so equivalent legacy modes are "
+        "not treated as independent candidates."
+    )
+    st.warning(
+        "`drop_reduce_weight` and `keep_core_and_observe` are legacy equivalent "
+        "modes when the audit shows identical feature sets."
+    )
+
+    mode = st.radio(
+        "Candidate mode normalization action",
+        ["Load output", "Generate normalization report"],
+        horizontal=True,
+        key="candidate_mode_normalization_action",
+    )
+    output_dir = st.text_input(
+        "Canonical mode output directory",
+        value="outputs/candidate_mode_normalization_real_v1",
+        key="candidate_mode_normalization_output_dir",
+    )
+    if mode == "Generate normalization report":
+        equivalence_dir = st.text_input(
+            "Candidate equivalence audit directory",
+            value="outputs/candidate_equivalence_real_v1",
+            key="candidate_mode_normalization_equivalence_dir",
+        )
+        if st.button(
+            "Generate canonical mode report",
+            key="generate_candidate_mode_normalization_button",
+            type="primary",
+        ):
+            try:
+                result = save_canonical_mode_report(equivalence_dir, output_dir)
+                output = {
+                    "canonical_summary": result["canonical_mode_summary"],
+                    "alias_map": result["legacy_alias_map"],
+                    "markdown_report": result["canonical_mode_report"],
+                }
+            except Exception as exc:
+                st.error(f"Candidate mode normalization failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load canonical mode report",
+            key="load_candidate_mode_normalization_button",
+        ):
+            return
+        output = load_candidate_mode_normalization_outputs(output_dir)
+
+    st.subheader("Canonical Candidate Modes")
+    st.dataframe(output["canonical_summary"], width="stretch")
+    st.subheader("Legacy Alias Map")
+    st.dataframe(output["alias_map"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download canonical mode report",
+            data=output["markdown_report"],
+            file_name="canonical_mode_report.md",
+            mime="text/markdown",
+            key="download_candidate_mode_normalization_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -5054,6 +5141,7 @@ def main() -> None:
         candidate_validation_tab,
         candidate_stress_test_tab,
         candidate_equivalence_audit_tab,
+        candidate_mode_normalization_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -5077,6 +5165,7 @@ def main() -> None:
             "Candidate Validation",
             "Candidate Stress Test",
             "Candidate Equivalence Audit",
+            "Candidate Mode Normalization",
         ]
     )
     with single_tab:
@@ -5151,6 +5240,9 @@ def main() -> None:
 
     with candidate_equivalence_audit_tab:
         render_candidate_equivalence_audit_tab()
+
+    with candidate_mode_normalization_tab:
+        render_candidate_mode_normalization_tab()
 
 
 if __name__ == "__main__":

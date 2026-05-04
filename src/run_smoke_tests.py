@@ -49,6 +49,8 @@ PY_COMPILE_FILES = [
     "src/run_candidate_stress_test.py",
     "src/candidate_equivalence_audit.py",
     "src/run_candidate_equivalence_audit.py",
+    "src/candidate_mode_normalization.py",
+    "src/run_candidate_mode_normalization.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -129,6 +131,10 @@ COMMAND_CHECKS = [
     (
         "run_candidate_equivalence_audit help",
         ["src/run_candidate_equivalence_audit.py", "--help"],
+    ),
+    (
+        "run_candidate_mode_normalization help",
+        ["src/run_candidate_mode_normalization.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -845,6 +851,39 @@ COMMAND_CHECKS = [
                 "report=(base/'candidate_equivalence_report.md').read_text(encoding='utf-8'); "
                 "assert 'drop_reduce_weight and keep_core_and_observe' in report; "
                 "assert 'not a trading recommendation' in report"
+            ),
+        ],
+    ),
+    (
+        "offline candidate mode normalization",
+        [
+            "src/run_candidate_mode_normalization.py",
+            "--equivalence-dir",
+            "outputs/candidate_equivalence_smoke",
+            "--output-dir",
+            "outputs/candidate_mode_normalization_smoke",
+        ],
+    ),
+    (
+        "offline candidate mode normalization assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/candidate_mode_normalization_smoke'); "
+                "required=['canonical_mode_summary.csv','legacy_alias_map.csv','canonical_mode_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'canonical_mode_summary.csv'); "
+                "aliases=pd.read_csv(base/'legacy_alias_map.csv'); "
+                "assert 'canonical_reduced_40' in set(summary['canonical_mode']); "
+                "alias_rows=aliases[aliases['legacy_mode'].isin(['drop_reduce_weight','keep_core_and_observe'])]; "
+                "assert set(alias_rows['canonical_mode']) == {'canonical_reduced_40'}; "
+                "report=(base/'canonical_mode_report.md').read_text(encoding='utf-8'); "
+                "assert 'avoid redundant comparisons' in report; "
+                "selected=pd.read_csv('outputs/candidate_equivalence_smoke/selected_features_by_symbol_mode.csv', dtype={'symbol': str}); "
+                "assert {'000001','000858'}.issubset(set(selected['symbol']))"
             ),
         ],
     ),
