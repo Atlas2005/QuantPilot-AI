@@ -1030,6 +1030,32 @@ sufficient trades.
 The dashboard has a `Candidate Stress Test` tab for loading or running this
 report.
 
+## V4 Step 27: Candidate Equivalence Audit + Feature Set Export
+
+Step 27 audits the actual feature lists selected by each pruning mode. It helps
+answer whether candidate modes such as `drop_reduce_weight` and
+`keep_core_and_observe` are genuinely different or effectively equivalent. This
+is an audit/reporting step only, not a trading recommendation.
+
+Example for the current five real symbols:
+
+```powershell
+python src/run_candidate_equivalence_audit.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --output-dir outputs/candidate_equivalence_real_v1
+```
+
+Generated files:
+
+- `selected_features_by_symbol_mode.csv`: actual selected feature list by symbol and pruning mode.
+- `feature_set_overlap_matrix.csv`: pairwise feature-set overlap and Jaccard similarity.
+- `feature_set_equivalence_summary.csv`: candidate equivalence interpretation.
+- `feature_frequency_by_mode.csv`: feature selection frequency by pruning mode.
+- `candidate_equivalence_report.md`: readable audit report.
+- `warnings.csv`: missing input or empty feature-set warnings.
+- `run_config.json`: audit settings.
+
+The dashboard has a `Candidate Equivalence Audit` tab for generating or loading
+the same audit.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

@@ -47,6 +47,8 @@ PY_COMPILE_FILES = [
     "src/run_candidate_expanded_validation.py",
     "src/candidate_stress_test.py",
     "src/run_candidate_stress_test.py",
+    "src/candidate_equivalence_audit.py",
+    "src/run_candidate_equivalence_audit.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -123,6 +125,10 @@ COMMAND_CHECKS = [
     (
         "run_candidate_stress_test help",
         ["src/run_candidate_stress_test.py", "--help"],
+    ),
+    (
+        "run_candidate_equivalence_audit help",
+        ["src/run_candidate_equivalence_audit.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -803,6 +809,42 @@ COMMAND_CHECKS = [
                 "assert results['feature_count'].max() <= 7; "
                 "warnings=pd.read_csv(base/'stress_warnings.csv', dtype={'symbol': str}); "
                 "assert not warnings.empty"
+            ),
+        ],
+    ),
+    (
+        "offline candidate equivalence audit",
+        [
+            "src/run_candidate_equivalence_audit.py",
+            "--factor-dir",
+            "outputs/candidate_validation_smoke_inputs/factors",
+            "--symbols",
+            "000001,000858",
+            "--recommendations",
+            "outputs/candidate_validation_smoke_inputs/recommendations.csv",
+            "--output-dir",
+            "outputs/candidate_equivalence_smoke",
+        ],
+    ),
+    (
+        "offline candidate equivalence audit assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/candidate_equivalence_smoke'); "
+                "required=['selected_features_by_symbol_mode.csv','feature_set_overlap_matrix.csv','feature_set_equivalence_summary.csv','feature_frequency_by_mode.csv','candidate_equivalence_report.md','warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "selected=pd.read_csv(base/'selected_features_by_symbol_mode.csv', dtype={'symbol': str}); "
+                "assert {'000001','000858'}.issubset(set(selected['symbol'])); "
+                "assert {'full','drop_reduce_weight','keep_core_only','keep_core_and_observe'}.issubset(set(selected['pruning_mode'])); "
+                "overlap=pd.read_csv(base/'feature_set_overlap_matrix.csv', dtype={'symbol': str}); "
+                "assert 'jaccard_similarity' in overlap.columns; "
+                "report=(base/'candidate_equivalence_report.md').read_text(encoding='utf-8'); "
+                "assert 'drop_reduce_weight and keep_core_and_observe' in report; "
+                "assert 'not a trading recommendation' in report"
             ),
         ],
     ),

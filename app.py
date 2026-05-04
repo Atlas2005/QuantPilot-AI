@@ -18,6 +18,7 @@ from src.candidate_expanded_validation import (
     parse_symbols as parse_candidate_validation_symbols,
     save_candidate_expanded_validation,
 )
+from src.candidate_equivalence_audit import save_candidate_equivalence_audit
 from src.candidate_stress_test import save_candidate_stress_test
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
@@ -4391,6 +4392,39 @@ def load_candidate_stress_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_candidate_equivalence_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "candidate_equivalence_report.md"
+    return {
+        "selected_features": pd.read_csv(
+            base / "selected_features_by_symbol_mode.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "selected_features_by_symbol_mode.csv").exists()
+        else pd.DataFrame(),
+        "overlap_matrix": pd.read_csv(
+            base / "feature_set_overlap_matrix.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "feature_set_overlap_matrix.csv").exists()
+        else pd.DataFrame(),
+        "equivalence_summary": pd.read_csv(
+            base / "feature_set_equivalence_summary.csv"
+        )
+        if (base / "feature_set_equivalence_summary.csv").exists()
+        else pd.DataFrame(),
+        "feature_frequency": pd.read_csv(base / "feature_frequency_by_mode.csv")
+        if (base / "feature_frequency_by_mode.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(base / "warnings.csv", dtype={"symbol": str})
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -4841,6 +4875,99 @@ def render_candidate_stress_test_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_candidate_equivalence_audit_tab() -> None:
+    st.write(
+        "Audit actual selected feature sets by pruning mode and check whether "
+        "candidate modes are equivalent or redundant."
+    )
+    st.warning(
+        "This is an audit/reporting step only. It is not a trading recommendation."
+    )
+
+    mode = st.radio(
+        "Candidate equivalence action",
+        ["Load output", "Run audit"],
+        horizontal=True,
+        key="candidate_equivalence_action",
+    )
+    output_dir = st.text_input(
+        "Candidate equivalence output directory",
+        value="outputs/candidate_equivalence_real_v1",
+        key="candidate_equivalence_output_dir",
+    )
+    if mode == "Run audit":
+        factor_dir = st.text_input(
+            "Equivalence factor directory",
+            value="outputs/model_robustness_real_v2/factors",
+            key="candidate_equivalence_factor_dir",
+        )
+        symbols_text = st.text_input(
+            "Equivalence symbols",
+            value="000001,600519,000858,600036,601318",
+            key="candidate_equivalence_symbols",
+        )
+        recommendations_path = st.text_input(
+            "Equivalence recommendations CSV",
+            value="outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv",
+            key="candidate_equivalence_recommendations",
+        )
+        if st.button(
+            "Run candidate equivalence audit",
+            key="run_candidate_equivalence_button",
+            type="primary",
+        ):
+            try:
+                result = save_candidate_equivalence_audit(
+                    factor_dir=factor_dir,
+                    symbols=parse_candidate_validation_symbols(symbols_text),
+                    recommendations_path=recommendations_path,
+                    output_dir=output_dir,
+                )
+                output = {
+                    "selected_features": result["selected_features_by_symbol_mode"],
+                    "overlap_matrix": result["feature_set_overlap_matrix"],
+                    "equivalence_summary": result["feature_set_equivalence_summary"],
+                    "feature_frequency": result["feature_frequency_by_mode"],
+                    "warnings": result["warnings"],
+                    "markdown_report": result["candidate_equivalence_report"],
+                }
+            except Exception as exc:
+                st.error(f"Candidate equivalence audit failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load candidate equivalence audit",
+            key="load_candidate_equivalence_button",
+        ):
+            return
+        output = load_candidate_equivalence_outputs(output_dir)
+
+    st.subheader("Equivalence Summary")
+    st.dataframe(output["equivalence_summary"], width="stretch")
+    st.subheader("Feature Set Overlap Matrix")
+    st.dataframe(output["overlap_matrix"], width="stretch")
+    st.subheader("Feature Frequency by Mode")
+    st.dataframe(output["feature_frequency"], width="stretch")
+    st.subheader("Selected Features")
+    st.dataframe(output["selected_features"], width="stretch")
+    st.subheader("Warnings")
+    st.dataframe(output["warnings"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download candidate equivalence report",
+            data=output["markdown_report"],
+            file_name="candidate_equivalence_report.md",
+            mime="text/markdown",
+            key="download_candidate_equivalence_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -4926,6 +5053,7 @@ def main() -> None:
         threshold_decision_report_tab,
         candidate_validation_tab,
         candidate_stress_test_tab,
+        candidate_equivalence_audit_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -4948,6 +5076,7 @@ def main() -> None:
             "Threshold Decision Report",
             "Candidate Validation",
             "Candidate Stress Test",
+            "Candidate Equivalence Audit",
         ]
     )
     with single_tab:
@@ -5019,6 +5148,9 @@ def main() -> None:
 
     with candidate_stress_test_tab:
         render_candidate_stress_test_tab()
+
+    with candidate_equivalence_audit_tab:
+        render_candidate_equivalence_audit_tab()
 
 
 if __name__ == "__main__":
