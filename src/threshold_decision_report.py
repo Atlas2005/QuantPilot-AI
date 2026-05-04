@@ -5,6 +5,11 @@ from typing import Any
 
 import pandas as pd
 
+try:
+    from .candidate_mode_normalization import add_canonical_mode_columns
+except ImportError:
+    from candidate_mode_normalization import add_canonical_mode_columns
+
 
 REPORT_FILES = {
     "mode_summary": "threshold_mode_summary.csv",
@@ -81,8 +86,9 @@ def _rank_candidates(df: pd.DataFrame, disallow_full: bool = False) -> pd.DataFr
     if df.empty:
         return pd.DataFrame()
     ranked = df.copy()
-    if disallow_full and "pruning_mode" in ranked:
-        non_full = ranked[ranked["pruning_mode"] != "full"].copy()
+    mode_column = "canonical_mode" if "canonical_mode" in ranked else "pruning_mode"
+    if disallow_full and mode_column in ranked:
+        non_full = ranked[ranked[mode_column] != "full"].copy()
         if not non_full.empty:
             ranked = non_full
     sort_columns = [
@@ -105,15 +111,48 @@ def _rank_candidates(df: pd.DataFrame, disallow_full: bool = False) -> pd.DataFr
     )
 
 
+def _canonicalize_summary(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "pruning_mode" not in df:
+        return df
+    with_modes = add_canonical_mode_columns(df)
+    group_columns = ["canonical_mode"]
+    if "model_type" in with_modes:
+        group_columns.append("model_type")
+    numeric_columns = [
+        column
+        for column in with_modes.columns
+        if column not in group_columns
+        and column not in {"pruning_mode", "legacy_pruning_mode"}
+        and pd.api.types.is_numeric_dtype(with_modes[column])
+    ]
+    rows = []
+    for keys, group in with_modes.groupby(group_columns, dropna=False):
+        if not isinstance(keys, tuple):
+            keys = (keys,)
+        row = {column: value for column, value in zip(group_columns, keys)}
+        row["legacy_pruning_modes"] = ",".join(
+            sorted(group["legacy_pruning_mode"].dropna().astype(str).unique())
+        )
+        for column in numeric_columns:
+            row[column] = pd.to_numeric(group[column], errors="coerce").mean()
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def select_pruning_mode_candidate(mode_summary: pd.DataFrame) -> dict[str, Any]:
     if mode_summary.empty:
         return {
             "recommended_pruning_mode": "n/a",
             "recommended_pruning_mode_rationale": "No pruning-mode summary was available.",
         }
-    candidate = _rank_candidates(mode_summary, disallow_full=True).iloc[0]
+    ranked = _rank_candidates(mode_summary, disallow_full=True)
+    candidate = ranked.iloc[0]
     return {
-        "recommended_pruning_mode": candidate.get("pruning_mode", "n/a"),
+        "recommended_pruning_mode": candidate.get(
+            "canonical_mode",
+            candidate.get("pruning_mode", "n/a"),
+        ),
+        "recommended_legacy_pruning_modes": candidate.get("legacy_pruning_modes", "n/a"),
         "recommended_pruning_mode_rationale": (
             "recommended research candidate based on non-full pruning-mode "
             "stability, average total return, and trade-count diagnostics."
@@ -218,8 +257,8 @@ def build_rejected_or_low_confidence_configs(
     warnings_df: pd.DataFrame,
 ) -> pd.DataFrame:
     frames = []
-    if not mode_summary.empty and "pruning_mode" in mode_summary:
-        rejected_modes = mode_summary[mode_summary["pruning_mode"] == "full"].copy()
+    if not mode_summary.empty and "canonical_mode" in mode_summary:
+        rejected_modes = mode_summary[mode_summary["canonical_mode"] == "full"].copy()
         if not rejected_modes.empty:
             rejected_modes["case_type"] = "rejected_default_full_feature_set"
             rejected_modes["reason"] = (
@@ -322,6 +361,16 @@ def build_threshold_decision_report(summary_dir: str | Path) -> dict[str, Any]:
     per_symbol_best = outputs["per_symbol_best"]
     walk_forward_summary = outputs["walk_forward_summary"]
     warnings_df = outputs["warnings"]
+    mode_summary = _canonicalize_summary(mode_summary)
+    mode_model_summary = _canonicalize_summary(mode_model_summary)
+    if not per_symbol_best.empty and "best_pruning_mode" in per_symbol_best:
+        per_symbol_best = per_symbol_best.copy()
+        per_symbol_best["legacy_pruning_mode"] = per_symbol_best["best_pruning_mode"]
+        per_symbol_best["canonical_mode"] = per_symbol_best["best_pruning_mode"].map(
+            lambda value: add_canonical_mode_columns(
+                pd.DataFrame({"pruning_mode": [value]})
+            )["canonical_mode"].iloc[0]
+        )
 
     pruning_decision = select_pruning_mode_candidate(mode_summary)
     model_decision = select_model_candidate(model_summary)

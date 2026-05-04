@@ -19,6 +19,19 @@ def normalize_candidate_mode(mode: str) -> str:
     return MODE_ALIASES.get(str(mode), str(mode))
 
 
+def add_canonical_mode_columns(
+    df: pd.DataFrame,
+    mode_column: str = "pruning_mode",
+) -> pd.DataFrame:
+    if df.empty or mode_column not in df:
+        return df.copy()
+    result = df.copy()
+    if "legacy_pruning_mode" not in result:
+        result["legacy_pruning_mode"] = result[mode_column]
+    result["canonical_mode"] = result[mode_column].map(normalize_candidate_mode)
+    return result
+
+
 def _read_csv(path: Path, dtype: dict[str, str] | None = None) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()

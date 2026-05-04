@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 
 try:
+    from .candidate_mode_normalization import add_canonical_mode_columns
     from .dataset_splitter import (
         chronological_split,
         clean_factor_dataset,
@@ -22,6 +23,7 @@ try:
     from .model_trainer import train_baseline_model
     from .reduced_feature_threshold_experiment import run_threshold_grid_from_probabilities
 except ImportError:
+    from candidate_mode_normalization import add_canonical_mode_columns
     from dataset_splitter import (
         chronological_split,
         clean_factor_dataset,
@@ -251,6 +253,10 @@ def _run_candidate_on_regime(
         )
         for row in candidate_rows:
             row["symbol"] = _format_symbol(row.get("symbol"))
+            row["legacy_pruning_mode"] = row.get("pruning_mode")
+            row["canonical_mode"] = add_canonical_mode_columns(
+                pd.DataFrame([row])
+            )["canonical_mode"].iloc[0]
             rows.append(row)
             if row.get("warning"):
                 warnings.append(
@@ -258,6 +264,8 @@ def _run_candidate_on_regime(
                         "candidate_label": candidate_label,
                         "symbol": row["symbol"],
                         "pruning_mode": pruning_mode,
+                        "legacy_pruning_mode": pruning_mode,
+                        "canonical_mode": row["canonical_mode"],
                         "model_type": model_type,
                         "buy_threshold": buy_threshold,
                         "sell_threshold": sell_threshold,
@@ -274,14 +282,19 @@ def _summary(df: pd.DataFrame, min_trades: int) -> pd.DataFrame:
         return pd.DataFrame()
     rows = []
     group_columns = [
-        "candidate_label",
-        "pruning_mode",
+        "canonical_mode",
         "model_type",
         "buy_threshold",
         "sell_threshold",
     ]
     for keys, group in df.groupby(group_columns, dropna=False):
         row = {column: value for column, value in zip(group_columns, keys)}
+        row["candidate_labels"] = ",".join(
+            sorted(group["candidate_label"].dropna().astype(str).unique())
+        )
+        row["legacy_pruning_modes"] = ",".join(
+            sorted(group["legacy_pruning_mode"].dropna().astype(str).unique())
+        )
         excess = _numeric(group, "strategy_vs_benchmark_pct")
         trades = _numeric(group, "trade_count")
         sufficient_trade_rate = float((trades >= min_trades).mean()) if not trades.empty else 0.0
@@ -310,9 +323,12 @@ def _regime_summary(df: pd.DataFrame, min_trades: int) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
     rows = []
-    group_columns = ["candidate_label", "regime"]
+    group_columns = ["canonical_mode", "regime"]
     for keys, group in df.groupby(group_columns, dropna=False):
         row = {column: value for column, value in zip(group_columns, keys)}
+        row["candidate_labels"] = ",".join(
+            sorted(group["candidate_label"].dropna().astype(str).unique())
+        )
         excess = _numeric(group, "strategy_vs_benchmark_pct")
         trades = _numeric(group, "trade_count")
         row.update(
@@ -328,7 +344,7 @@ def _regime_summary(df: pd.DataFrame, min_trades: int) -> pd.DataFrame:
             }
         )
         rows.append(row)
-    return pd.DataFrame(rows).sort_values(["candidate_label", "regime"]).reset_index(drop=True)
+    return pd.DataFrame(rows).sort_values(["canonical_mode", "regime"]).reset_index(drop=True)
 
 
 def _add_final_decision(summary: pd.DataFrame, results_df: pd.DataFrame) -> pd.DataFrame:
@@ -338,7 +354,7 @@ def _add_final_decision(summary: pd.DataFrame, results_df: pd.DataFrame) -> pd.D
     decisions = []
     reasons = []
     for _, row in summary.iterrows():
-        label = row["candidate_label"]
+        label = row["canonical_mode"]
         failures = regime_failures.get(label, [])
         passed = (
             row["avg_strategy_vs_benchmark_pct"] > 0
@@ -374,7 +390,7 @@ def _failed_regimes(results_df: pd.DataFrame) -> dict[str, list[str]]:
     failures: dict[str, list[str]] = {}
     if results_df.empty:
         return failures
-    for (label, regime), group in results_df.groupby(["candidate_label", "regime"], dropna=False):
+    for (label, regime), group in results_df.groupby(["canonical_mode", "regime"], dropna=False):
         avg_excess = _numeric(group, "strategy_vs_benchmark_pct").mean()
         beat_rate = float((_numeric(group, "strategy_vs_benchmark_pct") > 0).mean())
         if avg_excess <= 0 or beat_rate < 0.50:

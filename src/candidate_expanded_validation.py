@@ -6,12 +6,14 @@ from typing import Any
 import pandas as pd
 
 try:
+    from .candidate_mode_normalization import add_canonical_mode_columns
     from .reduced_feature_threshold_experiment import (
         run_reduced_feature_threshold_experiment,
         run_reduced_feature_walk_forward_experiment,
         summarize_threshold_results,
     )
 except ImportError:
+    from candidate_mode_normalization import add_canonical_mode_columns
     from reduced_feature_threshold_experiment import (
         run_reduced_feature_threshold_experiment,
         run_reduced_feature_walk_forward_experiment,
@@ -91,7 +93,7 @@ def _candidate_summary(
         )
     summary = summarize_threshold_results(
         results_df,
-        ["pruning_mode", "model_type", "buy_threshold", "sell_threshold"],
+        ["canonical_mode", "model_type", "buy_threshold", "sell_threshold"],
         min_trades,
     )
     summary.insert(0, "candidate_label", candidate_label)
@@ -153,6 +155,8 @@ def _build_warnings(
                     "symbol": _format_symbol(row.get("symbol")),
                     "model_type": row.get("model_type"),
                     "pruning_mode": row.get("pruning_mode"),
+                    "legacy_pruning_mode": row.get("legacy_pruning_mode"),
+                    "canonical_mode": row.get("canonical_mode"),
                     "buy_threshold": row.get("buy_threshold"),
                     "sell_threshold": row.get("sell_threshold"),
                     "warning_type": "low_trade_count",
@@ -167,6 +171,8 @@ def _build_warnings(
                     "symbol": _format_symbol(row.get("symbol")),
                     "model_type": row.get("model_type"),
                     "pruning_mode": row.get("pruning_mode"),
+                    "legacy_pruning_mode": row.get("legacy_pruning_mode"),
+                    "canonical_mode": row.get("canonical_mode"),
                     "buy_threshold": row.get("buy_threshold"),
                     "sell_threshold": row.get("sell_threshold"),
                     "warning_type": "underperformed_benchmark",
@@ -244,6 +250,7 @@ def run_candidate_expanded_validation(
         if not historical_results.empty:
             historical_results["symbol"] = historical_results["symbol"].map(_format_symbol)
             historical_results["candidate_label"] = "historical_candidate"
+            historical_results = add_canonical_mode_columns(historical_results)
             result_frames.append(historical_results)
         warning_frames.append(
             _build_warnings(
@@ -274,6 +281,7 @@ def run_candidate_expanded_validation(
             if not wf_results.empty:
                 wf_results["symbol"] = wf_results["symbol"].map(_format_symbol)
                 wf_results["candidate_label"] = "walk_forward_candidate"
+                wf_results = add_canonical_mode_columns(wf_results)
                 walk_forward_frames.append(wf_results)
             walk_forward_warning_frames.append(
                 _build_warnings(
@@ -368,7 +376,8 @@ def generate_candidate_validation_report(
                     column
                     for column in [
                         "candidate_label",
-                        "pruning_mode",
+                        "canonical_mode",
+                        "legacy_pruning_mode",
                         "model_type",
                         "buy_threshold",
                         "sell_threshold",

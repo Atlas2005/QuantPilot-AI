@@ -4702,7 +4702,8 @@ def render_candidate_validation_tab() -> None:
     )
     st.warning(
         "Expanded validation is still educational research only. It is not "
-        "trading-ready and is not financial advice."
+        "trading-ready and is not financial advice. Summaries use canonical "
+        "candidate modes while preserving legacy pruning modes for traceability."
     )
 
     mode = st.radio(
@@ -4797,7 +4798,8 @@ def render_candidate_stress_test_tab() -> None:
     )
     st.warning(
         "Candidate stress tests are educational research only. They are not "
-        "trading-ready and are not financial advice."
+        "trading-ready and are not financial advice. Candidate summaries collapse "
+        "legacy equivalent modes into canonical modes."
     )
 
     mode = st.radio(

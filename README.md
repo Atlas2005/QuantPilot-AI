@@ -1086,6 +1086,24 @@ candidates when they map to `canonical_reduced_40`.
 The dashboard has a `Candidate Mode Normalization` tab for generating or
 loading the same report.
 
+## V4 Step 29: Canonical Candidate Mode Integration
+
+Step 29 applies the canonical mode mapping in future candidate validation and
+stress-test summaries. Legacy pruning modes are still preserved for traceability
+as `legacy_pruning_mode`, but candidate-level grouping uses `canonical_mode`.
+
+Canonical mapping:
+
+- `drop_reduce_weight` -> `canonical_reduced_40`
+- `keep_core_and_observe` -> `canonical_reduced_40`
+- `full` -> `full`
+- `keep_core_only` -> `keep_core_only`
+
+This prevents future reports from treating `drop_reduce_weight` and
+`keep_core_and_observe` as independent primary candidates when they are aliases
+for the same selected feature set. `full` remains the baseline and
+`keep_core_only` remains a distinct low-feature challenger.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
