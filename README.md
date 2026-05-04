@@ -1104,6 +1104,35 @@ This prevents future reports from treating `drop_reduce_weight` and
 for the same selected feature set. `full` remains the baseline and
 `keep_core_only` remains a distinct low-feature challenger.
 
+## V4 Step 30: Canonical Candidate Revalidation Report
+
+Step 30 consolidates canonical candidate validation outputs into one final
+research decision report. It reads expanded validation, stress validation, and
+threshold decision outputs. It does not add new features, models, data sources,
+live trading, or broker integration.
+
+Example:
+
+```powershell
+python src/generate_canonical_candidate_revalidation_report.py --expanded-validation-dir outputs/candidate_expanded_validation_real_v2 --stress-dir outputs/candidate_stress_real_v2 --threshold-decision-dir outputs/threshold_decision_real_v2 --output-dir outputs/canonical_candidate_revalidation_real_v1
+```
+
+Generated files:
+
+- `canonical_candidate_revalidation_report.md`: final research decision report.
+- `canonical_candidate_revalidation_summary.csv`: canonical candidate comparison.
+- `candidate_risk_flags.csv`: consolidated warning and risk flags.
+- `run_config.json`: report input and output paths.
+
+The report compares `canonical_reduced_40`, `full`, and `keep_core_only`.
+`canonical_reduced_40` is the current primary research candidate, but it is not
+trading-ready when stress validation still fails. `full` is baseline only.
+`keep_core_only` remains a low-feature challenger with low-trade-count or
+instability risk.
+
+The dashboard has a `Canonical Revalidation` tab for generating or loading this
+report.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

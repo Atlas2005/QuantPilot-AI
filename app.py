@@ -21,6 +21,9 @@ from src.candidate_expanded_validation import (
 from src.candidate_equivalence_audit import save_candidate_equivalence_audit
 from src.candidate_mode_normalization import save_canonical_mode_report
 from src.candidate_stress_test import save_candidate_stress_test
+from src.canonical_candidate_revalidation_report import (
+    save_canonical_candidate_revalidation_report,
+)
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
     get_token_required_features,
@@ -4442,6 +4445,22 @@ def load_candidate_mode_normalization_outputs(output_dir: str) -> dict[str, obje
     }
 
 
+def load_canonical_revalidation_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "canonical_candidate_revalidation_report.md"
+    return {
+        "summary": pd.read_csv(base / "canonical_candidate_revalidation_summary.csv")
+        if (base / "canonical_candidate_revalidation_summary.csv").exists()
+        else pd.DataFrame(),
+        "risk_flags": pd.read_csv(base / "candidate_risk_flags.csv", dtype={"symbol": str})
+        if (base / "candidate_risk_flags.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -5057,6 +5076,93 @@ def render_candidate_mode_normalization_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_canonical_revalidation_tab() -> None:
+    st.write(
+        "Consolidate canonical candidate validation, stress, and threshold "
+        "decision outputs into one final research decision report."
+    )
+    st.warning(
+        "This is reporting-only research control. It is not trading-ready and "
+        "is not financial advice."
+    )
+
+    mode = st.radio(
+        "Canonical revalidation action",
+        ["Load output", "Generate report"],
+        horizontal=True,
+        key="canonical_revalidation_action",
+    )
+    output_dir = st.text_input(
+        "Canonical revalidation output directory",
+        value="outputs/canonical_candidate_revalidation_real_v1",
+        key="canonical_revalidation_output_dir",
+    )
+    if mode == "Generate report":
+        expanded_dir = st.text_input(
+            "Expanded validation directory",
+            value="outputs/candidate_expanded_validation_real_v2",
+            key="canonical_revalidation_expanded_dir",
+        )
+        stress_dir = st.text_input(
+            "Stress validation directory",
+            value="outputs/candidate_stress_real_v2",
+            key="canonical_revalidation_stress_dir",
+        )
+        threshold_dir = st.text_input(
+            "Threshold decision directory",
+            value="outputs/threshold_decision_real_v2",
+            key="canonical_revalidation_threshold_dir",
+        )
+        if st.button(
+            "Generate canonical revalidation report",
+            key="generate_canonical_revalidation_button",
+            type="primary",
+        ):
+            try:
+                result = save_canonical_candidate_revalidation_report(
+                    expanded_validation_dir=expanded_dir,
+                    stress_dir=stress_dir,
+                    threshold_decision_dir=threshold_dir,
+                    output_dir=output_dir,
+                )
+                output = {
+                    "summary": result["canonical_candidate_revalidation_summary"],
+                    "risk_flags": result["candidate_risk_flags"],
+                    "markdown_report": result[
+                        "canonical_candidate_revalidation_report"
+                    ],
+                }
+            except Exception as exc:
+                st.error(f"Canonical revalidation report failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load canonical revalidation report",
+            key="load_canonical_revalidation_button",
+        ):
+            return
+        output = load_canonical_revalidation_outputs(output_dir)
+
+    st.subheader("Canonical Revalidation Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Candidate Risk Flags")
+    st.dataframe(output["risk_flags"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download canonical revalidation report",
+            data=output["markdown_report"],
+            file_name="canonical_candidate_revalidation_report.md",
+            mime="text/markdown",
+            key="download_canonical_revalidation_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -5144,6 +5250,7 @@ def main() -> None:
         candidate_stress_test_tab,
         candidate_equivalence_audit_tab,
         candidate_mode_normalization_tab,
+        canonical_revalidation_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -5168,6 +5275,7 @@ def main() -> None:
             "Candidate Stress Test",
             "Candidate Equivalence Audit",
             "Candidate Mode Normalization",
+            "Canonical Revalidation",
         ]
     )
     with single_tab:
@@ -5245,6 +5353,9 @@ def main() -> None:
 
     with candidate_mode_normalization_tab:
         render_candidate_mode_normalization_tab()
+
+    with canonical_revalidation_tab:
+        render_canonical_revalidation_tab()
 
 
 if __name__ == "__main__":

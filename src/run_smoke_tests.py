@@ -51,6 +51,8 @@ PY_COMPILE_FILES = [
     "src/run_candidate_equivalence_audit.py",
     "src/candidate_mode_normalization.py",
     "src/run_candidate_mode_normalization.py",
+    "src/canonical_candidate_revalidation_report.py",
+    "src/generate_canonical_candidate_revalidation_report.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -135,6 +137,10 @@ COMMAND_CHECKS = [
     (
         "run_candidate_mode_normalization help",
         ["src/run_candidate_mode_normalization.py", "--help"],
+    ),
+    (
+        "generate_canonical_candidate_revalidation_report help",
+        ["src/generate_canonical_candidate_revalidation_report.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -893,6 +899,75 @@ COMMAND_CHECKS = [
                 "assert 'avoid redundant comparisons' in report; "
                 "selected=pd.read_csv('outputs/candidate_equivalence_smoke/selected_features_by_symbol_mode.csv', dtype={'symbol': str}); "
                 "assert {'000001','000858'}.issubset(set(selected['symbol']))"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic canonical revalidation inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/canonical_revalidation_smoke_inputs')\\n"
+                "expanded=base/'expanded'\\n"
+                "stress=base/'stress'\\n"
+                "threshold=base/'threshold'\\n"
+                "for d in [expanded, stress, threshold]: d.mkdir(parents=True, exist_ok=True)\\n"
+                "pd.DataFrame([\\n"
+                "{'canonical_mode':'canonical_reduced_40','legacy_pruning_modes':'drop_reduce_weight,keep_core_and_observe','model_type':'logistic_regression','buy_threshold':0.5,'sell_threshold':0.4,'avg_strategy_vs_benchmark_pct':1.0,'final_decision':'pass'},\\n"
+                "{'canonical_mode':'full','legacy_pruning_modes':'full','model_type':'logistic_regression','buy_threshold':0.5,'sell_threshold':0.4,'avg_strategy_vs_benchmark_pct':-1.0,'final_decision':'fail'},\\n"
+                "{'canonical_mode':'keep_core_only','legacy_pruning_modes':'keep_core_only','model_type':'logistic_regression','buy_threshold':0.5,'sell_threshold':0.4,'avg_strategy_vs_benchmark_pct':2.0,'final_decision':'fail'}\\n"
+                "]).to_csv(expanded/'candidate_validation_summary.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000001','canonical_mode':'canonical_reduced_40','legacy_pruning_mode':'keep_core_and_observe','strategy_vs_benchmark_pct':1.0}]).to_csv(expanded/'candidate_validation_results.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000858','canonical_mode':'keep_core_only','legacy_pruning_mode':'keep_core_only','warning_type':'low_trade_count','message':'low_trade_count: 1'}]).to_csv(expanded/'candidate_validation_warnings.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'canonical_mode':'canonical_reduced_40','legacy_pruning_modes':'drop_reduce_weight,keep_core_and_observe','avg_strategy_vs_benchmark_pct':-0.5,'beat_benchmark_rate':0.4,'sufficient_trade_rate':0.8,'final_decision':'fail'},\\n"
+                "{'canonical_mode':'full','legacy_pruning_modes':'full','avg_strategy_vs_benchmark_pct':-2.0,'beat_benchmark_rate':0.2,'sufficient_trade_rate':1.0,'final_decision':'fail'},\\n"
+                "{'canonical_mode':'keep_core_only','legacy_pruning_modes':'keep_core_only','avg_strategy_vs_benchmark_pct':0.5,'beat_benchmark_rate':0.5,'sufficient_trade_rate':0.2,'final_decision':'fail'}\\n"
+                "]).to_csv(stress/'candidate_stress_summary.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000001','canonical_mode':'canonical_reduced_40','legacy_pruning_mode':'drop_reduce_weight','strategy_vs_benchmark_pct':-0.5},{'symbol':'000858','canonical_mode':'keep_core_only','legacy_pruning_mode':'keep_core_only','strategy_vs_benchmark_pct':-1.0}]).to_csv(stress/'candidate_stress_results.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000001','canonical_mode':'canonical_reduced_40','legacy_pruning_mode':'drop_reduce_weight','warning_type':'underperformed_benchmark','message':'underperformed benchmark'}]).to_csv(stress/'stress_warnings.csv', index=False)\\n"
+                "pd.DataFrame([{'decision_item':'pruning_mode','recommended_pruning_mode':'canonical_reduced_40','recommended_legacy_pruning_modes':'drop_reduce_weight,keep_core_and_observe'}]).to_csv(threshold/'threshold_decision_summary.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000858','canonical_mode':'keep_core_only','legacy_pruning_mode':'keep_core_only','reason':'low-confidence best threshold'}]).to_csv(threshold/'rejected_or_low_confidence_configs.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline canonical candidate revalidation report",
+        [
+            "src/generate_canonical_candidate_revalidation_report.py",
+            "--expanded-validation-dir",
+            "outputs/canonical_revalidation_smoke_inputs/expanded",
+            "--stress-dir",
+            "outputs/canonical_revalidation_smoke_inputs/stress",
+            "--threshold-decision-dir",
+            "outputs/canonical_revalidation_smoke_inputs/threshold",
+            "--output-dir",
+            "outputs/canonical_revalidation_smoke",
+        ],
+    ),
+    (
+        "offline canonical candidate revalidation assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/canonical_revalidation_smoke'); "
+                "required=['canonical_candidate_revalidation_report.md','canonical_candidate_revalidation_summary.csv','candidate_risk_flags.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'canonical_candidate_revalidation_summary.csv'); "
+                "assert {'canonical_reduced_40','full','keep_core_only'} == set(summary['canonical_mode']); "
+                "report=(base/'canonical_candidate_revalidation_report.md').read_text(encoding='utf-8'); "
+                "phrases=['canonical_reduced_40 is the current primary research candidate','not trading-ready','full is baseline only','keep_core_only is a low-feature challenger']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases; "
+                "flags=pd.read_csv(base/'candidate_risk_flags.csv', dtype={'symbol': str}); "
+                "assert '000001' in set(flags.get('symbol', pd.Series(dtype=str)).dropna())"
             ),
         ],
     ),
