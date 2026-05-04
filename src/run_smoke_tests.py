@@ -510,7 +510,74 @@ COMMAND_CHECKS = [
                 "'walk_forward_combined_results.csv','walk_forward_summary.csv',"
                 "'threshold_experiment_report.md','warnings.csv','run_config.json']; "
                 "missing=[name for name in required if not (base/name).exists()]; "
-                "assert not missing, missing"
+                "assert not missing, missing; "
+                "report=(base/'threshold_experiment_report.md').read_text(encoding='utf-8'); "
+                "assert '## Best Historical Threshold Results' in report; "
+                "assert '## Recommended Walk-Forward Candidate' in report; "
+                "assert '000001' in report; "
+                "import pandas as pd; "
+                "best=pd.read_csv(base/'per_symbol_best_thresholds.csv', dtype={'symbol': str}); "
+                "assert 'selection_confidence' in best.columns; "
+                "assert best['symbol'].iloc[0] == '000001'"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic threshold low-trade report inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import json\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/threshold_report_low_trade_smoke_inputs')\\n"
+                "d=base/'reduced_feature_threshold_real_000001'\\n"
+                "d.mkdir(parents=True, exist_ok=True)\\n"
+                "rows=[\\n"
+                "{'symbol':'000001','model_type':'logistic_regression','pruning_mode':'full','feature_count':10,'buy_threshold':0.6,'sell_threshold':0.5,'total_return_pct':2.0,'benchmark_return_pct':1.0,'strategy_vs_benchmark_pct':1.0,'max_drawdown_pct':-1.0,'trade_count':3,'win_rate_pct':50.0,'final_value':10200,'warning':'low_trade_count: 3 | underperformed_benchmark'},\\n"
+                "{'symbol':'000001','model_type':'logistic_regression','pruning_mode':'full','feature_count':10,'buy_threshold':0.65,'sell_threshold':0.5,'total_return_pct':4.0,'benchmark_return_pct':1.0,'strategy_vs_benchmark_pct':3.0,'max_drawdown_pct':-1.5,'trade_count':2,'win_rate_pct':50.0,'final_value':10400,'warning':'low_trade_count: 2'},\\n"
+                "{'symbol':'000001','model_type':'random_forest','pruning_mode':'drop_reduce_weight','feature_count':8,'buy_threshold':0.6,'sell_threshold':0.5,'total_return_pct':1.5,'benchmark_return_pct':1.0,'strategy_vs_benchmark_pct':0.5,'max_drawdown_pct':-1.2,'trade_count':4,'win_rate_pct':60.0,'final_value':10150,'warning':None}\\n"
+                "]\\n"
+                "pd.DataFrame(rows).to_csv(d/'threshold_backtest_results.csv', index=False)\\n"
+                "pd.DataFrame(rows).to_csv(d/'walk_forward_results.csv', index=False)\\n"
+                "warnings=[{'symbol':'000001','model_type':'logistic_regression','pruning_mode':'full','buy_threshold':0.6,'sell_threshold':0.5,'warning_type':'threshold_result_warning','message':'low_trade_count: 3'},{'symbol':'000001','model_type':'logistic_regression','pruning_mode':'full','buy_threshold':0.65,'sell_threshold':0.5,'warning_type':'threshold_result_warning','message':'low_trade_count: 2'}]\\n"
+                "pd.DataFrame(warnings).to_csv(d/'warnings.csv', index=False)\\n"
+                "(d/'run_config.json').write_text(json.dumps({'factor_csv':'data/factors/factors_000001.csv','min_trades':3}), encoding='utf-8')\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic threshold low-trade report",
+        [
+            "src/generate_threshold_experiment_report.py",
+            "--input-dirs",
+            "outputs/threshold_report_low_trade_smoke_inputs/reduced_feature_threshold_real_000001",
+            "--output-dir",
+            "outputs/threshold_report_low_trade_smoke",
+        ],
+    ),
+    (
+        "offline synthetic threshold low-trade report assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/threshold_report_low_trade_smoke'); "
+                "report=(base/'threshold_experiment_report.md').read_text(encoding='utf-8'); "
+                "assert '## Low-Confidence and Low-Trade Cases' in report; "
+                "low_section=report.split('## Low-Confidence and Low-Trade Cases', 1)[1].split('## Research Warnings', 1)[0]; "
+                "assert 'low_trade_count: 2' in low_section; "
+                "assert '| 3 |' in report; "
+                "assert 'low_trade_count: 3' not in report; "
+                "combined=pd.read_csv(base/'combined_threshold_results.csv', dtype={'symbol': str}); "
+                "assert combined['symbol'].iloc[0] == '000001'; "
+                "assert 'low_trade_count: 3' not in combined.to_string(); "
+                "best=pd.read_csv(base/'per_symbol_best_thresholds.csv', dtype={'symbol': str}); "
+                "assert best.loc[0, 'symbol'] == '000001'; "
+                "assert int(best.loc[0, 'best_trade_count']) == 3"
             ),
         ],
     ),

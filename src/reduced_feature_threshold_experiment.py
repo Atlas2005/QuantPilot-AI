@@ -153,7 +153,7 @@ def run_threshold_grid_from_probabilities(
         total_return = performance.get("total_return_pct")
         trade_count = int(trade_metrics.get("total_trades") or 0)
         warnings = []
-        if trade_count <= min_trades:
+        if trade_count < min_trades:
             warnings.append(f"low_trade_count: {trade_count}")
         if total_return is not None and total_return < 0:
             warnings.append("negative_total_return")
@@ -193,7 +193,7 @@ def _score_group(group: pd.DataFrame, min_trades: int) -> dict[str, Any]:
     trades = pd.to_numeric(group["trade_count"], errors="coerce")
     avg_excess = excess.mean()
     avg_drawdown = drawdown.mean()
-    sufficient_trade_rate = float((trades > min_trades).mean()) if not trades.empty else 0.0
+    sufficient_trade_rate = float((trades >= min_trades).mean()) if not trades.empty else 0.0
     beat_rate = float((excess > 0).mean()) if not excess.dropna().empty else 0.0
     stability_score = (
         (0.0 if pd.isna(avg_excess) else avg_excess / 100.0)
@@ -252,7 +252,9 @@ def build_best_thresholds(results_df: pd.DataFrame, min_trades: int) -> pd.DataF
         ranked["threshold_score"] = (
             pd.to_numeric(ranked["strategy_vs_benchmark_pct"], errors="coerce").fillna(0)
             / 100.0
-            + (pd.to_numeric(ranked["trade_count"], errors="coerce") > min_trades).astype(float)
+            + (
+                pd.to_numeric(ranked["trade_count"], errors="coerce") >= min_trades
+            ).astype(float)
             * 0.20
             + pd.to_numeric(ranked["max_drawdown_pct"], errors="coerce").fillna(0)
             / 200.0

@@ -4279,13 +4279,13 @@ def load_threshold_sensitivity_outputs(output_dir: str) -> dict[str, object]:
         )
         if (base / "threshold_summary_by_mode.csv").exists()
         else pd.DataFrame(),
-        "best_thresholds": pd.read_csv(base / "best_thresholds.csv")
+        "best_thresholds": pd.read_csv(base / "best_thresholds.csv", dtype={"symbol": str})
         if (base / "best_thresholds.csv").exists()
         else pd.DataFrame(),
         "walk_forward_summary": pd.read_csv(base / "walk_forward_summary.csv")
         if (base / "walk_forward_summary.csv").exists()
         else pd.DataFrame(),
-        "warnings": pd.read_csv(base / "warnings.csv")
+        "warnings": pd.read_csv(base / "warnings.csv", dtype={"symbol": str})
         if (base / "warnings.csv").exists()
         else pd.DataFrame(),
     }
@@ -4298,10 +4298,13 @@ def load_threshold_report_outputs(output_dir: str) -> dict[str, object]:
         "mode_summary": pd.read_csv(base / "threshold_mode_summary.csv")
         if (base / "threshold_mode_summary.csv").exists()
         else pd.DataFrame(),
-        "per_symbol_best": pd.read_csv(base / "per_symbol_best_thresholds.csv")
+        "per_symbol_best": pd.read_csv(
+            base / "per_symbol_best_thresholds.csv",
+            dtype={"symbol": str},
+        )
         if (base / "per_symbol_best_thresholds.csv").exists()
         else pd.DataFrame(),
-        "warnings": pd.read_csv(base / "warnings.csv")
+        "warnings": pd.read_csv(base / "warnings.csv", dtype={"symbol": str})
         if (base / "warnings.csv").exists()
         else pd.DataFrame(),
         "markdown_report": report_path.read_text(encoding="utf-8")
