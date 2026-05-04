@@ -45,6 +45,8 @@ PY_COMPILE_FILES = [
     "src/generate_threshold_decision_report.py",
     "src/candidate_expanded_validation.py",
     "src/run_candidate_expanded_validation.py",
+    "src/candidate_stress_test.py",
+    "src/run_candidate_stress_test.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -117,6 +119,10 @@ COMMAND_CHECKS = [
     (
         "run_candidate_expanded_validation help",
         ["src/run_candidate_expanded_validation.py", "--help"],
+    ),
+    (
+        "run_candidate_stress_test help",
+        ["src/run_candidate_stress_test.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -731,6 +737,72 @@ COMMAND_CHECKS = [
                 "warnings=pd.read_csv(base/'candidate_validation_warnings.csv', dtype={'symbol': str}); "
                 "assert not warnings.empty; "
                 "assert warnings.to_string().find('low_trade_count') >= 0"
+            ),
+        ],
+    ),
+    (
+        "offline candidate stress test",
+        [
+            "src/run_candidate_stress_test.py",
+            "--factor-dir",
+            "outputs/candidate_validation_smoke_inputs/factors",
+            "--symbols",
+            "000001,000858",
+            "--recommendations",
+            "outputs/candidate_validation_smoke_inputs/recommendations.csv",
+            "--output-dir",
+            "outputs/candidate_stress_smoke",
+            "--candidate-pruning-mode",
+            "keep_core_and_observe",
+            "--candidate-model",
+            "logistic_regression",
+            "--candidate-buy-threshold",
+            "0.50",
+            "--candidate-sell-threshold",
+            "0.40",
+            "--walk-forward-pruning-mode",
+            "drop_reduce_weight",
+            "--walk-forward-model",
+            "logistic_regression",
+            "--walk-forward-buy-threshold",
+            "0.50",
+            "--walk-forward-sell-threshold",
+            "0.40",
+            "--minimum-commission",
+            "0",
+            "--commission-rate",
+            "0",
+            "--stamp-tax-rate",
+            "0",
+            "--slippage-pct",
+            "0",
+            "--min-trades",
+            "50",
+            "--regime-window",
+            "5",
+            "--enable-walk-forward",
+        ],
+    ),
+    (
+        "offline candidate stress test assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/candidate_stress_smoke'); "
+                "required=['candidate_stress_results.csv','candidate_stress_summary.csv','per_symbol_stress_results.csv','regime_summary.csv','stress_warnings.csv','candidate_stress_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "report=(base/'candidate_stress_report.md').read_text(encoding='utf-8'); "
+                "assert 'not trading-ready' in report; "
+                "assert 'Regime Diagnostics' in report; "
+                "results=pd.read_csv(base/'candidate_stress_results.csv', dtype={'symbol': str}); "
+                "assert {'000001','000858'}.issubset(set(results['symbol'])); "
+                "assert 'bull' in set(results['regime']) or 'sideways' in set(results['regime']); "
+                "assert results['feature_count'].max() <= 7; "
+                "warnings=pd.read_csv(base/'stress_warnings.csv', dtype={'symbol': str}); "
+                "assert not warnings.empty"
             ),
         ],
     ),

@@ -18,6 +18,7 @@ from src.candidate_expanded_validation import (
     parse_symbols as parse_candidate_validation_symbols,
     save_candidate_expanded_validation,
 )
+from src.candidate_stress_test import save_candidate_stress_test
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
     get_token_required_features,
@@ -4362,6 +4363,34 @@ def load_candidate_validation_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_candidate_stress_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "candidate_stress_report.md"
+    return {
+        "stress_summary": pd.read_csv(base / "candidate_stress_summary.csv")
+        if (base / "candidate_stress_summary.csv").exists()
+        else pd.DataFrame(),
+        "per_symbol_results": pd.read_csv(
+            base / "per_symbol_stress_results.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "per_symbol_stress_results.csv").exists()
+        else pd.DataFrame(),
+        "regime_summary": pd.read_csv(base / "regime_summary.csv")
+        if (base / "regime_summary.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(
+            base / "stress_warnings.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "stress_warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -4710,6 +4739,108 @@ def render_candidate_validation_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_candidate_stress_test_tab() -> None:
+    st.write(
+        "Load or run candidate market-regime stress tests for the current "
+        "research candidates."
+    )
+    st.warning(
+        "Candidate stress tests are educational research only. They are not "
+        "trading-ready and are not financial advice."
+    )
+
+    mode = st.radio(
+        "Candidate stress action",
+        ["Load output", "Run stress test"],
+        horizontal=True,
+        key="candidate_stress_action",
+    )
+    output_dir = st.text_input(
+        "Candidate stress output directory",
+        value="outputs/candidate_stress_real_v1",
+        key="candidate_stress_output_dir",
+    )
+    if mode == "Run stress test":
+        factor_dir = st.text_input(
+            "Stress factor directory",
+            value="outputs/model_robustness_real_v2/factors",
+            key="candidate_stress_factor_dir",
+        )
+        symbols_text = st.text_input(
+            "Stress symbols",
+            value="000001,600519,000858,600036,601318",
+            key="candidate_stress_symbols",
+        )
+        recommendations_path = st.text_input(
+            "Stress recommendations CSV",
+            value="outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv",
+            key="candidate_stress_recommendations",
+        )
+        regime_window = st.number_input(
+            "Regime window",
+            min_value=2,
+            value=60,
+            step=5,
+            key="candidate_stress_regime_window",
+        )
+        enable_walk_forward = st.checkbox(
+            "Include walk-forward candidate",
+            value=True,
+            key="candidate_stress_enable_walk_forward",
+        )
+        if st.button(
+            "Run candidate stress test",
+            key="run_candidate_stress_button",
+            type="primary",
+        ):
+            try:
+                result = save_candidate_stress_test(
+                    factor_dir=factor_dir,
+                    symbols=parse_candidate_validation_symbols(symbols_text),
+                    recommendations_path=recommendations_path,
+                    output_dir=output_dir,
+                    regime_window=int(regime_window),
+                    enable_walk_forward=enable_walk_forward,
+                )
+                output = {
+                    "stress_summary": result["candidate_stress_summary"],
+                    "per_symbol_results": result["per_symbol_stress_results"],
+                    "regime_summary": result["regime_summary"],
+                    "warnings": result["stress_warnings"],
+                    "markdown_report": result["candidate_stress_report"],
+                }
+            except Exception as exc:
+                st.error(f"Candidate stress test failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button("Load candidate stress test", key="load_candidate_stress_button"):
+            return
+        output = load_candidate_stress_outputs(output_dir)
+
+    st.subheader("Candidate Stress Summary")
+    st.dataframe(output["stress_summary"], width="stretch")
+    st.subheader("Regime Summary")
+    st.dataframe(output["regime_summary"], width="stretch")
+    st.subheader("Per-Symbol Stress Results")
+    st.dataframe(output["per_symbol_results"], width="stretch")
+    st.subheader("Warnings")
+    st.dataframe(output["warnings"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download candidate stress report",
+            data=output["markdown_report"],
+            file_name="candidate_stress_report.md",
+            mime="text/markdown",
+            key="download_candidate_stress_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -4794,6 +4925,7 @@ def main() -> None:
         threshold_sensitivity_tab,
         threshold_decision_report_tab,
         candidate_validation_tab,
+        candidate_stress_test_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -4815,6 +4947,7 @@ def main() -> None:
             "Threshold Sensitivity",
             "Threshold Decision Report",
             "Candidate Validation",
+            "Candidate Stress Test",
         ]
     )
     with single_tab:
@@ -4883,6 +5016,9 @@ def main() -> None:
 
     with candidate_validation_tab:
         render_candidate_validation_tab()
+
+    with candidate_stress_test_tab:
+        render_candidate_stress_test_tab()
 
 
 if __name__ == "__main__":

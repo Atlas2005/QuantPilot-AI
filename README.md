@@ -995,6 +995,41 @@ conditions means the candidate remains research-only and should not be promoted.
 The dashboard has a `Candidate Validation` tab for loading or running this
 validation. This remains educational diagnostics only, not financial advice.
 
+## V4 Step 26: Candidate Stress Test / Market Regime Validation
+
+Step 26 stress-tests the current research candidates across market regimes. It
+classifies each symbol's factor rows into `bull`, `bear`, or `sideways` using a
+rolling close-price return over `--regime-window` rows, then reruns the fixed
+candidate threshold settings inside each regime slice. This is still
+educational research only, not trading advice.
+
+Example for the current five real symbols:
+
+```powershell
+python src/run_candidate_stress_test.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --output-dir outputs/candidate_stress_real_v1 --candidate-pruning-mode keep_core_and_observe --candidate-model logistic_regression --candidate-buy-threshold 0.50 --candidate-sell-threshold 0.40 --walk-forward-pruning-mode drop_reduce_weight --walk-forward-model logistic_regression --walk-forward-buy-threshold 0.50 --walk-forward-sell-threshold 0.40 --regime-window 60 --enable-walk-forward
+```
+
+Generated files:
+
+- `candidate_stress_results.csv`: candidate rows by symbol and regime.
+- `candidate_stress_summary.csv`: aggregate candidate stress summary and final decision.
+- `per_symbol_stress_results.csv`: per-symbol/per-regime result rows.
+- `regime_summary.csv`: bull, bear, and sideways diagnostics.
+- `stress_warnings.csv`: low-trade, split, and underperformance warnings.
+- `candidate_stress_report.md`: readable stress-test report.
+- `run_config.json`: stress-test settings.
+
+The stress decision passes only if average excess return is positive, benchmark
+beat rate is at least 0.60, sufficient trade rate is at least 0.80, at least
+five symbols are tested, and no severe regime-specific failure appears.
+Otherwise the candidate remains research-only. Do not add more features just
+because one historical candidate looks strong; add features only after the
+reduced candidate is stable across bull, bear, and sideways regimes with
+sufficient trades.
+
+The dashboard has a `Candidate Stress Test` tab for loading or running this
+report.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
