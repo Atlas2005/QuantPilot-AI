@@ -963,6 +963,38 @@ Interpretation notes:
 The dashboard has a `Threshold Decision Report` tab for generating or loading
 the same report.
 
+## V4 Step 25: Recommended Candidate Expanded Validation
+
+Step 25 reruns the recommended reduced-feature threshold candidates across a
+symbol list with stricter validation gates. It reuses the existing reduced
+feature threshold and walk-forward code paths; it does not fetch new data,
+change training logic, or change backtest execution behavior.
+
+Example for the current five real symbols:
+
+```powershell
+python src/run_candidate_expanded_validation.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --output-dir outputs/candidate_validation_real_v1 --candidate-pruning-mode keep_core_and_observe --candidate-model logistic_regression --candidate-buy-threshold 0.50 --candidate-sell-threshold 0.40 --walk-forward-pruning-mode drop_reduce_weight --walk-forward-model logistic_regression --walk-forward-buy-threshold 0.50 --walk-forward-sell-threshold 0.40 --enable-walk-forward
+```
+
+Generated files:
+
+- `candidate_validation_results.csv`: historical candidate result rows.
+- `candidate_validation_summary.csv`: strict pass/fail summary.
+- `per_symbol_candidate_results.csv`: per-symbol historical rows.
+- `candidate_validation_warnings.csv`: low-trade, underperformance, and source warnings.
+- `candidate_validation_report.md`: readable validation report.
+- `run_config.json`: validation settings.
+- `walk_forward_candidate_results.csv`: optional walk-forward rows.
+- `walk_forward_candidate_summary.csv`: optional walk-forward summary.
+
+The final decision only passes if average excess return is positive, benchmark
+win rate is at least 0.60, average trade count is at least `min_trades`, enough
+symbols are tested, and low-confidence warnings do not dominate. Failing these
+conditions means the candidate remains research-only and should not be promoted.
+
+The dashboard has a `Candidate Validation` tab for loading or running this
+validation. This remains educational diagnostics only, not financial advice.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

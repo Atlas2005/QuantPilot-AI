@@ -14,6 +14,10 @@ from src.batch_model_trainer import (
     parse_symbols as parse_batch_symbols,
     run_batch_model_training,
 )
+from src.candidate_expanded_validation import (
+    parse_symbols as parse_candidate_validation_symbols,
+    save_candidate_expanded_validation,
+)
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
     get_token_required_features,
@@ -4333,6 +4337,31 @@ def load_threshold_decision_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_candidate_validation_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "candidate_validation_report.md"
+    return {
+        "candidate_summary": pd.read_csv(base / "candidate_validation_summary.csv")
+        if (base / "candidate_validation_summary.csv").exists()
+        else pd.DataFrame(),
+        "per_symbol_results": pd.read_csv(
+            base / "per_symbol_candidate_results.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "per_symbol_candidate_results.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(
+            base / "candidate_validation_warnings.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "candidate_validation_warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -4586,6 +4615,101 @@ def render_threshold_decision_report_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_candidate_validation_tab() -> None:
+    st.write(
+        "Run or load expanded validation for the recommended reduced-feature "
+        "threshold candidates."
+    )
+    st.warning(
+        "Expanded validation is still educational research only. It is not "
+        "trading-ready and is not financial advice."
+    )
+
+    mode = st.radio(
+        "Candidate validation action",
+        ["Load output", "Run validation"],
+        horizontal=True,
+        key="candidate_validation_action",
+    )
+    output_dir = st.text_input(
+        "Candidate validation output directory",
+        value="outputs/candidate_validation_real_v1",
+        key="candidate_validation_output_dir",
+    )
+
+    if mode == "Run validation":
+        factor_dir = st.text_input(
+            "Factor directory",
+            value="outputs/model_robustness_real_v2/factors",
+            key="candidate_validation_factor_dir",
+        )
+        symbols_text = st.text_input(
+            "Symbols",
+            value="000001,600519,000858,600036,601318",
+            key="candidate_validation_symbols",
+        )
+        recommendations_path = st.text_input(
+            "Recommendations CSV",
+            value="outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv",
+            key="candidate_validation_recommendations",
+        )
+        enable_walk_forward = st.checkbox(
+            "Enable walk-forward candidate validation",
+            value=False,
+            key="candidate_validation_enable_walk_forward",
+        )
+        if st.button(
+            "Run candidate validation",
+            key="run_candidate_validation_button",
+            type="primary",
+        ):
+            try:
+                result = save_candidate_expanded_validation(
+                    factor_dir=factor_dir,
+                    symbols=parse_candidate_validation_symbols(symbols_text),
+                    recommendations_path=recommendations_path,
+                    output_dir=output_dir,
+                    enable_walk_forward=enable_walk_forward,
+                )
+                output = {
+                    "candidate_summary": result["candidate_validation_summary"],
+                    "per_symbol_results": result["per_symbol_candidate_results"],
+                    "warnings": result["candidate_validation_warnings"],
+                    "markdown_report": result["candidate_validation_report"],
+                }
+            except Exception as exc:
+                st.error(f"Candidate validation failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load candidate validation",
+            key="load_candidate_validation_button",
+        ):
+            return
+        output = load_candidate_validation_outputs(output_dir)
+
+    st.subheader("Candidate Summary")
+    st.dataframe(output["candidate_summary"], width="stretch")
+    st.subheader("Per-Symbol Results")
+    st.dataframe(output["per_symbol_results"], width="stretch")
+    st.subheader("Warnings")
+    st.dataframe(output["warnings"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download candidate validation report",
+            data=output["markdown_report"],
+            file_name="candidate_validation_report.md",
+            mime="text/markdown",
+            key="download_candidate_validation_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -4669,6 +4793,7 @@ def main() -> None:
         reduced_feature_backtest_summary_tab,
         threshold_sensitivity_tab,
         threshold_decision_report_tab,
+        candidate_validation_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -4689,6 +4814,7 @@ def main() -> None:
             "Reduced Feature Backtest Summary",
             "Threshold Sensitivity",
             "Threshold Decision Report",
+            "Candidate Validation",
         ]
     )
     with single_tab:
@@ -4754,6 +4880,9 @@ def main() -> None:
 
     with threshold_decision_report_tab:
         render_threshold_decision_report_tab()
+
+    with candidate_validation_tab:
+        render_candidate_validation_tab()
 
 
 if __name__ == "__main__":

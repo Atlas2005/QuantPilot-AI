@@ -43,6 +43,8 @@ PY_COMPILE_FILES = [
     "src/generate_threshold_experiment_report.py",
     "src/threshold_decision_report.py",
     "src/generate_threshold_decision_report.py",
+    "src/candidate_expanded_validation.py",
+    "src/run_candidate_expanded_validation.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -111,6 +113,10 @@ COMMAND_CHECKS = [
     (
         "generate_threshold_decision_report help",
         ["src/generate_threshold_decision_report.py", "--help"],
+    ),
+    (
+        "run_candidate_expanded_validation help",
+        ["src/run_candidate_expanded_validation.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -648,6 +654,83 @@ COMMAND_CHECKS = [
                 "rejected=pd.read_csv(base/'rejected_or_low_confidence_configs.csv', dtype={'symbol': str}); "
                 "assert '000001' in report; "
                 "assert '000858' in set(rejected.get('symbol', pd.Series(dtype=str)).dropna())"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic candidate validation inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/candidate_validation_smoke_inputs')\\n"
+                "factor_dir=base/'factors'\\n"
+                "factor_dir.mkdir(parents=True, exist_ok=True)\\n"
+                "for symbol, offset in [('000001', 0), ('000858', 1)]:\\n"
+                "    rows=[]\\n"
+                "    for i in range(90):\\n"
+                "        close=10 + i * 0.05 + offset\\n"
+                "        label=1 if i % 4 in (0, 1) else 0\\n"
+                "        rows.append({'date':f'2024-01-{(i % 28) + 1:02d}','symbol':symbol,'open':close - 0.02,'high':close + 0.10,'low':close - 0.10,'close':close,'volume':1000 + i,'f_core':label + (i % 3) * 0.01,'f_observe':(i % 5) * 0.1,'f_reduce':(i % 7) * 0.1,'label_up_5d':label})\\n"
+                "    pd.DataFrame(rows).to_csv(factor_dir/f'factors_{symbol}.csv', index=False)\\n"
+                "pd.DataFrame([{'feature':'f_core','recommendation':'keep_core'},{'feature':'f_observe','recommendation':'keep_observe'},{'feature':'f_reduce','recommendation':'reduce_weight'}]).to_csv(base/'recommendations.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline candidate expanded validation",
+        [
+            "src/run_candidate_expanded_validation.py",
+            "--factor-dir",
+            "outputs/candidate_validation_smoke_inputs/factors",
+            "--symbols",
+            "000001,000858",
+            "--recommendations",
+            "outputs/candidate_validation_smoke_inputs/recommendations.csv",
+            "--output-dir",
+            "outputs/candidate_validation_smoke",
+            "--candidate-pruning-mode",
+            "keep_core_and_observe",
+            "--candidate-model",
+            "logistic_regression",
+            "--candidate-buy-threshold",
+            "0.50",
+            "--candidate-sell-threshold",
+            "0.40",
+            "--minimum-commission",
+            "0",
+            "--commission-rate",
+            "0",
+            "--stamp-tax-rate",
+            "0",
+            "--slippage-pct",
+            "0",
+            "--min-trades",
+            "50",
+        ],
+    ),
+    (
+        "offline candidate expanded validation assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/candidate_validation_smoke'); "
+                "required=['candidate_validation_results.csv','candidate_validation_summary.csv','per_symbol_candidate_results.csv','candidate_validation_warnings.csv','candidate_validation_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "report=(base/'candidate_validation_report.md').read_text(encoding='utf-8'); "
+                "assert 'not trading-ready' in report; "
+                "assert 'research-only' in report; "
+                "results=pd.read_csv(base/'candidate_validation_results.csv', dtype={'symbol': str}); "
+                "assert set(results['symbol']) == {'000001','000858'}; "
+                "warnings=pd.read_csv(base/'candidate_validation_warnings.csv', dtype={'symbol': str}); "
+                "assert not warnings.empty; "
+                "assert warnings.to_string().find('low_trade_count') >= 0"
             ),
         ],
     ),
