@@ -928,6 +928,41 @@ The aggregation report writes combined CSVs plus
 threshold backtests do not guarantee future profitability. This is educational
 research only, not financial advice.
 
+## V4 Step 24: Reduced Feature Threshold Decision Report
+
+Step 24 reads the Step 23 threshold summary outputs and produces a conservative
+decision report. It does not retrain models, rerun backtests, fetch data, or
+call any external API. The report is educational research diagnostics only, not
+financial advice, and no configuration should be treated as trading-ready.
+
+Example:
+
+```powershell
+python src/generate_threshold_decision_report.py --summary-dir outputs/reduced_feature_threshold_summary_real_v1 --output-dir outputs/threshold_decision_real_v1
+```
+
+Generated files:
+
+- `threshold_decision_report.md`: readable decision report.
+- `threshold_decision_summary.csv`: recommended research candidate summary.
+- `rejected_or_low_confidence_configs.csv`: full-feature, underperforming,
+  warning, and low-confidence configurations.
+- `run_config.json`: input and output paths.
+
+Interpretation notes:
+
+- The report separates a recommended research candidate from any production or
+  financial claim.
+- Low-trade-count best results remain low-confidence and should not drive a
+  default choice.
+- Average strategy returns can still underperform benchmark even when one
+  pruning mode has the best average total return.
+- The next experiment should retest the candidate across more symbols, longer
+  periods, stricter walk-forward windows, and realistic costs.
+
+The dashboard has a `Threshold Decision Report` tab for generating or loading
+the same report.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

@@ -66,6 +66,7 @@ from src.generate_threshold_experiment_report import (
     parse_input_dirs as parse_threshold_report_input_dirs,
     save_threshold_experiment_report,
 )
+from src.threshold_decision_report import save_threshold_decision_report
 from src.indicators import add_all_indicators
 from src.metrics import summarize_performance
 from src.ml_signal_backtester import run_ml_signal_backtest
@@ -4313,6 +4314,25 @@ def load_threshold_report_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_threshold_decision_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "threshold_decision_report.md"
+    return {
+        "decision_summary": pd.read_csv(base / "threshold_decision_summary.csv")
+        if (base / "threshold_decision_summary.csv").exists()
+        else pd.DataFrame(),
+        "rejected": pd.read_csv(
+            base / "rejected_or_low_confidence_configs.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "rejected_or_low_confidence_configs.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -4500,6 +4520,72 @@ def render_threshold_sensitivity_tab() -> None:
             )
 
 
+def render_threshold_decision_report_tab() -> None:
+    st.write(
+        "Generate a conservative research decision report from reduced feature "
+        "threshold summary outputs."
+    )
+    st.warning(
+        "This report is educational diagnostics only. It is not trading-ready "
+        "and is not financial advice."
+    )
+
+    summary_dir = st.text_input(
+        "Threshold summary directory",
+        value="outputs/reduced_feature_threshold_summary_real_v1",
+        key="threshold_decision_summary_dir",
+    )
+    output_dir = st.text_input(
+        "Threshold decision output directory",
+        value="outputs/threshold_decision_real_v1",
+        key="threshold_decision_output_dir",
+    )
+
+    buttons = st.columns(2)
+    generate_clicked = buttons[0].button(
+        "Generate threshold decision report",
+        key="generate_threshold_decision_report_button",
+        type="primary",
+    )
+    load_clicked = buttons[1].button(
+        "Load threshold decision report",
+        key="load_threshold_decision_report_button",
+    )
+
+    if generate_clicked:
+        try:
+            result = save_threshold_decision_report(summary_dir, output_dir)
+            output = {
+                "decision_summary": result["decision_summary"],
+                "rejected": result["rejected_or_low_confidence_configs"],
+                "markdown_report": result["markdown_report"],
+            }
+        except Exception as exc:
+            st.error(f"Threshold decision report generation failed: {exc}")
+            return
+    elif load_clicked:
+        output = load_threshold_decision_outputs(output_dir)
+    else:
+        return
+
+    st.subheader("Decision Summary")
+    st.dataframe(output["decision_summary"], width="stretch")
+    st.subheader("Rejected or Low-Confidence Configurations")
+    st.dataframe(output["rejected"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download threshold decision report",
+            data=output["markdown_report"],
+            file_name="threshold_decision_report.md",
+            mime="text/markdown",
+            key="download_threshold_decision_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -4582,6 +4668,7 @@ def main() -> None:
         reduced_feature_backtest_tab,
         reduced_feature_backtest_summary_tab,
         threshold_sensitivity_tab,
+        threshold_decision_report_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -4601,6 +4688,7 @@ def main() -> None:
             "Reduced Feature Backtest",
             "Reduced Feature Backtest Summary",
             "Threshold Sensitivity",
+            "Threshold Decision Report",
         ]
     )
     with single_tab:
@@ -4663,6 +4751,9 @@ def main() -> None:
 
     with threshold_sensitivity_tab:
         render_threshold_sensitivity_tab()
+
+    with threshold_decision_report_tab:
+        render_threshold_decision_report_tab()
 
 
 if __name__ == "__main__":

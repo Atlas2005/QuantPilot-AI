@@ -41,6 +41,8 @@ PY_COMPILE_FILES = [
     "src/reduced_feature_threshold_experiment.py",
     "src/run_reduced_feature_threshold_experiment.py",
     "src/generate_threshold_experiment_report.py",
+    "src/threshold_decision_report.py",
+    "src/generate_threshold_decision_report.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -105,6 +107,10 @@ COMMAND_CHECKS = [
     (
         "generate_threshold_experiment_report help",
         ["src/generate_threshold_experiment_report.py", "--help"],
+    ),
+    (
+        "generate_threshold_decision_report help",
+        ["src/generate_threshold_decision_report.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -578,6 +584,70 @@ COMMAND_CHECKS = [
                 "best=pd.read_csv(base/'per_symbol_best_thresholds.csv', dtype={'symbol': str}); "
                 "assert best.loc[0, 'symbol'] == '000001'; "
                 "assert int(best.loc[0, 'best_trade_count']) == 3"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic threshold decision inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/threshold_decision_smoke_inputs')\\n"
+                "base.mkdir(parents=True, exist_ok=True)\\n"
+                "pd.DataFrame([\\n"
+                "{'pruning_mode':'full','symbol_count':2,'threshold_count':8,'avg_feature_count':44,'avg_total_return_pct':-1.0,'avg_benchmark_return_pct':2.0,'avg_strategy_vs_benchmark_pct':-3.0,'avg_trade_count':5,'sufficient_trade_rate':1.0,'beat_benchmark_rate':0.0,'stability_score':-0.01},\\n"
+                "{'pruning_mode':'keep_core_and_observe','symbol_count':2,'threshold_count':8,'avg_feature_count':18,'avg_total_return_pct':1.5,'avg_benchmark_return_pct':2.5,'avg_strategy_vs_benchmark_pct':-1.0,'avg_trade_count':4,'sufficient_trade_rate':1.0,'beat_benchmark_rate':0.25,'stability_score':0.30},\\n"
+                "{'pruning_mode':'drop_reduce_weight','symbol_count':2,'threshold_count':8,'avg_feature_count':30,'avg_total_return_pct':1.2,'avg_benchmark_return_pct':2.4,'avg_strategy_vs_benchmark_pct':-1.2,'avg_trade_count':4,'sufficient_trade_rate':1.0,'beat_benchmark_rate':0.25,'stability_score':0.28}\\n"
+                "]).to_csv(base/'threshold_mode_summary.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'model_type':'logistic_regression','symbol_count':2,'threshold_count':12,'avg_total_return_pct':1.4,'avg_strategy_vs_benchmark_pct':-0.8,'avg_trade_count':5,'sufficient_trade_rate':1.0,'beat_benchmark_rate':0.25,'stability_score':0.31},\\n"
+                "{'model_type':'random_forest','symbol_count':2,'threshold_count':12,'avg_total_return_pct':0.5,'avg_strategy_vs_benchmark_pct':-2.0,'avg_trade_count':2,'sufficient_trade_rate':0.5,'beat_benchmark_rate':0.0,'stability_score':0.10}\\n"
+                "]).to_csv(base/'threshold_model_summary.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'pruning_mode':'keep_core_and_observe','model_type':'logistic_regression','avg_total_return_pct':1.5,'avg_strategy_vs_benchmark_pct':-1.0,'avg_trade_count':5,'stability_score':0.30},\\n"
+                "{'pruning_mode':'full','model_type':'random_forest','avg_total_return_pct':-1.0,'avg_strategy_vs_benchmark_pct':-3.0,'avg_trade_count':3,'stability_score':-0.01}\\n"
+                "]).to_csv(base/'threshold_mode_model_summary.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'symbol':'000001','best_pruning_mode':'keep_core_and_observe','best_model_type':'logistic_regression','best_buy_threshold':0.55,'best_sell_threshold':0.40,'best_total_return_pct':2.0,'best_strategy_vs_benchmark_pct':-0.5,'best_trade_count':4,'selection_confidence':'normal'},\\n"
+                "{'symbol':'000858','best_pruning_mode':'keep_core_only','best_model_type':'logistic_regression','best_buy_threshold':0.65,'best_sell_threshold':0.50,'best_total_return_pct':8.0,'best_strategy_vs_benchmark_pct':5.0,'best_trade_count':1,'selection_confidence':'low_confidence_low_trade_count'}\\n"
+                "]).to_csv(base/'per_symbol_best_thresholds.csv', index=False)\\n"
+                "pd.DataFrame([{'pruning_mode':'keep_core_and_observe','model_type':'logistic_regression','buy_threshold':0.55,'sell_threshold':0.40,'avg_strategy_vs_benchmark_pct':-0.5,'sufficient_trade_rate':1.0,'beat_benchmark_rate':0.25,'stability_score':0.35}]).to_csv(base/'walk_forward_summary.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000858','model_type':'logistic_regression','pruning_mode':'keep_core_only','warning_type':'threshold_result_warning','message':'low_trade_count: 1'}]).to_csv(base/'warnings.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline threshold decision report",
+        [
+            "src/generate_threshold_decision_report.py",
+            "--summary-dir",
+            "outputs/threshold_decision_smoke_inputs",
+            "--output-dir",
+            "outputs/threshold_decision_smoke",
+        ],
+    ),
+    (
+        "offline threshold decision report assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/threshold_decision_smoke'); "
+                "required=['threshold_decision_report.md','threshold_decision_summary.csv','rejected_or_low_confidence_configs.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "report=(base/'threshold_decision_report.md').read_text(encoding='utf-8'); "
+                "phrases=['not trading-ready','underperforms benchmark on average','low-confidence','recommended research candidate','Recommended Walk-Forward Candidate']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases; "
+                "rejected=pd.read_csv(base/'rejected_or_low_confidence_configs.csv', dtype={'symbol': str}); "
+                "assert '000001' in report; "
+                "assert '000858' in set(rejected.get('symbol', pd.Series(dtype=str)).dropna())"
             ),
         ],
     ),
