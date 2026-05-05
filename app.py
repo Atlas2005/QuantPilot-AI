@@ -24,6 +24,7 @@ from src.candidate_stress_test import save_candidate_stress_test
 from src.canonical_candidate_revalidation_report import (
     save_canonical_candidate_revalidation_report,
 )
+from src.candidate_validation_gate import save_candidate_validation_gate
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
     get_token_required_features,
@@ -4461,6 +4462,22 @@ def load_canonical_revalidation_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_candidate_validation_gate_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "candidate_validation_gate_report.md"
+    return {
+        "results": pd.read_csv(base / "validation_gate_results.csv")
+        if (base / "validation_gate_results.csv").exists()
+        else pd.DataFrame(),
+        "failures": pd.read_csv(base / "validation_gate_failures.csv")
+        if (base / "validation_gate_failures.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -5163,6 +5180,79 @@ def render_canonical_revalidation_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_candidate_validation_gate_tab() -> None:
+    st.write(
+        "Run a strict gate over canonical revalidation outputs before any "
+        "candidate can be described as trading-ready."
+    )
+    st.warning(
+        "This is educational research diagnostics only. Passing or failing the "
+        "gate is not financial advice."
+    )
+
+    mode = st.radio(
+        "Candidate validation gate action",
+        ["Load output", "Generate gate"],
+        horizontal=True,
+        key="candidate_validation_gate_action",
+    )
+    output_dir = st.text_input(
+        "Candidate validation gate output directory",
+        value="outputs/candidate_validation_gate_real_v1",
+        key="candidate_validation_gate_output_dir",
+    )
+    if mode == "Generate gate":
+        revalidation_dir = st.text_input(
+            "Canonical revalidation directory",
+            value="outputs/canonical_candidate_revalidation_real_v1",
+            key="candidate_validation_gate_revalidation_dir",
+        )
+        if st.button(
+            "Run candidate validation gate",
+            key="run_candidate_validation_gate_button",
+            type="primary",
+        ):
+            try:
+                result = save_candidate_validation_gate(
+                    revalidation_dir=revalidation_dir,
+                    output_dir=output_dir,
+                )
+                output = {
+                    "results": result["validation_gate_results"],
+                    "failures": result["validation_gate_failures"],
+                    "markdown_report": result["candidate_validation_gate_report"],
+                }
+            except Exception as exc:
+                st.error(f"Candidate validation gate failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load candidate validation gate",
+            key="load_candidate_validation_gate_button",
+        ):
+            return
+        output = load_candidate_validation_gate_outputs(output_dir)
+
+    st.subheader("Validation Gate Results")
+    st.dataframe(output["results"], width="stretch")
+    st.subheader("Validation Gate Failures")
+    st.dataframe(output["failures"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download candidate validation gate report",
+            data=output["markdown_report"],
+            file_name="candidate_validation_gate_report.md",
+            mime="text/markdown",
+            key="download_candidate_validation_gate_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -5251,6 +5341,7 @@ def main() -> None:
         candidate_equivalence_audit_tab,
         candidate_mode_normalization_tab,
         canonical_revalidation_tab,
+        candidate_validation_gate_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -5276,6 +5367,7 @@ def main() -> None:
             "Candidate Equivalence Audit",
             "Candidate Mode Normalization",
             "Canonical Revalidation",
+            "Candidate Validation Gate",
         ]
     )
     with single_tab:
@@ -5356,6 +5448,9 @@ def main() -> None:
 
     with canonical_revalidation_tab:
         render_canonical_revalidation_tab()
+
+    with candidate_validation_gate_tab:
+        render_candidate_validation_gate_tab()
 
 
 if __name__ == "__main__":

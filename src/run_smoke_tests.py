@@ -53,6 +53,8 @@ PY_COMPILE_FILES = [
     "src/run_candidate_mode_normalization.py",
     "src/canonical_candidate_revalidation_report.py",
     "src/generate_canonical_candidate_revalidation_report.py",
+    "src/candidate_validation_gate.py",
+    "src/run_candidate_validation_gate.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -141,6 +143,10 @@ COMMAND_CHECKS = [
     (
         "generate_canonical_candidate_revalidation_report help",
         ["src/generate_canonical_candidate_revalidation_report.py", "--help"],
+    ),
+    (
+        "run_candidate_validation_gate help",
+        ["src/run_candidate_validation_gate.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -972,6 +978,114 @@ COMMAND_CHECKS = [
                 "assert len(canonical_modes) > 0; "
                 "assert not canonical_modes.isin(['','n/a','na','nan']).any(); "
                 "assert {'canonical_reduced_40','keep_core_only'}.issubset(set(flags['canonical_mode']))"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic candidate validation gate inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/candidate_validation_gate_smoke_inputs')\\n"
+                "base.mkdir(parents=True, exist_ok=True)\\n"
+                "pd.DataFrame([\\n"
+                "{'canonical_mode':'canonical_reduced_40','role':'primary_research_candidate','validation_decision':'pass','stress_decision':'fail','avg_validation_excess_pct':1.2,'avg_stress_excess_pct':-0.4,'stress_beat_benchmark_rate':0.40,'stress_sufficient_trade_rate':0.80,'final_research_decision':'research_only_not_trading_ready','decision_reason':'stress validation still fails'},\\n"
+                "{'canonical_mode':'full','role':'baseline_only','validation_decision':'pass','stress_decision':'pass','avg_validation_excess_pct':0.5,'avg_stress_excess_pct':0.3,'stress_beat_benchmark_rate':0.80,'stress_sufficient_trade_rate':1.00,'final_research_decision':'baseline_only','decision_reason':'full is retained as baseline only'},\\n"
+                "{'canonical_mode':'keep_core_only','role':'low_feature_challenger','validation_decision':'not_tested','stress_decision':'not_tested','avg_validation_excess_pct':None,'avg_stress_excess_pct':None,'stress_beat_benchmark_rate':None,'stress_sufficient_trade_rate':None,'final_research_decision':'low_confidence_challenger','decision_reason':'low-trade-count risk'}\\n"
+                "]).to_csv(base/'canonical_candidate_revalidation_summary.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'source':'stress_validation','risk_category':'benchmark_underperformance','canonical_mode':'canonical_reduced_40','symbol':'000001','warning_type':'underperformed_benchmark','message':'underperformed benchmark'},\\n"
+                "{'source':'threshold_decision','risk_category':'low_trade_or_low_confidence','canonical_mode':'keep_core_only','symbol':'000858','reason':'low-confidence best threshold'}\\n"
+                "]).to_csv(base/'candidate_risk_flags.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline candidate validation gate",
+        [
+            "src/run_candidate_validation_gate.py",
+            "--revalidation-dir",
+            "outputs/candidate_validation_gate_smoke_inputs",
+            "--output-dir",
+            "outputs/candidate_validation_gate_smoke",
+        ],
+    ),
+    (
+        "offline candidate validation gate assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/candidate_validation_gate_smoke'); "
+                "required=['validation_gate_results.csv','validation_gate_failures.csv','candidate_validation_gate_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "results=pd.read_csv(base/'validation_gate_results.csv'); "
+                "decisions=dict(zip(results['canonical_mode'], results['final_gate_decision'])); "
+                "assert decisions['canonical_reduced_40'] == 'research_only_not_trading_ready'; "
+                "assert decisions['full'] == 'baseline_only'; "
+                "assert decisions['keep_core_only'] != 'trading_ready'; "
+                "assert 'trading_ready' in results.columns; "
+                "assert not results['trading_ready'].isna().any(); "
+                "ready=dict(zip(results['canonical_mode'], results['trading_ready'].astype(bool))); "
+                "assert not bool(ready['canonical_reduced_40']); "
+                "assert not bool(ready['full']); "
+                "assert not bool(ready['keep_core_only']); "
+                "assert not results.loc[results['final_gate_decision'] != 'trading_ready', 'trading_ready'].astype(bool).any(); "
+                "failures=pd.read_csv(base/'validation_gate_failures.csv'); "
+                "assert not failures.empty; "
+                "report=(base/'candidate_validation_gate_report.md').read_text(encoding='utf-8'); "
+                "phrases=['not trading-ready','validation gate','canonical_reduced_40','full','keep_core_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic perfect candidate validation gate inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/candidate_validation_gate_perfect_smoke_inputs')\\n"
+                "base.mkdir(parents=True, exist_ok=True)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','role':'primary_research_candidate','validation_decision':'pass','stress_decision':'pass','avg_validation_excess_pct':2.0,'avg_stress_excess_pct':1.0,'stress_beat_benchmark_rate':0.75,'stress_sufficient_trade_rate':0.90,'final_research_decision':'pass','decision_reason':'all strict checks pass'}]).to_csv(base/'canonical_candidate_revalidation_summary.csv', index=False)\\n"
+                "pd.DataFrame(columns=['source','risk_category','canonical_mode','symbol','warning_type','message']).to_csv(base/'candidate_risk_flags.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline perfect candidate validation gate",
+        [
+            "src/run_candidate_validation_gate.py",
+            "--revalidation-dir",
+            "outputs/candidate_validation_gate_perfect_smoke_inputs",
+            "--output-dir",
+            "outputs/candidate_validation_gate_perfect_smoke",
+        ],
+    ),
+    (
+        "offline perfect candidate validation gate assertions",
+        [
+            "-c",
+            (
+                "import pandas as pd; "
+                "results=pd.read_csv('outputs/candidate_validation_gate_perfect_smoke/validation_gate_results.csv'); "
+                "row=results.iloc[0]; "
+                "assert row['canonical_mode'] == 'canonical_reduced_40'; "
+                "assert row['final_gate_decision'] == 'trading_ready'; "
+                "assert bool(row['strict_gates_passed']); "
+                "assert 'trading_ready' in results.columns; "
+                "assert not results['trading_ready'].isna().any(); "
+                "assert bool(row['trading_ready'])"
             ),
         ],
     ),

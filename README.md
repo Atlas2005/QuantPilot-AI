@@ -1133,6 +1133,39 @@ instability risk.
 The dashboard has a `Canonical Revalidation` tab for generating or loading this
 report.
 
+## V4 Step 31: Candidate Validation Gate
+
+Step 31 adds a strict validation gate over the canonical revalidation output.
+It prevents any canonical candidate from being described as trading-ready unless
+all required research gates pass. This is a reporting and decision-control layer
+only; it does not add new features, models, agents, live trading, or broker
+integration.
+
+Example:
+
+```powershell
+python src/run_candidate_validation_gate.py --revalidation-dir outputs/canonical_candidate_revalidation_real_v1 --output-dir outputs/candidate_validation_gate_real_v1
+```
+
+Generated files:
+
+- `validation_gate_results.csv`: per-canonical-mode gate checks and final decision.
+- `validation_gate_failures.csv`: blocking failed checks by canonical mode.
+- `candidate_validation_gate_report.md`: readable validation gate checklist.
+- `run_config.json`: gate input and output paths.
+
+The gate checks known canonical mode labels, allowed candidate role, expanded
+validation pass/fail, stress validation pass/fail, positive validation and
+stress excess return, stress beat-benchmark rate, sufficient trade rate, regime
+failure text, and risk-flag categories. `full` is retained only as baseline.
+`canonical_reduced_40` remains the primary research candidate, but it is not
+trading-ready while stress validation fails. `keep_core_only` remains a
+low-feature challenger with instability or low-trade-count risk unless every
+strict rule passes.
+
+The dashboard has a `Candidate Validation Gate` tab for generating or loading
+this checklist.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
