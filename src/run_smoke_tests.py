@@ -921,16 +921,16 @@ COMMAND_CHECKS = [
                 "{'canonical_mode':'keep_core_only','legacy_pruning_modes':'keep_core_only','model_type':'logistic_regression','buy_threshold':0.5,'sell_threshold':0.4,'avg_strategy_vs_benchmark_pct':2.0,'final_decision':'fail'}\\n"
                 "]).to_csv(expanded/'candidate_validation_summary.csv', index=False)\\n"
                 "pd.DataFrame([{'symbol':'000001','canonical_mode':'canonical_reduced_40','legacy_pruning_mode':'keep_core_and_observe','strategy_vs_benchmark_pct':1.0}]).to_csv(expanded/'candidate_validation_results.csv', index=False)\\n"
-                "pd.DataFrame([{'symbol':'000858','canonical_mode':'keep_core_only','legacy_pruning_mode':'keep_core_only','warning_type':'low_trade_count','message':'low_trade_count: 1'}]).to_csv(expanded/'candidate_validation_warnings.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000858','canonical_mode':'','legacy_pruning_mode':'keep_core_only','warning_type':'low_trade_count','message':'low_trade_count: 1'}]).to_csv(expanded/'candidate_validation_warnings.csv', index=False)\\n"
                 "pd.DataFrame([\\n"
                 "{'canonical_mode':'canonical_reduced_40','legacy_pruning_modes':'drop_reduce_weight,keep_core_and_observe','avg_strategy_vs_benchmark_pct':-0.5,'beat_benchmark_rate':0.4,'sufficient_trade_rate':0.8,'final_decision':'fail'},\\n"
                 "{'canonical_mode':'full','legacy_pruning_modes':'full','avg_strategy_vs_benchmark_pct':-2.0,'beat_benchmark_rate':0.2,'sufficient_trade_rate':1.0,'final_decision':'fail'},\\n"
                 "{'canonical_mode':'keep_core_only','legacy_pruning_modes':'keep_core_only','avg_strategy_vs_benchmark_pct':0.5,'beat_benchmark_rate':0.5,'sufficient_trade_rate':0.2,'final_decision':'fail'}\\n"
                 "]).to_csv(stress/'candidate_stress_summary.csv', index=False)\\n"
                 "pd.DataFrame([{'symbol':'000001','canonical_mode':'canonical_reduced_40','legacy_pruning_mode':'drop_reduce_weight','strategy_vs_benchmark_pct':-0.5},{'symbol':'000858','canonical_mode':'keep_core_only','legacy_pruning_mode':'keep_core_only','strategy_vs_benchmark_pct':-1.0}]).to_csv(stress/'candidate_stress_results.csv', index=False)\\n"
-                "pd.DataFrame([{'symbol':'000001','canonical_mode':'canonical_reduced_40','legacy_pruning_mode':'drop_reduce_weight','warning_type':'underperformed_benchmark','message':'underperformed benchmark'}]).to_csv(stress/'stress_warnings.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000001','canonical_mode':'n/a','legacy_pruning_mode':'drop_reduce_weight','warning_type':'underperformed_benchmark','message':'underperformed benchmark'}]).to_csv(stress/'stress_warnings.csv', index=False)\\n"
                 "pd.DataFrame([{'decision_item':'pruning_mode','recommended_pruning_mode':'canonical_reduced_40','recommended_legacy_pruning_modes':'drop_reduce_weight,keep_core_and_observe'}]).to_csv(threshold/'threshold_decision_summary.csv', index=False)\\n"
-                "pd.DataFrame([{'symbol':'000858','canonical_mode':'keep_core_only','legacy_pruning_mode':'keep_core_only','reason':'low-confidence best threshold'}]).to_csv(threshold/'rejected_or_low_confidence_configs.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000858','canonical_mode':'n/a','recommended_pruning_mode':'keep_core_only','reason':'low-confidence best threshold'}]).to_csv(threshold/'rejected_or_low_confidence_configs.csv', index=False)\\n"
                 "\")"
             ),
         ],
@@ -967,7 +967,11 @@ COMMAND_CHECKS = [
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases; "
                 "flags=pd.read_csv(base/'candidate_risk_flags.csv', dtype={'symbol': str}); "
-                "assert '000001' in set(flags.get('symbol', pd.Series(dtype=str)).dropna())"
+                "assert '000001' in set(flags.get('symbol', pd.Series(dtype=str)).dropna()); "
+                "canonical_modes=flags.get('canonical_mode', pd.Series(dtype=str)).fillna('').astype(str).str.strip().str.lower(); "
+                "assert len(canonical_modes) > 0; "
+                "assert not canonical_modes.isin(['','n/a','na','nan']).any(); "
+                "assert {'canonical_reduced_40','keep_core_only'}.issubset(set(flags['canonical_mode']))"
             ),
         ],
     ),

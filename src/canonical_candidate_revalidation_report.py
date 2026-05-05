@@ -18,6 +18,14 @@ except ImportError:
 
 
 CANONICAL_MODES = [CANONICAL_REDUCED_MODE, "full", "keep_core_only"]
+CANONICAL_MODE_ALIASES = {
+    "drop_reduce_weight": CANONICAL_REDUCED_MODE,
+    "keep_core_and_observe": CANONICAL_REDUCED_MODE,
+    "full": "full",
+    "keep_core_only": "keep_core_only",
+    CANONICAL_REDUCED_MODE: CANONICAL_REDUCED_MODE,
+}
+MISSING_MODE_VALUES = {"", "n/a", "na", "nan", "none", "null"}
 
 
 def _read_csv(path: Path, dtype: dict[str, str] | None = None) -> pd.DataFrame:
@@ -79,6 +87,53 @@ def _ensure_canonical(df: pd.DataFrame) -> pd.DataFrame:
         result["canonical_mode"] = add_canonical_mode_columns(
             pd.DataFrame({"pruning_mode": result["best_pruning_mode"]})
         )["canonical_mode"].values
+    return result
+
+
+def _clean_mode_value(value: Any) -> str:
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    return str(value).strip()
+
+
+def _map_canonical_mode(value: Any) -> str | None:
+    text = _clean_mode_value(value)
+    normalized_text = text.lower()
+    if normalized_text in MISSING_MODE_VALUES:
+        return None
+    return CANONICAL_MODE_ALIASES.get(normalized_text)
+
+
+def _infer_canonical_mode(row: pd.Series) -> str:
+    for column in [
+        "canonical_mode",
+        "pruning_mode",
+        "legacy_pruning_mode",
+        "recommended_pruning_mode",
+    ]:
+        if column not in row:
+            continue
+        canonical_mode = _map_canonical_mode(row[column])
+        if canonical_mode is not None:
+            return canonical_mode
+    if "recommended_legacy_pruning_modes" in row:
+        for mode in _clean_mode_value(row["recommended_legacy_pruning_modes"]).split(","):
+            canonical_mode = _map_canonical_mode(mode)
+            if canonical_mode is not None:
+                return canonical_mode
+    return "unknown"
+
+
+def _backfill_risk_flag_canonical_modes(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df.copy()
+    result = df.copy()
+    result["canonical_mode"] = result.apply(_infer_canonical_mode, axis=1)
     return result
 
 
@@ -214,6 +269,7 @@ def build_risk_flags(inputs: dict[str, pd.DataFrame]) -> pd.DataFrame:
     result = pd.concat(frames, ignore_index=True, sort=False)
     if "symbol" in result:
         result["symbol"] = result["symbol"].map(_format_symbol)
+    result = _backfill_risk_flag_canonical_modes(result)
     preferred = [
         "source",
         "risk_category",
