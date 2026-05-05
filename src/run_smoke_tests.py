@@ -57,6 +57,8 @@ PY_COMPILE_FILES = [
     "src/run_candidate_validation_gate.py",
     "src/validation_gate_failure_analysis.py",
     "src/run_validation_gate_failure_analysis.py",
+    "src/targeted_remediation_design.py",
+    "src/run_targeted_remediation_design.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -153,6 +155,10 @@ COMMAND_CHECKS = [
     (
         "run_validation_gate_failure_analysis help",
         ["src/run_validation_gate_failure_analysis.py", "--help"],
+    ),
+    (
+        "run_targeted_remediation_design help",
+        ["src/run_targeted_remediation_design.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -1190,6 +1196,51 @@ COMMAND_CHECKS = [
                 "assert str(sideways['regime_gate_failed']).lower() == 'true'; "
                 "symbols=pd.read_csv(base/'failure_by_symbol.csv', dtype={'symbol': str}); "
                 "assert {'000001','000858'}.issubset(set(symbols['symbol'].dropna().astype(str)))"
+            ),
+        ],
+    ),
+    (
+        "offline targeted remediation design",
+        [
+            "src/run_targeted_remediation_design.py",
+            "--failure-analysis-dir",
+            "outputs/validation_gate_failure_analysis_smoke",
+            "--gate-dir",
+            "outputs/validation_gate_failure_analysis_smoke_inputs/gate",
+            "--revalidation-dir",
+            "outputs/validation_gate_failure_analysis_smoke_inputs/revalidation",
+            "--output-dir",
+            "outputs/targeted_remediation_design_smoke",
+        ],
+    ),
+    (
+        "offline targeted remediation design assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/targeted_remediation_design_smoke'); "
+                "required=['targeted_remediation_experiments.csv','regime_remediation_plan.csv','candidate_remediation_plan.csv','symbol_remediation_priority.csv','remediation_success_criteria.csv','targeted_remediation_design_report.md','warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "report=(base/'targeted_remediation_design_report.md').read_text(encoding='utf-8'); "
+                "phrases=['not trading-ready','canonical_reduced_40','bull','sideways','full remains baseline','keep_core_only','do not add new features or agents']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases; "
+                "criteria=pd.read_csv(base/'remediation_success_criteria.csv'); "
+                "criteria_text=' '.join(criteria.astype(str).agg(' '.join, axis=1).tolist()); "
+                "required_criteria=['stress validation must pass','beat benchmark rate','sufficient trade rate','No trading_ready=True','at least 5 symbols tested']; "
+                "missing_criteria=[phrase for phrase in required_criteria if phrase.lower() not in criteria_text.lower()]; "
+                "assert not missing_criteria, missing_criteria; "
+                "regimes=pd.read_csv(base/'regime_remediation_plan.csv'); "
+                "bear=regimes[(regimes['canonical_mode']=='canonical_reduced_40') & (regimes['regime']=='bear')].iloc[0]; "
+                "assert str(bear['regime_gate_failed']).lower() == 'false'; "
+                "assert str(bear['has_regime_warnings']).lower() == 'true'; "
+                "assert 'monitor' in str(bear['remediation_priority']).lower(); "
+                "experiments=pd.read_csv(base/'targeted_remediation_experiments.csv'); "
+                "assert {'threshold_grid_refinement','regime_specific_threshold_test','trade_count_sufficiency_test','benchmark_comparison_test','risk_flag_reduction','challenger_validation','baseline_monitoring'} & set(experiments['experiment_type']); "
+                "assert not experiments.empty"
             ),
         ],
     ),

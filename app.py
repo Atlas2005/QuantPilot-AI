@@ -28,6 +28,7 @@ from src.candidate_validation_gate import save_candidate_validation_gate
 from src.validation_gate_failure_analysis import (
     save_validation_gate_failure_analysis,
 )
+from src.targeted_remediation_design import save_targeted_remediation_design
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
     get_token_required_features,
@@ -4518,6 +4519,37 @@ def load_validation_gate_failure_analysis_outputs(output_dir: str) -> dict[str, 
     }
 
 
+def load_targeted_remediation_design_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "targeted_remediation_design_report.md"
+    return {
+        "experiments": pd.read_csv(base / "targeted_remediation_experiments.csv")
+        if (base / "targeted_remediation_experiments.csv").exists()
+        else pd.DataFrame(),
+        "regime_plan": pd.read_csv(base / "regime_remediation_plan.csv")
+        if (base / "regime_remediation_plan.csv").exists()
+        else pd.DataFrame(),
+        "candidate_plan": pd.read_csv(base / "candidate_remediation_plan.csv")
+        if (base / "candidate_remediation_plan.csv").exists()
+        else pd.DataFrame(),
+        "symbol_priority": pd.read_csv(
+            base / "symbol_remediation_priority.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "symbol_remediation_priority.csv").exists()
+        else pd.DataFrame(),
+        "success_criteria": pd.read_csv(base / "remediation_success_criteria.csv")
+        if (base / "remediation_success_criteria.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(base / "warnings.csv")
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -5395,6 +5427,103 @@ def render_validation_gate_failure_analysis_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_targeted_remediation_design_tab() -> None:
+    st.write(
+        "Convert validation gate failure analysis into targeted next-experiment "
+        "designs without adding features, agents, models, or strategy logic."
+    )
+    st.warning(
+        "This is educational research diagnostics only. It is not trading-ready "
+        "and is not financial advice."
+    )
+
+    mode = st.radio(
+        "Targeted remediation design action",
+        ["Load output", "Generate design"],
+        horizontal=True,
+        key="targeted_remediation_design_action",
+    )
+    output_dir = st.text_input(
+        "Targeted remediation design output directory",
+        value="outputs/targeted_remediation_design_real_v1",
+        key="targeted_remediation_design_output_dir",
+    )
+    if mode == "Generate design":
+        failure_analysis_dir = st.text_input(
+            "Failure analysis directory",
+            value="outputs/validation_gate_failure_analysis_real_v1",
+            key="targeted_remediation_design_failure_analysis_dir",
+        )
+        gate_dir = st.text_input(
+            "Candidate validation gate directory",
+            value="outputs/candidate_validation_gate_real_v1",
+            key="targeted_remediation_design_gate_dir",
+        )
+        revalidation_dir = st.text_input(
+            "Canonical revalidation directory",
+            value="outputs/canonical_candidate_revalidation_real_v1",
+            key="targeted_remediation_design_revalidation_dir",
+        )
+        if st.button(
+            "Generate targeted remediation design",
+            key="run_targeted_remediation_design_button",
+            type="primary",
+        ):
+            try:
+                result = save_targeted_remediation_design(
+                    failure_analysis_dir=failure_analysis_dir,
+                    gate_dir=gate_dir,
+                    revalidation_dir=revalidation_dir,
+                    output_dir=output_dir,
+                )
+                output = {
+                    "experiments": result["targeted_remediation_experiments"],
+                    "regime_plan": result["regime_remediation_plan"],
+                    "candidate_plan": result["candidate_remediation_plan"],
+                    "symbol_priority": result["symbol_remediation_priority"],
+                    "success_criteria": result["remediation_success_criteria"],
+                    "warnings": result["warnings"],
+                    "markdown_report": result["targeted_remediation_design_report"],
+                }
+            except Exception as exc:
+                st.error(f"Targeted remediation design failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load targeted remediation design",
+            key="load_targeted_remediation_design_button",
+        ):
+            return
+        output = load_targeted_remediation_design_outputs(output_dir)
+
+    st.subheader("Targeted Remediation Experiments")
+    st.dataframe(output["experiments"], width="stretch")
+    st.subheader("Regime Remediation Plan")
+    st.dataframe(output["regime_plan"], width="stretch")
+    st.subheader("Candidate Remediation Plan")
+    st.dataframe(output["candidate_plan"], width="stretch")
+    st.subheader("Symbol Remediation Priority")
+    st.dataframe(output["symbol_priority"], width="stretch")
+    st.subheader("Remediation Success Criteria")
+    st.dataframe(output["success_criteria"], width="stretch")
+    st.subheader("Warnings")
+    st.dataframe(output["warnings"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download targeted remediation design report",
+            data=output["markdown_report"],
+            file_name="targeted_remediation_design_report.md",
+            mime="text/markdown",
+            key="download_targeted_remediation_design_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -5485,6 +5614,7 @@ def main() -> None:
         canonical_revalidation_tab,
         candidate_validation_gate_tab,
         validation_gate_failure_analysis_tab,
+        targeted_remediation_design_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -5512,6 +5642,7 @@ def main() -> None:
             "Canonical Revalidation",
             "Candidate Validation Gate",
             "Gate Failure Analysis",
+            "Targeted Remediation Design",
         ]
     )
     with single_tab:
@@ -5598,6 +5729,9 @@ def main() -> None:
 
     with validation_gate_failure_analysis_tab:
         render_validation_gate_failure_analysis_tab()
+
+    with targeted_remediation_design_tab:
+        render_targeted_remediation_design_tab()
 
 
 if __name__ == "__main__":

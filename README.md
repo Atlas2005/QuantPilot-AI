@@ -1202,6 +1202,40 @@ gate failure causes are remediated.
 The dashboard has a `Gate Failure Analysis` tab for generating or loading this
 analysis.
 
+## V4 Step 33: Targeted Remediation Experiment Design
+
+Step 33 converts validation gate failure analysis outputs into concrete
+next-experiment designs. It focuses remediation on the actual failed gates:
+bull/sideways robustness, benchmark comparison, sufficient trade rate, and
+risk-flag reduction. This is reporting-only research diagnostics. It does not
+add new data features, agents, models, trading logic, live trading, or broker
+integration, and it does not claim any candidate is trading-ready.
+
+Example:
+
+```powershell
+python src/run_targeted_remediation_design.py --failure-analysis-dir outputs/validation_gate_failure_analysis_real_v1 --gate-dir outputs/candidate_validation_gate_real_v1 --revalidation-dir outputs/canonical_candidate_revalidation_real_v1 --output-dir outputs/targeted_remediation_design_real_v1
+```
+
+Generated files:
+
+- `targeted_remediation_experiments.csv`: concrete diagnostic experiment ideas.
+- `regime_remediation_plan.csv`: bull, bear, and sideways remediation decisions.
+- `candidate_remediation_plan.csv`: candidate-level remediation roles.
+- `symbol_remediation_priority.csv`: symbols ranked by stress and warning issues.
+- `remediation_success_criteria.csv`: strict criteria for future experiments.
+- `targeted_remediation_design_report.md`: readable experiment design report.
+- `warnings.csv`: missing optional input warnings.
+- `run_config.json`: input and output paths.
+
+`canonical_reduced_40` remains the primary research candidate, not a trading
+candidate. `full` remains baseline only. `keep_core_only` remains a challenger
+only. New features or agents should wait until the validation gate failure
+causes are remediated.
+
+The dashboard has a `Targeted Remediation Design` tab for generating or loading
+this design.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
