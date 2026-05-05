@@ -55,6 +55,8 @@ PY_COMPILE_FILES = [
     "src/generate_canonical_candidate_revalidation_report.py",
     "src/candidate_validation_gate.py",
     "src/run_candidate_validation_gate.py",
+    "src/validation_gate_failure_analysis.py",
+    "src/run_validation_gate_failure_analysis.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -147,6 +149,10 @@ COMMAND_CHECKS = [
     (
         "run_candidate_validation_gate help",
         ["src/run_candidate_validation_gate.py", "--help"],
+    ),
+    (
+        "run_validation_gate_failure_analysis help",
+        ["src/run_validation_gate_failure_analysis.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -1086,6 +1092,104 @@ COMMAND_CHECKS = [
                 "assert 'trading_ready' in results.columns; "
                 "assert not results['trading_ready'].isna().any(); "
                 "assert bool(row['trading_ready'])"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic validation gate failure analysis inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/validation_gate_failure_analysis_smoke_inputs')\\n"
+                "gate=base/'gate'\\n"
+                "reval=base/'revalidation'\\n"
+                "stress=base/'stress'\\n"
+                "for d in [gate, reval, stress]: d.mkdir(parents=True, exist_ok=True)\\n"
+                "pd.DataFrame([\\n"
+                "{'canonical_mode':'canonical_reduced_40','role':'primary_research_candidate','final_gate_decision':'research_only_not_trading_ready','trading_ready':False,'strict_gates_passed':False,'gate_reason':'blocked by stress validation failure'},\\n"
+                "{'canonical_mode':'full','role':'baseline_only','final_gate_decision':'baseline_only','trading_ready':False,'strict_gates_passed':False,'gate_reason':'baseline only'},\\n"
+                "{'canonical_mode':'keep_core_only','role':'low_feature_challenger','final_gate_decision':'rejected_or_not_tested','trading_ready':False,'strict_gates_passed':False,'gate_reason':'not tested'}\\n"
+                "]).to_csv(gate/'validation_gate_results.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'canonical_mode':'canonical_reduced_40','check_name':'stress_validation_passed','severity':'blocking','message':'stress validation failed'},\\n"
+                "{'canonical_mode':'canonical_reduced_40','check_name':'stress_beat_benchmark_rate_passed','severity':'blocking','message':'beat rate below threshold'},\\n"
+                "{'canonical_mode':'canonical_reduced_40','check_name':'stress_sufficient_trade_rate_passed','severity':'blocking','message':'trade rate below threshold'},\\n"
+                "{'canonical_mode':'canonical_reduced_40','check_name':'risk_flags_acceptable','severity':'blocking','message':'risk flags remain'},\\n"
+                "{'canonical_mode':'full','check_name':'role_allowed','severity':'blocking','message':'baseline only'},\\n"
+                "{'canonical_mode':'keep_core_only','check_name':'expanded_validation_passed','severity':'blocking','message':'not tested'}\\n"
+                "]).to_csv(gate/'validation_gate_failures.csv', index=False)\\n"
+                "(gate/'candidate_validation_gate_report.md').write_text('No candidate is not trading-ready under the validation gate.', encoding='utf-8')\\n"
+                "pd.DataFrame([\\n"
+                "{'canonical_mode':'canonical_reduced_40','role':'primary_research_candidate','validation_decision':'pass','stress_decision':'fail','avg_validation_excess_pct':1.0,'avg_stress_excess_pct':-0.5,'stress_beat_benchmark_rate':0.4,'stress_sufficient_trade_rate':0.7,'final_research_decision':'research_only_not_trading_ready','decision_reason':'stress validation fail due to regime weakness'},\\n"
+                "{'canonical_mode':'full','role':'baseline_only','validation_decision':'pass','stress_decision':'pass','avg_validation_excess_pct':0.2,'avg_stress_excess_pct':0.1,'stress_beat_benchmark_rate':0.8,'stress_sufficient_trade_rate':1.0,'final_research_decision':'baseline_only','decision_reason':'baseline only'},\\n"
+                "{'canonical_mode':'keep_core_only','role':'low_feature_challenger','validation_decision':'not_tested','stress_decision':'not_tested','avg_validation_excess_pct':None,'avg_stress_excess_pct':None,'stress_beat_benchmark_rate':None,'stress_sufficient_trade_rate':None,'final_research_decision':'rejected_or_not_tested','decision_reason':'low-trade-count risk'}\\n"
+                "]).to_csv(reval/'canonical_candidate_revalidation_summary.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'source':'stress_validation','risk_category':'benchmark_underperformance','canonical_mode':'canonical_reduced_40','symbol':'1','warning_type':'underperformed_benchmark','message':'underperformed benchmark'},\\n"
+                "{'source':'threshold_decision','risk_category':'low_trade_or_low_confidence','canonical_mode':'keep_core_only','symbol':'858','warning_type':'low_trade_count','message':'low confidence'}\\n"
+                "]).to_csv(reval/'candidate_risk_flags.csv', index=False)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','final_decision':'fail','decision_reason':'failed regimes: bear, sideways'}]).to_csv(stress/'candidate_stress_summary.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'canonical_mode':'canonical_reduced_40','regime':'bull','tested_symbol_count':2,'avg_strategy_vs_benchmark_pct':-0.5,'beat_benchmark_rate':0.75,'sufficient_trade_rate':0.80},\\n"
+                "{'canonical_mode':'canonical_reduced_40','regime':'bear','tested_symbol_count':2,'avg_strategy_vs_benchmark_pct':0.5,'beat_benchmark_rate':0.75,'sufficient_trade_rate':0.80},\\n"
+                "{'canonical_mode':'canonical_reduced_40','regime':'sideways','tested_symbol_count':2,'avg_strategy_vs_benchmark_pct':0.2,'beat_benchmark_rate':0.40,'sufficient_trade_rate':0.70}\\n"
+                "]).to_csv(stress/'regime_summary.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'symbol':'1','canonical_mode':'canonical_reduced_40','regime':'bear','strategy_vs_benchmark_pct':-1.5,'trade_count':2},\\n"
+                "{'symbol':'000858','canonical_mode':'canonical_reduced_40','regime':'sideways','strategy_vs_benchmark_pct':-0.5,'trade_count':1}\\n"
+                "]).to_csv(stress/'per_symbol_stress_results.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'1','canonical_mode':'canonical_reduced_40','warning_type':'underperformed_benchmark','message':'stress warning'}]).to_csv(stress/'stress_warnings.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline validation gate failure analysis",
+        [
+            "src/run_validation_gate_failure_analysis.py",
+            "--gate-dir",
+            "outputs/validation_gate_failure_analysis_smoke_inputs/gate",
+            "--revalidation-dir",
+            "outputs/validation_gate_failure_analysis_smoke_inputs/revalidation",
+            "--stress-dir",
+            "outputs/validation_gate_failure_analysis_smoke_inputs/stress",
+            "--output-dir",
+            "outputs/validation_gate_failure_analysis_smoke",
+        ],
+    ),
+    (
+        "offline validation gate failure analysis assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/validation_gate_failure_analysis_smoke'); "
+                "required=['gate_failure_summary.csv','failure_by_check.csv','failure_by_candidate.csv','failure_by_symbol.csv','failure_by_regime.csv','risk_flag_summary.csv','remediation_plan.csv','validation_gate_failure_analysis_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "report=(base/'validation_gate_failure_analysis_report.md').read_text(encoding='utf-8'); "
+                "phrases=['not trading-ready','canonical_reduced_40','stress validation','remediation','full','keep_core_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases; "
+                "remediation=pd.read_csv(base/'remediation_plan.csv'); "
+                "assert not remediation.empty; "
+                "summary=pd.read_csv(base/'gate_failure_summary.csv'); "
+                "assert not summary['trading_ready'].fillna(False).astype(bool).any(); "
+                "regimes=pd.read_csv(base/'failure_by_regime.csv'); "
+                "assert {'regime_gate_failed','has_regime_warnings'}.issubset(regimes.columns); "
+                "bear=regimes[(regimes['canonical_mode']=='canonical_reduced_40') & (regimes['regime']=='bear')].iloc[0]; "
+                "assert str(bear['regime_gate_failed']).lower() == 'false'; "
+                "assert str(bear['has_regime_warnings']).lower() == 'true'; "
+                "bull=regimes[(regimes['canonical_mode']=='canonical_reduced_40') & (regimes['regime']=='bull')].iloc[0]; "
+                "assert str(bull['regime_gate_failed']).lower() == 'true'; "
+                "sideways=regimes[(regimes['canonical_mode']=='canonical_reduced_40') & (regimes['regime']=='sideways')].iloc[0]; "
+                "assert str(sideways['regime_gate_failed']).lower() == 'true'; "
+                "symbols=pd.read_csv(base/'failure_by_symbol.csv', dtype={'symbol': str}); "
+                "assert {'000001','000858'}.issubset(set(symbols['symbol'].dropna().astype(str)))"
             ),
         ],
     ),

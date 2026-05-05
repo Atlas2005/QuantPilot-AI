@@ -25,6 +25,9 @@ from src.canonical_candidate_revalidation_report import (
     save_canonical_candidate_revalidation_report,
 )
 from src.candidate_validation_gate import save_candidate_validation_gate
+from src.validation_gate_failure_analysis import (
+    save_validation_gate_failure_analysis,
+)
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
     get_token_required_features,
@@ -4478,6 +4481,43 @@ def load_candidate_validation_gate_outputs(output_dir: str) -> dict[str, object]
     }
 
 
+def load_validation_gate_failure_analysis_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "validation_gate_failure_analysis_report.md"
+    return {
+        "gate_failure_summary": pd.read_csv(base / "gate_failure_summary.csv")
+        if (base / "gate_failure_summary.csv").exists()
+        else pd.DataFrame(),
+        "failure_by_check": pd.read_csv(base / "failure_by_check.csv")
+        if (base / "failure_by_check.csv").exists()
+        else pd.DataFrame(),
+        "failure_by_candidate": pd.read_csv(base / "failure_by_candidate.csv")
+        if (base / "failure_by_candidate.csv").exists()
+        else pd.DataFrame(),
+        "failure_by_symbol": pd.read_csv(
+            base / "failure_by_symbol.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "failure_by_symbol.csv").exists()
+        else pd.DataFrame(),
+        "failure_by_regime": pd.read_csv(base / "failure_by_regime.csv")
+        if (base / "failure_by_regime.csv").exists()
+        else pd.DataFrame(),
+        "risk_flag_summary": pd.read_csv(
+            base / "risk_flag_summary.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "risk_flag_summary.csv").exists()
+        else pd.DataFrame(),
+        "remediation_plan": pd.read_csv(base / "remediation_plan.csv")
+        if (base / "remediation_plan.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -5253,6 +5293,108 @@ def render_candidate_validation_gate_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_validation_gate_failure_analysis_tab() -> None:
+    st.write(
+        "Analyze why canonical candidates are blocked by the validation gate "
+        "and summarize remediation priorities."
+    )
+    st.warning(
+        "This is reporting-only research diagnostics. It does not change "
+        "trading, backtest, model, or strategy logic."
+    )
+
+    mode = st.radio(
+        "Failure analysis action",
+        ["Load output", "Generate analysis"],
+        horizontal=True,
+        key="validation_gate_failure_analysis_action",
+    )
+    output_dir = st.text_input(
+        "Failure analysis output directory",
+        value="outputs/validation_gate_failure_analysis_real_v1",
+        key="validation_gate_failure_analysis_output_dir",
+    )
+    if mode == "Generate analysis":
+        gate_dir = st.text_input(
+            "Candidate validation gate directory",
+            value="outputs/candidate_validation_gate_real_v1",
+            key="validation_gate_failure_analysis_gate_dir",
+        )
+        revalidation_dir = st.text_input(
+            "Canonical revalidation directory",
+            value="outputs/canonical_candidate_revalidation_real_v1",
+            key="validation_gate_failure_analysis_revalidation_dir",
+        )
+        stress_dir = st.text_input(
+            "Candidate stress directory",
+            value="outputs/candidate_stress_real_v2",
+            key="validation_gate_failure_analysis_stress_dir",
+        )
+        if st.button(
+            "Generate failure analysis",
+            key="run_validation_gate_failure_analysis_button",
+            type="primary",
+        ):
+            try:
+                result = save_validation_gate_failure_analysis(
+                    gate_dir=gate_dir,
+                    revalidation_dir=revalidation_dir,
+                    stress_dir=stress_dir,
+                    output_dir=output_dir,
+                )
+                output = {
+                    "gate_failure_summary": result["gate_failure_summary"],
+                    "failure_by_check": result["failure_by_check"],
+                    "failure_by_candidate": result["failure_by_candidate"],
+                    "failure_by_symbol": result["failure_by_symbol"],
+                    "failure_by_regime": result["failure_by_regime"],
+                    "risk_flag_summary": result["risk_flag_summary"],
+                    "remediation_plan": result["remediation_plan"],
+                    "markdown_report": result[
+                        "validation_gate_failure_analysis_report"
+                    ],
+                }
+            except Exception as exc:
+                st.error(f"Validation gate failure analysis failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load failure analysis",
+            key="load_validation_gate_failure_analysis_button",
+        ):
+            return
+        output = load_validation_gate_failure_analysis_outputs(output_dir)
+
+    st.subheader("Gate Failure Summary")
+    st.dataframe(output["gate_failure_summary"], width="stretch")
+    st.subheader("Failure by Candidate")
+    st.dataframe(output["failure_by_candidate"], width="stretch")
+    st.subheader("Failure by Check")
+    st.dataframe(output["failure_by_check"], width="stretch")
+    st.subheader("Failure by Regime")
+    st.dataframe(output["failure_by_regime"], width="stretch")
+    st.subheader("Failure by Symbol")
+    st.dataframe(output["failure_by_symbol"], width="stretch")
+    st.subheader("Risk Flag Summary")
+    st.dataframe(output["risk_flag_summary"], width="stretch")
+    st.subheader("Remediation Plan")
+    st.dataframe(output["remediation_plan"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download validation gate failure analysis report",
+            data=output["markdown_report"],
+            file_name="validation_gate_failure_analysis_report.md",
+            mime="text/markdown",
+            key="download_validation_gate_failure_analysis_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -5342,6 +5484,7 @@ def main() -> None:
         candidate_mode_normalization_tab,
         canonical_revalidation_tab,
         candidate_validation_gate_tab,
+        validation_gate_failure_analysis_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -5368,6 +5511,7 @@ def main() -> None:
             "Candidate Mode Normalization",
             "Canonical Revalidation",
             "Candidate Validation Gate",
+            "Gate Failure Analysis",
         ]
     )
     with single_tab:
@@ -5451,6 +5595,9 @@ def main() -> None:
 
     with candidate_validation_gate_tab:
         render_candidate_validation_gate_tab()
+
+    with validation_gate_failure_analysis_tab:
+        render_validation_gate_failure_analysis_tab()
 
 
 if __name__ == "__main__":

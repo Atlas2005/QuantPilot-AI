@@ -1166,6 +1166,42 @@ strict rule passes.
 The dashboard has a `Candidate Validation Gate` tab for generating or loading
 this checklist.
 
+## V4 Step 32: Validation Gate Failure Analysis
+
+Step 32 explains why canonical candidates failed or were blocked by the
+validation gate. It reads the candidate validation gate, canonical revalidation,
+and stress-test outputs, then produces diagnostic summaries and a remediation
+plan. This is reporting-only research diagnostics; it does not add new trading
+features, models, agents, strategy logic, live trading, or broker integration.
+
+Example:
+
+```powershell
+python src/run_validation_gate_failure_analysis.py --gate-dir outputs/candidate_validation_gate_real_v1 --revalidation-dir outputs/canonical_candidate_revalidation_real_v1 --stress-dir outputs/candidate_stress_real_v2 --output-dir outputs/validation_gate_failure_analysis_real_v1
+```
+
+Generated files:
+
+- `gate_failure_summary.csv`: final validation gate decisions by canonical mode.
+- `failure_by_check.csv`: blocking failures by check and canonical mode.
+- `failure_by_candidate.csv`: failed checks and main blockers by candidate.
+- `failure_by_symbol.csv`: stress and warning issues by symbol.
+- `failure_by_regime.csv`: bull, bear, and sideways stress diagnostics.
+- `risk_flag_summary.csv`: risk flags grouped by source, category, mode, symbol, and warning type.
+- `remediation_plan.csv`: P0-P3 remediation priorities.
+- `validation_gate_failure_analysis_report.md`: readable failure analysis report.
+- `run_config.json`: input/output paths and missing-input warnings.
+
+The report states that no candidate is trading-ready when the validation gate
+does not mark a candidate ready. `canonical_reduced_40` remains the primary
+research candidate, not a trading candidate. `full` remains baseline only.
+`keep_core_only` remains a low-feature challenger with instability or
+low-trade-count risk. New features or agents should wait until the validation
+gate failure causes are remediated.
+
+The dashboard has a `Gate Failure Analysis` tab for generating or loading this
+analysis.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:
