@@ -1236,6 +1236,40 @@ causes are remediated.
 The dashboard has a `Targeted Remediation Design` tab for generating or loading
 this design.
 
+## V4 Step 34: Bull Regime Threshold Remediation
+
+Step 34 runs a bull-regime-only threshold remediation diagnostic for the current
+primary research candidate: `canonical_reduced_40` with `logistic_regression`.
+It reuses existing factor files, pruning/canonical mode mapping, transaction
+cost settings, and regime/backtest utilities. It does not add new data sources,
+features, agents, models, or strategy logic, and it does not claim the strategy
+is trading-ready.
+
+Example:
+
+```powershell
+python src/run_bull_regime_threshold_remediation.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --failure-analysis-dir outputs/validation_gate_failure_analysis_real_v1 --targeted-design-dir outputs/targeted_remediation_design_real_v1 --output-dir outputs/bull_regime_threshold_remediation_real_v1
+```
+
+Generated files:
+
+- `bull_threshold_results.csv`: bull-regime threshold result rows by symbol.
+- `bull_threshold_summary.csv`: aggregate bull-regime threshold summary.
+- `per_symbol_bull_results.csv`: best bull result per symbol.
+- `best_bull_thresholds.csv`: best aggregate bull candidate, selected only if strict bull gates pass.
+- `bull_remediation_report.md`: readable bull remediation diagnostic report.
+- `warnings.csv`: low-trade, benchmark underperformance, and input warnings.
+- `run_config.json`: input and output settings.
+
+The bull candidate only passes this diagnostic if average strategy-vs-benchmark
+excess return is positive, beat benchmark rate is at least 0.60, sufficient
+trade rate is at least 0.80, and at least five symbols are tested. If no
+threshold combination passes, `canonical_reduced_40` remains research-only.
+Sideways remediation should be considered only after bull results are inspected.
+
+The dashboard has a `Bull Regime Remediation` tab for running or loading this
+diagnostic.
+
 ## Smoke Tests
 
 Run the offline smoke tests before committing changes or after pulling new code:

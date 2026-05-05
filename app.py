@@ -29,6 +29,13 @@ from src.validation_gate_failure_analysis import (
     save_validation_gate_failure_analysis,
 )
 from src.targeted_remediation_design import save_targeted_remediation_design
+from src.bull_regime_threshold_remediation import (
+    DEFAULT_BUY_THRESHOLDS as DEFAULT_BULL_REMEDIATION_BUYS,
+    DEFAULT_SELL_THRESHOLDS as DEFAULT_BULL_REMEDIATION_SELLS,
+    parse_symbols as parse_bull_remediation_symbols,
+    parse_threshold_list as parse_bull_remediation_thresholds,
+    save_bull_regime_threshold_remediation,
+)
 from src.feature_source_registry import (
     get_high_leakage_risk_features,
     get_token_required_features,
@@ -4550,6 +4557,34 @@ def load_targeted_remediation_design_outputs(output_dir: str) -> dict[str, objec
     }
 
 
+def load_bull_regime_threshold_remediation_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "bull_remediation_report.md"
+    return {
+        "results": pd.read_csv(base / "bull_threshold_results.csv", dtype={"symbol": str})
+        if (base / "bull_threshold_results.csv").exists()
+        else pd.DataFrame(),
+        "summary": pd.read_csv(base / "bull_threshold_summary.csv")
+        if (base / "bull_threshold_summary.csv").exists()
+        else pd.DataFrame(),
+        "per_symbol": pd.read_csv(
+            base / "per_symbol_bull_results.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "per_symbol_bull_results.csv").exists()
+        else pd.DataFrame(),
+        "best": pd.read_csv(base / "best_bull_thresholds.csv")
+        if (base / "best_bull_thresholds.csv").exists()
+        else pd.DataFrame(),
+        "warnings": pd.read_csv(base / "warnings.csv", dtype={"symbol": str})
+        if (base / "warnings.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -5524,6 +5559,131 @@ def render_targeted_remediation_design_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_bull_regime_threshold_remediation_tab() -> None:
+    st.write(
+        "Run a bull-regime-only threshold remediation diagnostic for "
+        "canonical_reduced_40 + logistic_regression."
+    )
+    st.warning(
+        "This is educational research diagnostics only. It is not trading-ready "
+        "and does not add features, agents, models, or strategy logic."
+    )
+
+    mode = st.radio(
+        "Bull remediation action",
+        ["Load output", "Run experiment"],
+        horizontal=True,
+        key="bull_regime_threshold_remediation_action",
+    )
+    output_dir = st.text_input(
+        "Bull remediation output directory",
+        value="outputs/bull_regime_threshold_remediation_real_v1",
+        key="bull_regime_threshold_remediation_output_dir",
+    )
+    if mode == "Run experiment":
+        factor_dir = st.text_input(
+            "Factor directory",
+            value="outputs/model_robustness_real_v2/factors",
+            key="bull_regime_threshold_remediation_factor_dir",
+        )
+        symbols_text = st.text_input(
+            "Symbols",
+            value="000001,600519,000858,600036,601318",
+            key="bull_regime_threshold_remediation_symbols",
+        )
+        recommendations = st.text_input(
+            "Feature pruning recommendations",
+            value="outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv",
+            key="bull_regime_threshold_remediation_recommendations",
+        )
+        failure_analysis_dir = st.text_input(
+            "Failure analysis directory",
+            value="outputs/validation_gate_failure_analysis_real_v1",
+            key="bull_regime_threshold_remediation_failure_analysis_dir",
+        )
+        targeted_design_dir = st.text_input(
+            "Targeted design directory",
+            value="outputs/targeted_remediation_design_real_v1",
+            key="bull_regime_threshold_remediation_targeted_design_dir",
+        )
+        threshold_cols = st.columns(2)
+        buy_thresholds_text = threshold_cols[0].text_input(
+            "Buy thresholds",
+            value=",".join(f"{value:.2f}" for value in DEFAULT_BULL_REMEDIATION_BUYS),
+            key="bull_regime_threshold_remediation_buy_thresholds",
+        )
+        sell_thresholds_text = threshold_cols[1].text_input(
+            "Sell thresholds",
+            value=",".join(f"{value:.2f}" for value in DEFAULT_BULL_REMEDIATION_SELLS),
+            key="bull_regime_threshold_remediation_sell_thresholds",
+        )
+        if st.button(
+            "Run bull remediation",
+            key="run_bull_regime_threshold_remediation_button",
+            type="primary",
+        ):
+            try:
+                result = save_bull_regime_threshold_remediation(
+                    factor_dir=factor_dir,
+                    symbols=parse_bull_remediation_symbols(symbols_text),
+                    recommendations_path=recommendations,
+                    output_dir=output_dir,
+                    failure_analysis_dir=failure_analysis_dir,
+                    targeted_design_dir=targeted_design_dir,
+                    buy_thresholds=parse_bull_remediation_thresholds(
+                        buy_thresholds_text,
+                        DEFAULT_BULL_REMEDIATION_BUYS,
+                    ),
+                    sell_thresholds=parse_bull_remediation_thresholds(
+                        sell_thresholds_text,
+                        DEFAULT_BULL_REMEDIATION_SELLS,
+                    ),
+                )
+                output = {
+                    "results": result["bull_threshold_results"],
+                    "summary": result["bull_threshold_summary"],
+                    "per_symbol": result["per_symbol_bull_results"],
+                    "best": result["best_bull_thresholds"],
+                    "warnings": result["warnings"],
+                    "markdown_report": result["bull_remediation_report"],
+                }
+            except Exception as exc:
+                st.error(f"Bull remediation failed: {exc}")
+                return
+        else:
+            return
+    else:
+        if not st.button(
+            "Load bull remediation",
+            key="load_bull_regime_threshold_remediation_button",
+        ):
+            return
+        output = load_bull_regime_threshold_remediation_outputs(output_dir)
+
+    st.subheader("Best Bull Thresholds")
+    st.dataframe(output["best"], width="stretch")
+    st.subheader("Bull Threshold Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Per-Symbol Bull Results")
+    st.dataframe(output["per_symbol"], width="stretch")
+    st.subheader("Warnings")
+    st.dataframe(output["warnings"], width="stretch")
+    st.subheader("Bull Threshold Results")
+    st.dataframe(output["results"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download bull remediation report",
+            data=output["markdown_report"],
+            file_name="bull_remediation_report.md",
+            mime="text/markdown",
+            key="download_bull_regime_threshold_remediation_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -5615,6 +5775,7 @@ def main() -> None:
         candidate_validation_gate_tab,
         validation_gate_failure_analysis_tab,
         targeted_remediation_design_tab,
+        bull_regime_threshold_remediation_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -5643,6 +5804,7 @@ def main() -> None:
             "Candidate Validation Gate",
             "Gate Failure Analysis",
             "Targeted Remediation Design",
+            "Bull Regime Remediation",
         ]
     )
     with single_tab:
@@ -5732,6 +5894,9 @@ def main() -> None:
 
     with targeted_remediation_design_tab:
         render_targeted_remediation_design_tab()
+
+    with bull_regime_threshold_remediation_tab:
+        render_bull_regime_threshold_remediation_tab()
 
 
 if __name__ == "__main__":

@@ -59,6 +59,8 @@ PY_COMPILE_FILES = [
     "src/run_validation_gate_failure_analysis.py",
     "src/targeted_remediation_design.py",
     "src/run_targeted_remediation_design.py",
+    "src/bull_regime_threshold_remediation.py",
+    "src/run_bull_regime_threshold_remediation.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -159,6 +161,10 @@ COMMAND_CHECKS = [
     (
         "run_targeted_remediation_design help",
         ["src/run_targeted_remediation_design.py", "--help"],
+    ),
+    (
+        "run_bull_regime_threshold_remediation help",
+        ["src/run_bull_regime_threshold_remediation.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -1241,6 +1247,88 @@ COMMAND_CHECKS = [
                 "experiments=pd.read_csv(base/'targeted_remediation_experiments.csv'); "
                 "assert {'threshold_grid_refinement','regime_specific_threshold_test','trade_count_sufficiency_test','benchmark_comparison_test','risk_flag_reduction','challenger_validation','baseline_monitoring'} & set(experiments['experiment_type']); "
                 "assert not experiments.empty"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic bull remediation inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/bull_regime_threshold_remediation_smoke_inputs')\\n"
+                "factors=base/'factors'\\n"
+                "failure=base/'failure_analysis'\\n"
+                "design=base/'targeted_design'\\n"
+                "for d in [factors, failure, design]: d.mkdir(parents=True, exist_ok=True)\\n"
+                "symbols=['000001','600519','000858','600036','601318']\\n"
+                "dates=pd.date_range('2020-01-01', periods=130, freq='D')\\n"
+                "for idx,symbol in enumerate(symbols):\\n"
+                "    rows=[]\\n"
+                "    for i,date in enumerate(dates):\\n"
+                "        close=10+idx+i*0.04\\n"
+                "        f_core=(i % 10)/10\\n"
+                "        f_observe=((i+idx) % 7)/7\\n"
+                "        rows.append({'date':date.strftime('%Y-%m-%d'),'symbol':symbol,'open':close*0.99,'high':close*1.01,'low':close*0.98,'close':close,'volume':1000+i,'f_core':f_core,'f_observe':f_observe,'label_up_5d':1 if (i % 6) in [0,1,2] else 0})\\n"
+                "    pd.DataFrame(rows).to_csv(factors/f'factors_{symbol}.csv', index=False)\\n"
+                "pd.DataFrame([{'feature':'f_core','recommendation':'keep_core'},{'feature':'f_observe','recommendation':'keep_observe'}]).to_csv(base/'recommendations.csv', index=False)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','regime':'bull','regime_gate_failed':True,'has_regime_warnings':False}]).to_csv(failure/'failure_by_regime.csv', index=False)\\n"
+                "pd.DataFrame([{'experiment_id':'TRD-001','target_regime':'bull'}]).to_csv(design/'targeted_remediation_experiments.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline bull regime threshold remediation",
+        [
+            "src/run_bull_regime_threshold_remediation.py",
+            "--factor-dir",
+            "outputs/bull_regime_threshold_remediation_smoke_inputs/factors",
+            "--symbols",
+            "000001,600519,000858,600036,601318",
+            "--recommendations",
+            "outputs/bull_regime_threshold_remediation_smoke_inputs/recommendations.csv",
+            "--failure-analysis-dir",
+            "outputs/bull_regime_threshold_remediation_smoke_inputs/failure_analysis",
+            "--targeted-design-dir",
+            "outputs/bull_regime_threshold_remediation_smoke_inputs/targeted_design",
+            "--output-dir",
+            "outputs/bull_regime_threshold_remediation_smoke",
+            "--buy-thresholds",
+            "0.45,0.50",
+            "--sell-thresholds",
+            "0.30,0.40",
+            "--minimum-commission",
+            "0",
+            "--min-trades",
+            "1",
+        ],
+    ),
+    (
+        "offline bull regime threshold remediation assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_regime_threshold_remediation_smoke'); "
+                "required=['bull_threshold_results.csv','bull_threshold_summary.csv','per_symbol_bull_results.csv','best_bull_thresholds.csv','bull_remediation_report.md','warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "results=pd.read_csv(base/'bull_threshold_results.csv', dtype={'symbol': str}); "
+                "assert not results.empty; "
+                "assert set(results['regime']) == {'bull'}; "
+                "assert set(results['canonical_mode']) == {'canonical_reduced_40'}; "
+                "summary=pd.read_csv(base/'bull_threshold_summary.csv'); "
+                "assert {'avg_strategy_vs_benchmark_pct','beat_benchmark_rate','sufficient_trade_rate','tested_symbol_count','bull_gate_passed'}.issubset(summary.columns); "
+                "best=pd.read_csv(base/'best_bull_thresholds.csv'); "
+                "assert 'selection_decision' in best.columns; "
+                "report=(base/'bull_remediation_report.md').read_text(encoding='utf-8'); "
+                "phrases=['not trading-ready','not financial advice','canonical_reduced_40 remains research-only','bull regime only','sideways remediation','Do not recommend adding features or agents']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
             ),
         ],
     ),
