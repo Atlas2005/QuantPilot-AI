@@ -43,6 +43,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run ML threshold experiment | `python src/run_ml_threshold_experiment.py --model-dir models/demo_000001 --input data/factors/factors_000001.csv --output outputs/ml_threshold_experiment.csv` |
 | Run model robustness training | `python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest` |
 | Run real P0 robustness workflow | `python src/run_real_p0_robustness.py --symbols 000001,600519,000858,600036,601318 --start 20210101 --end 20241231 --output-dir outputs/model_robustness_real_v2` |
+| Run sideways regime remediation diagnostic | `python src/run_sideways_regime_trade_sufficiency_remediation.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -91,6 +92,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/batch_model_trainer.py`: Trains and compares baseline models across symbols.
 - `src/run_batch_model_training.py`: Command-line tool for model robustness training.
 - `src/run_real_p0_robustness.py`: Real Baostock workflow for rebuilding P0 factor robustness outputs.
+- `src/sideways_regime_trade_sufficiency_remediation.py`: Sideways-regime trade sufficiency remediation diagnostics for the primary research candidate.
+- `src/run_sideways_regime_trade_sufficiency_remediation.py`: Command-line tool for sideways-regime trade sufficiency remediation.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1269,6 +1272,42 @@ Sideways remediation should be considered only after bull results are inspected.
 
 The dashboard has a `Bull Regime Remediation` tab for running or loading this
 diagnostic.
+
+## V4 Step 35: Sideways Regime Trade Sufficiency Remediation
+
+Step 35 runs a sideways-regime-only diagnostic for the current primary research
+candidate: `canonical_reduced_40` with `logistic_regression`. It specifically
+targets the sideways blocker where average excess return was positive but
+benchmark beating and trade sufficiency were unstable. It reuses existing
+factor files, feature pruning recommendations, canonical candidate mapping,
+transaction cost settings, and regime/backtest utilities. It does not add data
+sources or agents, and it does not claim the strategy is trading-ready.
+
+Example:
+
+```powershell
+python src/run_sideways_regime_trade_sufficiency_remediation.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv --failure-analysis-dir outputs/validation_gate_failure_analysis_real_v1 --targeted-design-dir outputs/targeted_remediation_design_real_v1 --output-dir outputs/sideways_regime_trade_sufficiency_remediation_real_v1
+```
+
+Generated files:
+
+- `sideways_trade_results.csv`: sideways-regime threshold result rows by symbol.
+- `sideways_trade_summary.csv`: aggregate threshold summary with pass/fail gates.
+- `per_symbol_sideways_results.csv`: best sideways result per symbol.
+- `best_sideways_thresholds.csv`: best aggregate threshold candidate, selected only if strict sideways gates pass.
+- `sideways_remediation_report.md`: readable sideways trade sufficiency diagnostic report.
+- `warnings.csv`: low-trade, negative-return, benchmark underperformance, and input warnings.
+- `run_config.json`: input and output settings.
+
+The sideways candidate only passes this diagnostic if average
+strategy-vs-benchmark excess return is positive, beat benchmark rate is at least
+0.60, sufficient trade rate is at least 0.80, and at least five symbols are
+tested. If no threshold combination passes, `canonical_reduced_40` remains
+research-only. The report compares against the 0.50 / 0.40 baseline when that
+pair is included in the grid.
+
+The dashboard has a `Sideways Regime Remediation` tab for running or loading
+this diagnostic.
 
 ## Smoke Tests
 

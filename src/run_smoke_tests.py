@@ -61,6 +61,8 @@ PY_COMPILE_FILES = [
     "src/run_targeted_remediation_design.py",
     "src/bull_regime_threshold_remediation.py",
     "src/run_bull_regime_threshold_remediation.py",
+    "src/sideways_regime_trade_sufficiency_remediation.py",
+    "src/run_sideways_regime_trade_sufficiency_remediation.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -165,6 +167,10 @@ COMMAND_CHECKS = [
     (
         "run_bull_regime_threshold_remediation help",
         ["src/run_bull_regime_threshold_remediation.py", "--help"],
+    ),
+    (
+        "run_sideways_regime_trade_sufficiency_remediation help",
+        ["src/run_sideways_regime_trade_sufficiency_remediation.py", "--help"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -1329,6 +1335,101 @@ COMMAND_CHECKS = [
                 "phrases=['not trading-ready','not financial advice','canonical_reduced_40 remains research-only','bull regime only','sideways remediation','Do not recommend adding features or agents']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic sideways remediation inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/sideways_regime_trade_sufficiency_remediation_smoke_inputs')\\n"
+                "factors=base/'factors'\\n"
+                "failure=base/'failure_analysis'\\n"
+                "design=base/'targeted_design'\\n"
+                "for d in [factors, failure, design]: d.mkdir(parents=True, exist_ok=True)\\n"
+                "symbols=['000001','600519','000858','600036','601318']\\n"
+                "dates=pd.date_range('2020-01-01', periods=130, freq='D')\\n"
+                "for idx,symbol in enumerate(symbols):\\n"
+                "    rows=[]\\n"
+                "    for i,date in enumerate(dates):\\n"
+                "        close=10+idx+((i % 5) * 0.001)\\n"
+                "        label=1 if (i + idx) % 4 in [0, 1] else 0\\n"
+                "        rows.append({'date':date.strftime('%Y-%m-%d'),'symbol':symbol,'open':close*0.999,'high':close*1.001,'low':close*0.998,'close':close,'volume':1000+i,'f_core':label + (i % 3) * 0.01,'f_observe':((i+idx) % 7)/7,'label_up_5d':label})\\n"
+                "    pd.DataFrame(rows).to_csv(factors/f'factors_{symbol}.csv', index=False)\\n"
+                "pd.DataFrame([{'feature':'f_core','recommendation':'keep_core'},{'feature':'f_observe','recommendation':'keep_observe'}]).to_csv(base/'recommendations.csv', index=False)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','regime':'sideways','regime_gate_failed':True,'beat_benchmark_rate':0.40,'sufficient_trade_rate':0.40}]).to_csv(failure/'failure_by_regime.csv', index=False)\\n"
+                "pd.DataFrame([{'experiment_id':'TRD-002','target_regime':'sideways','experiment_type':'trade_count_sufficiency_test'}]).to_csv(design/'targeted_remediation_experiments.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline sideways regime trade sufficiency remediation",
+        [
+            "src/run_sideways_regime_trade_sufficiency_remediation.py",
+            "--factor-dir",
+            "outputs/sideways_regime_trade_sufficiency_remediation_smoke_inputs/factors",
+            "--symbols",
+            "000001,600519,000858,600036,601318",
+            "--recommendations",
+            "outputs/sideways_regime_trade_sufficiency_remediation_smoke_inputs/recommendations.csv",
+            "--failure-analysis-dir",
+            "outputs/sideways_regime_trade_sufficiency_remediation_smoke_inputs/failure_analysis",
+            "--targeted-design-dir",
+            "outputs/sideways_regime_trade_sufficiency_remediation_smoke_inputs/targeted_design",
+            "--output-dir",
+            "outputs/sideways_regime_trade_sufficiency_remediation_smoke",
+            "--buy-thresholds",
+            "0.45,0.50",
+            "--sell-thresholds",
+            "0.40,0.45",
+            "--minimum-commission",
+            "0",
+            "--commission-rate",
+            "0",
+            "--stamp-tax-rate",
+            "0",
+            "--slippage-pct",
+            "0",
+            "--min-trades",
+            "50",
+        ],
+    ),
+    (
+        "offline sideways regime trade sufficiency remediation assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/sideways_regime_trade_sufficiency_remediation_smoke'); "
+                "required=['sideways_trade_results.csv','sideways_trade_summary.csv','per_symbol_sideways_results.csv','best_sideways_thresholds.csv','sideways_remediation_report.md','warnings.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "results=pd.read_csv(base/'sideways_trade_results.csv', dtype={'symbol': str}); "
+                "assert not results.empty; "
+                "assert set(results['regime']) == {'sideways'}; "
+                "assert set(results['canonical_mode']) == {'canonical_reduced_40'}; "
+                "assert {'sufficient_trade','beat_benchmark','low_trade_count','negative_total_return','underperformed_benchmark'}.issubset(results.columns); "
+                "summary=pd.read_csv(base/'sideways_trade_summary.csv'); "
+                "assert {'avg_strategy_vs_benchmark_pct','beat_benchmark_rate','sufficient_trade_rate','tested_symbol_count','sideways_gate_passed','final_decision'}.issubset(summary.columns); "
+                "assert not summary['sideways_gate_passed'].fillna(False).astype(bool).any(); "
+                "assert set(summary['final_decision']) == {'sideways_remediation_failed'}; "
+                "best=pd.read_csv(base/'best_sideways_thresholds.csv'); "
+                "assert 'selection_decision' in best.columns; "
+                "warnings=pd.read_csv(base/'warnings.csv', dtype={'symbol': str}); "
+                "assert not warnings.empty; "
+                "assert 'low_trade_count' in set(warnings['warning_type']); "
+                "report=(base/'sideways_remediation_report.md').read_text(encoding='utf-8'); "
+                "phrases=['not trading-ready','not financial advice','canonical_reduced_40 remains research-only','sideways regime only','Sideways remediation failed','Trade sufficiency','benchmark beat']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases; "
+                "banned=['trading_ready=True','Strategy is profitable','deployable','trading-ready candidate']; "
+                "assert not [phrase for phrase in banned if phrase in report]"
             ),
         ],
     ),
