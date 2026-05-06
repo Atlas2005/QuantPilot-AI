@@ -47,6 +47,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run integrated remediation revalidation | `python src/run_integrated_remediation_revalidation.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --sideways-dir outputs/sideways_regime_trade_sufficiency_remediation_real_v1 --output-dir outputs/integrated_remediation_revalidation_real_v1` |
 | Run bull failure drilldown | `python src/run_bull_regime_failure_drilldown.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_regime_failure_drilldown_real_v1` |
 | Run bull trade/window diagnostics | `python src/run_bull_trade_window_diagnostics.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --output-dir outputs/bull_trade_window_diagnostics_real_v1` |
+| Run bull error remediation design | `python src/run_bull_error_pattern_remediation_design.py --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_error_pattern_remediation_design_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -1380,6 +1381,26 @@ candidate to trading-ready; `canonical_reduced_40` remains research-only.
 
 The dashboard has a `Bull Trade/Window Diagnostics` tab for loading the Step 38
 output directory.
+
+## V4 Step 39: Bull Error Pattern Remediation Design
+
+Step 39 classifies Step 38 bull trade/window failure patterns and designs
+conservative remediation options for later review. It does not implement
+remediation, tune thresholds, retrain models, change factors, add data sources,
+or add agents.
+
+Example:
+
+```powershell
+python src/run_bull_error_pattern_remediation_design.py --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_error_pattern_remediation_design_real_v1
+```
+
+`canonical_reduced_40` remains research-only and not trading-ready. Bull
+remediation remains unresolved until a later controlled prototype and validation
+step explicitly changes that status.
+
+The dashboard has a `Step 39 Bull Error Design` tab for loading this output
+directory.
 
 ## Smoke Tests
 

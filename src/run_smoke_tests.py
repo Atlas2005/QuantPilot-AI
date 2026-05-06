@@ -69,6 +69,8 @@ PY_COMPILE_FILES = [
     "src/run_bull_regime_failure_drilldown.py",
     "src/bull_trade_window_diagnostics.py",
     "src/run_bull_trade_window_diagnostics.py",
+    "src/bull_error_pattern_remediation_design.py",
+    "src/run_bull_error_pattern_remediation_design.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -201,6 +203,93 @@ COMMAND_CHECKS = [
     (
         "bull trade window diagnostics import",
         ["-c", "import src.bull_trade_window_diagnostics"],
+    ),
+    (
+        "run_bull_error_pattern_remediation_design help",
+        ["src/run_bull_error_pattern_remediation_design.py", "--help"],
+    ),
+    (
+        "bull error pattern remediation design import",
+        ["-c", "import src.bull_error_pattern_remediation_design"],
+    ),
+    (
+        "offline synthetic bull error remediation design inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import json\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/bull_error_pattern_remediation_design_smoke_inputs')\\n"
+                "diag=base/'diag'\\n"
+                "drill=base/'drill'\\n"
+                "integrated=base/'integrated'\\n"
+                "for d in [diag, drill, integrated]: d.mkdir(parents=True, exist_ok=True)\\n"
+                "pd.DataFrame([\\n"
+                "{'symbol':'000001','candidate':'canonical_reduced_40','model':'logistic_regression','regime':'bull','buy_threshold':0.65,'sell_threshold':0.50,'entry_date':'2024-01-01','exit_date':'2024-01-03','holding_days':2,'trade_return_pct':1.0,'benchmark_return_pct':2.0,'trade_excess_pct':-1.0,'was_profitable':True,'beat_benchmark':False,'error_pattern':'positive_return_but_lagged_benchmark'},\\n"
+                "{'symbol':'601318','candidate':'canonical_reduced_40','model':'logistic_regression','regime':'bull','buy_threshold':0.65,'sell_threshold':0.50,'entry_date':'2024-02-01','exit_date':'2024-04-15','holding_days':74,'trade_return_pct':6.0,'benchmark_return_pct':8.0,'trade_excess_pct':-2.0,'was_profitable':True,'beat_benchmark':False,'error_pattern':'positive_return_but_lagged_benchmark'},\\n"
+                "{'symbol':'600519','candidate':'canonical_reduced_40','model':'logistic_regression','regime':'bull','buy_threshold':0.65,'sell_threshold':0.50,'entry_date':'2024-03-01','exit_date':'2024-03-20','holding_days':19,'trade_return_pct':-3.0,'benchmark_return_pct':-1.0,'trade_excess_pct':-2.0,'was_profitable':False,'beat_benchmark':False,'error_pattern':'negative_trade_return'}\\n"
+                "]).to_csv(diag/'bull_trade_level_diagnostics.csv', index=False)\\n"
+                "pd.DataFrame([\\n"
+                "{'symbol':'000001','window_id':1,'start_date':'2024-01-01','end_date':'2024-01-20','rows':20,'strategy_return_pct':1.0,'benchmark_return_pct':3.0,'excess_return_pct':-2.0,'max_drawdown_pct':-1.0,'trade_count':1,'error_pattern':'positive_return_but_lagged_benchmark'},\\n"
+                "{'symbol':'601318','window_id':1,'start_date':'2024-02-01','end_date':'2024-02-20','rows':20,'strategy_return_pct':0.0,'benchmark_return_pct':5.0,'excess_return_pct':-5.0,'max_drawdown_pct':-12.0,'trade_count':0,'error_pattern':'positive_return_but_lagged_benchmark'},\\n"
+                "{'symbol':'600519','window_id':1,'start_date':'2024-03-01','end_date':'2024-03-20','rows':20,'strategy_return_pct':-3.0,'benchmark_return_pct':-1.0,'excess_return_pct':-2.0,'max_drawdown_pct':-4.0,'trade_count':1,'error_pattern':'negative_trade_return'}\\n"
+                "]).to_csv(diag/'bull_window_diagnostics.csv', index=False)\\n"
+                "pd.DataFrame([{'error_pattern':'positive_return_but_lagged_benchmark','count':2,'affected_symbols':'000001,601318'},{'error_pattern':'negative_trade_return','count':1,'affected_symbols':'600519'}]).to_csv(diag/'bull_error_pattern_summary.csv', index=False)\\n"
+                "(diag/'run_config.json').write_text(json.dumps({'candidate':'canonical_reduced_40','model':'logistic_regression','buy_threshold':0.65,'sell_threshold':0.50}), encoding='utf-8')\\n"
+                "pd.DataFrame([{'symbol':'601318','strategy_vs_benchmark_pct':-17.5,'contribution_to_avg_excess_pct':-3.5,'interpretation':'negative_contributor_to_bull_average'},{'symbol':'600036','strategy_vs_benchmark_pct':-0.2,'contribution_to_avg_excess_pct':-0.04,'interpretation':'negative_contributor_to_bull_average'}]).to_csv(drill/'bull_failure_contribution.csv', index=False)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','model':'logistic_regression','overall_decision':'research_only_not_trading_ready','trading_ready':False,'bull_final_decision':'bull_remediation_failed','bull_avg_strategy_vs_benchmark_pct':-0.0837457193063983,'main_blocker':'bull_remediation_failed'}]).to_csv(integrated/'integrated_remediation_summary.csv', index=False)\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline bull error remediation design",
+        [
+            "src/run_bull_error_pattern_remediation_design.py",
+            "--diagnostics-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/diag",
+            "--drilldown-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/drill",
+            "--integrated-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/integrated",
+            "--output-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke",
+        ],
+    ),
+    (
+        "offline bull error remediation design assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_error_pattern_remediation_design_smoke'); "
+                "required=['bull_error_pattern_remediation_design_report.md','bull_trade_error_classification.csv','bull_window_error_classification.csv','bull_symbol_error_profile.csv','bull_aggregate_error_profile.csv','bull_remediation_design_options.csv','bull_remediation_priority_matrix.csv','bull_no_change_guardrails.csv','bull_design_limitations.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "trade=pd.read_csv(base/'bull_trade_error_classification.csv', dtype={'symbol': str}); "
+                "assert {'000001','601318','600519'} <= set(trade['symbol']); "
+                "assert trade['symbol'].astype(str).str.len().ge(6).all(); "
+                "assert 'late_entry' not in set(trade['classified_error_pattern']); "
+                "options=pd.read_csv(base/'bull_remediation_design_options.csv'); "
+                "assert not options['allowed_in_current_step'].fillna(True).astype(bool).any(); "
+                "assert set(options['implementation_status']) == {'design_only_not_implemented'}; "
+                "guardrails=pd.read_csv(base/'bull_no_change_guardrails.csv'); "
+                "required_guardrails={'no_threshold_change','no_model_retraining','no_feature_engineering_change','no_new_data_sources','no_new_agents','no_trading_ready_upgrade'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "aggregate=pd.read_csv(base/'bull_aggregate_error_profile.csv'); "
+                "values=dict(zip(aggregate['metric'], aggregate['value'])); "
+                "assert values['bull_final_decision']=='bull_remediation_failed'; "
+                "assert values['trading_ready'] in ['False', False]; "
+                "report=(base/'bull_error_pattern_remediation_design_report.md').read_text(encoding='utf-8'); "
+                "phrases=['does not implement remediation','No threshold, model, factor, data source, or agent was changed','No candidate is trading-ready','V4 Step 40']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),

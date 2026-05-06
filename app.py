@@ -4727,6 +4727,37 @@ def load_bull_trade_window_diagnostics_outputs(output_dir: str) -> dict[str, obj
     }
 
 
+def load_bull_error_pattern_remediation_design_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "bull_error_pattern_remediation_design_report.md"
+    return {
+        "aggregate": pd.read_csv(base / "bull_aggregate_error_profile.csv")
+        if (base / "bull_aggregate_error_profile.csv").exists()
+        else pd.DataFrame(),
+        "symbol_profile": pd.read_csv(
+            base / "bull_symbol_error_profile.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "bull_symbol_error_profile.csv").exists()
+        else pd.DataFrame(),
+        "design_options": pd.read_csv(base / "bull_remediation_design_options.csv")
+        if (base / "bull_remediation_design_options.csv").exists()
+        else pd.DataFrame(),
+        "priority_matrix": pd.read_csv(base / "bull_remediation_priority_matrix.csv")
+        if (base / "bull_remediation_priority_matrix.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "bull_no_change_guardrails.csv")
+        if (base / "bull_no_change_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "limitations": pd.read_csv(base / "bull_design_limitations.csv")
+        if (base / "bull_design_limitations.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6097,6 +6128,53 @@ def render_bull_trade_window_diagnostics_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_bull_error_pattern_remediation_design_tab() -> None:
+    st.write(
+        "Load Step 39 bull error classification and remediation design outputs."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It does not "
+        "implement remediation or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Bull error design output directory",
+        value="outputs/bull_error_pattern_remediation_design_real_v1",
+        key="bull_error_pattern_remediation_design_output_dir",
+    )
+    if not st.button(
+        "Load bull error design",
+        key="load_bull_error_pattern_remediation_design_button",
+        type="primary",
+    ):
+        return
+
+    output = load_bull_error_pattern_remediation_design_outputs(output_dir)
+    st.subheader("Aggregate Error Profile")
+    st.dataframe(output["aggregate"], width="stretch")
+    st.subheader("Symbol Error Profile")
+    st.dataframe(output["symbol_profile"], width="stretch")
+    st.subheader("Remediation Design Options")
+    st.dataframe(output["design_options"], width="stretch")
+    st.subheader("Remediation Priority Matrix")
+    st.dataframe(output["priority_matrix"], width="stretch")
+    st.subheader("No-Change Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Design Limitations")
+    st.dataframe(output["limitations"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download bull error design report",
+            data=output["markdown_report"],
+            file_name="bull_error_pattern_remediation_design_report.md",
+            mime="text/markdown",
+            key="download_bull_error_pattern_remediation_design_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6193,6 +6271,7 @@ def main() -> None:
         integrated_remediation_revalidation_tab,
         bull_regime_failure_drilldown_tab,
         bull_trade_window_diagnostics_tab,
+        bull_error_pattern_remediation_design_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6226,6 +6305,7 @@ def main() -> None:
             "Integrated Remediation Revalidation",
             "Bull Regime Failure Drilldown",
             "Bull Trade/Window Diagnostics",
+            "Step 39 Bull Error Design",
         ]
     )
     with single_tab:
@@ -6330,6 +6410,9 @@ def main() -> None:
 
     with bull_trade_window_diagnostics_tab:
         render_bull_trade_window_diagnostics_tab()
+
+    with bull_error_pattern_remediation_design_tab:
+        render_bull_error_pattern_remediation_design_tab()
 
 
 if __name__ == "__main__":
