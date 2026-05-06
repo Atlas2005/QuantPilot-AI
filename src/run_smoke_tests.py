@@ -67,6 +67,8 @@ PY_COMPILE_FILES = [
     "src/run_integrated_remediation_revalidation.py",
     "src/bull_regime_failure_drilldown.py",
     "src/run_bull_regime_failure_drilldown.py",
+    "src/bull_trade_window_diagnostics.py",
+    "src/run_bull_trade_window_diagnostics.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -191,6 +193,14 @@ COMMAND_CHECKS = [
     (
         "bull regime failure drilldown import",
         ["-c", "import src.bull_regime_failure_drilldown"],
+    ),
+    (
+        "run_bull_trade_window_diagnostics help",
+        ["src/run_bull_trade_window_diagnostics.py", "--help"],
+    ),
+    (
+        "bull trade window diagnostics import",
+        ["-c", "import src.bull_trade_window_diagnostics"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -1604,6 +1614,52 @@ COMMAND_CHECKS = [
                 "assert set(trade['diagnostic_status']) == {'trade_level_data_unavailable'}; "
                 "report=(base/'bull_regime_failure_drilldown_report.md').read_text(encoding='utf-8'); "
                 "phrases=['No candidate is trading-ready','does not tune thresholds','canonical_reduced_40 remains research-only','Bull remediation failed']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "offline bull trade window diagnostics",
+        [
+            "src/run_bull_trade_window_diagnostics.py",
+            "--bull-dir",
+            "outputs/bull_regime_threshold_remediation_smoke",
+            "--output-dir",
+            "outputs/bull_trade_window_diagnostics_smoke",
+            "--buy-threshold",
+            "0.65",
+            "--sell-threshold",
+            "0.50",
+        ],
+    ),
+    (
+        "offline bull trade window diagnostics assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import json; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_trade_window_diagnostics_smoke'); "
+                "required=['bull_trade_window_diagnostics_report.md','bull_trade_level_diagnostics.csv','bull_signal_timeline_diagnostics.csv','bull_window_diagnostics.csv','bull_symbol_window_summary.csv','bull_error_pattern_summary.csv','bull_diagnostics_data_availability.csv','bull_diagnostics_limitations.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "config=json.loads((base/'run_config.json').read_text(encoding='utf-8')); "
+                "assert abs(config['buy_threshold'] - 0.65) < 1e-12; "
+                "assert abs(config['sell_threshold'] - 0.50) < 1e-12; "
+                "assert config['threshold_action']=='reused_for_diagnosis_only'; "
+                "availability=pd.read_csv(base/'bull_diagnostics_data_availability.csv'); "
+                "assert {'symbol_level','trade_level','date_level_timeline','window_level'} <= set(availability['diagnostic_layer']); "
+                "summary=pd.read_csv(base/'bull_symbol_window_summary.csv', dtype={'symbol': str}); "
+                "assert summary.empty or summary['symbol'].astype(str).str.len().ge(6).all(); "
+                "checked=['bull_symbol_window_summary.csv','bull_error_pattern_summary.csv','bull_diagnostics_data_availability.csv','bull_diagnostics_limitations.csv']; "
+                "bad=[name for name in checked if 'trading_ready' in pd.read_csv(base/name).columns]; "
+                "assert not bad, bad; "
+                "trade=pd.read_csv(base/'bull_trade_level_diagnostics.csv', dtype={'symbol': str}); "
+                "assert (not trade.empty) or ('data_status' in trade.columns); "
+                "report=(base/'bull_trade_window_diagnostics_report.md').read_text(encoding='utf-8'); "
+                "phrases=['diagnostics-output enhancement only','0.65 / 0.50','does not tune thresholds','does not upgrade any candidate']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

@@ -46,6 +46,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run sideways regime remediation diagnostic | `python src/run_sideways_regime_trade_sufficiency_remediation.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv` |
 | Run integrated remediation revalidation | `python src/run_integrated_remediation_revalidation.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --sideways-dir outputs/sideways_regime_trade_sufficiency_remediation_real_v1 --output-dir outputs/integrated_remediation_revalidation_real_v1` |
 | Run bull failure drilldown | `python src/run_bull_regime_failure_drilldown.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_regime_failure_drilldown_real_v1` |
+| Run bull trade/window diagnostics | `python src/run_bull_trade_window_diagnostics.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --output-dir outputs/bull_trade_window_diagnostics_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -100,6 +101,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_integrated_remediation_revalidation.py`: Command-line tool for integrated remediation revalidation.
 - `src/bull_regime_failure_drilldown.py`: Bull-regime failure drilldown diagnostics for the unresolved bull blocker.
 - `src/run_bull_regime_failure_drilldown.py`: Command-line tool for bull-regime failure drilldown.
+- `src/bull_trade_window_diagnostics.py`: Bull trade/window diagnostics for the selected Step 34 bull threshold.
+- `src/run_bull_trade_window_diagnostics.py`: Command-line tool for bull trade/window diagnostics.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1356,6 +1359,26 @@ subperiod outputs are unavailable. `canonical_reduced_40` remains research-only
 and not trading-ready; bull remediation remains the main blocker.
 
 The dashboard has a `Bull Regime Failure Drilldown` tab for loading the Step 37
+output directory.
+
+## V4 Step 38: Bull Trade/Window Diagnostics
+
+Step 38 enhances diagnostics output for the already-selected Step 34 bull
+threshold, `0.65 / 0.50`, for `canonical_reduced_40` with
+`logistic_regression`. It exports trade-level, signal timeline, and fixed-window
+diagnostics when they can be reconstructed from the existing pipeline.
+
+Example:
+
+```powershell
+python src/run_bull_trade_window_diagnostics.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --output-dir outputs/bull_trade_window_diagnostics_real_v1
+```
+
+This step is diagnostic-only. It does not tune thresholds, retrain models,
+change factors, add data sources, or add agents. It does not upgrade any
+candidate to trading-ready; `canonical_reduced_40` remains research-only.
+
+The dashboard has a `Bull Trade/Window Diagnostics` tab for loading the Step 38
 output directory.
 
 ## Smoke Tests

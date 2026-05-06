@@ -4690,6 +4690,43 @@ def load_bull_regime_failure_drilldown_outputs(output_dir: str) -> dict[str, obj
     }
 
 
+def load_bull_trade_window_diagnostics_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "bull_trade_window_diagnostics_report.md"
+    return {
+        "availability": pd.read_csv(base / "bull_diagnostics_data_availability.csv")
+        if (base / "bull_diagnostics_data_availability.csv").exists()
+        else pd.DataFrame(),
+        "symbol_summary": pd.read_csv(
+            base / "bull_symbol_window_summary.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "bull_symbol_window_summary.csv").exists()
+        else pd.DataFrame(),
+        "patterns": pd.read_csv(base / "bull_error_pattern_summary.csv")
+        if (base / "bull_error_pattern_summary.csv").exists()
+        else pd.DataFrame(),
+        "trade_level": pd.read_csv(
+            base / "bull_trade_level_diagnostics.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "bull_trade_level_diagnostics.csv").exists()
+        else pd.DataFrame(),
+        "window": pd.read_csv(
+            base / "bull_window_diagnostics.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "bull_window_diagnostics.csv").exists()
+        else pd.DataFrame(),
+        "limitations": pd.read_csv(base / "bull_diagnostics_limitations.csv")
+        if (base / "bull_diagnostics_limitations.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6012,6 +6049,54 @@ def render_bull_regime_failure_drilldown_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_bull_trade_window_diagnostics_tab() -> None:
+    st.write(
+        "Load Step 38 bull trade/window diagnostics for the selected Step 34 "
+        "bull threshold."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It does not tune "
+        "thresholds, retrain models, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Bull trade/window diagnostics output directory",
+        value="outputs/bull_trade_window_diagnostics_real_v1",
+        key="bull_trade_window_diagnostics_output_dir",
+    )
+    if not st.button(
+        "Load bull trade/window diagnostics",
+        key="load_bull_trade_window_diagnostics_button",
+        type="primary",
+    ):
+        return
+
+    output = load_bull_trade_window_diagnostics_outputs(output_dir)
+    st.subheader("Data Availability")
+    st.dataframe(output["availability"], width="stretch")
+    st.subheader("Symbol Window Summary")
+    st.dataframe(output["symbol_summary"], width="stretch")
+    st.subheader("Error Pattern Summary")
+    st.dataframe(output["patterns"], width="stretch")
+    st.subheader("Trade-Level Diagnostics")
+    st.dataframe(output["trade_level"], width="stretch")
+    st.subheader("Window Diagnostics")
+    st.dataframe(output["window"], width="stretch")
+    st.subheader("Limitations")
+    st.dataframe(output["limitations"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download bull trade/window diagnostics report",
+            data=output["markdown_report"],
+            file_name="bull_trade_window_diagnostics_report.md",
+            mime="text/markdown",
+            key="download_bull_trade_window_diagnostics_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6107,6 +6192,7 @@ def main() -> None:
         sideways_regime_trade_sufficiency_remediation_tab,
         integrated_remediation_revalidation_tab,
         bull_regime_failure_drilldown_tab,
+        bull_trade_window_diagnostics_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6139,6 +6225,7 @@ def main() -> None:
             "Sideways Regime Remediation",
             "Integrated Remediation Revalidation",
             "Bull Regime Failure Drilldown",
+            "Bull Trade/Window Diagnostics",
         ]
     )
     with single_tab:
@@ -6240,6 +6327,9 @@ def main() -> None:
 
     with bull_regime_failure_drilldown_tab:
         render_bull_regime_failure_drilldown_tab()
+
+    with bull_trade_window_diagnostics_tab:
+        render_bull_trade_window_diagnostics_tab()
 
 
 if __name__ == "__main__":
