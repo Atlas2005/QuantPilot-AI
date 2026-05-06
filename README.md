@@ -50,6 +50,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run bull error remediation design | `python src/run_bull_error_pattern_remediation_design.py --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_error_pattern_remediation_design_real_v1` |
 | Run bull prototype design | `python src/run_bull_remediation_prototype_design.py --design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_remediation_prototype_design_real_v1` |
 | Run bull prototype harness | `python src/run_bull_prototype_experiment_harness.py --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_experiment_harness_real_v1` |
+| Run bull controlled prototype simulations | `python src/run_bull_prototype_controlled_backtest.py --harness-dir outputs/bull_prototype_experiment_harness_real_v1 --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_controlled_backtest_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -1444,6 +1445,26 @@ validation explicitly show otherwise.
 
 The dashboard has a `Step 41 Bull Prototype Harness` tab for loading this output
 directory.
+
+## V4 Step 42: Bull Prototype Controlled Backtest Execution
+
+Step 42 executes controlled research-only prototype simulations using existing
+Step 38 diagnostics and compares them against the unchanged Step 34 / Step 38
+baseline. These simulations are diagnostic what-if checks, not production
+strategy changes.
+
+Example:
+
+```powershell
+python src/run_bull_prototype_controlled_backtest.py --harness-dir outputs/bull_prototype_experiment_harness_real_v1 --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_controlled_backtest_real_v1
+```
+
+This step does not retrain models, change features, add data sources, add
+agents, run threshold sweeps, or change the selected `0.65 / 0.50` threshold.
+No trading-ready upgrade is made.
+
+The dashboard has a `Step 42 Bull Controlled Backtest` tab for loading this
+output directory.
 
 ## Smoke Tests
 

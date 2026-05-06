@@ -75,6 +75,8 @@ PY_COMPILE_FILES = [
     "src/run_bull_remediation_prototype_design.py",
     "src/bull_prototype_experiment_harness.py",
     "src/run_bull_prototype_experiment_harness.py",
+    "src/bull_prototype_controlled_backtest.py",
+    "src/run_bull_prototype_controlled_backtest.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -403,6 +405,74 @@ COMMAND_CHECKS = [
                 "assert {'prototypes_registered_not_executed','no_backtests_run','no_trading_ready_claim'} <= set(log['item']); "
                 "report=(base/'bull_prototype_experiment_harness_report.md').read_text(encoding='utf-8'); "
                 "phrases=['No prototype was executed','No real prototype backtest was run','No new performance claim is made','V4 Step 42']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_bull_prototype_controlled_backtest help",
+        ["src/run_bull_prototype_controlled_backtest.py", "--help"],
+    ),
+    (
+        "bull prototype controlled backtest import",
+        ["-c", "import src.bull_prototype_controlled_backtest"],
+    ),
+    (
+        "offline bull prototype controlled backtest",
+        [
+            "src/run_bull_prototype_controlled_backtest.py",
+            "--harness-dir",
+            "outputs/bull_prototype_experiment_harness_smoke",
+            "--prototype-design-dir",
+            "outputs/bull_remediation_prototype_design_smoke",
+            "--diagnostics-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/diag",
+            "--integrated-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/integrated",
+            "--output-dir",
+            "outputs/bull_prototype_controlled_backtest_smoke",
+        ],
+    ),
+    (
+        "offline bull prototype controlled backtest assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import json; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_prototype_controlled_backtest_smoke'); "
+                "required=['bull_prototype_controlled_backtest_report.md','bull_prototype_execution_results.csv','bull_prototype_metric_comparison.csv','bull_prototype_symbol_comparison.csv','bull_prototype_trade_comparison.csv','bull_prototype_window_comparison.csv','bull_prototype_decision_summary.csv','bull_prototype_execution_audit.csv','bull_prototype_guardrail_check.csv','bull_prototype_limitations.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "results=pd.read_csv(base/'bull_prototype_execution_results.csv'); "
+                "assert not results.empty; "
+                "assert not results['trading_ready'].fillna(True).astype(bool).any(); "
+                "assert results['execution_status'].isin(['executed','not_executable_with_current_data']).any(); "
+                "guardrails=pd.read_csv(base/'bull_prototype_guardrail_check.csv'); "
+                "assert not (guardrails['status'].astype(str)!='confirmed').any(); "
+                "required_guardrails={'no_threshold_change','no_model_retraining','no_feature_engineering_change','no_new_data_sources','no_new_agents','no_trading_ready_upgrade'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "audit=pd.read_csv(base/'bull_prototype_execution_audit.csv'); "
+                "assert {'no_threshold_change','no_model_retraining','no_feature_engineering_change','no_new_data_sources','no_new_agents','no_trading_ready_claim'} <= set(audit['audit_item']); "
+                "config=json.loads((base/'run_config.json').read_text(encoding='utf-8')); "
+                "executed=results[results['execution_status'].astype(str)=='executed'].copy(); "
+                "executed['delta_avg_excess_pct']=pd.to_numeric(executed['delta_avg_excess_pct'], errors='coerce'); "
+                "bad_primary=executed[executed['delta_avg_excess_pct'].le(0)]; "
+                "assert not (bad_primary['conservative_result'].astype(str)=='improved_but_not_validated').any(); "
+                "decisions=pd.read_csv(base/'bull_prototype_decision_summary.csv'); "
+                "bad_decisions=decisions[decisions['prototype_id'].isin(set(bad_primary['prototype_id']))]; "
+                "assert not bad_decisions['can_advance_to_further_testing'].fillna(True).astype(bool).any(); "
+                "assert not decisions['trading_ready'].fillna(True).astype(bool).any(); "
+                "best_summary=config.get('best_avg_excess_summary', {}); "
+                "no_avg_improve=executed.empty or not executed['delta_avg_excess_pct'].gt(0).any(); "
+                "assert (not no_avg_improve) or best_summary.get('best_diagnostic_candidate') == 'no_avg_excess_improvement', best_summary; "
+                "assert no_avg_improve or best_summary.get('best_diagnostic_candidate') != 'no_avg_excess_improvement', best_summary; "
+                "symbols=pd.read_csv(base/'bull_prototype_symbol_comparison.csv', dtype={'symbol': str}); "
+                "assert symbols.empty or symbols['symbol'].astype(str).str.len().ge(6).all(); "
+                "report=(base/'bull_prototype_controlled_backtest_report.md').read_text(encoding='utf-8'); "
+                "phrases=['No candidate is trading-ready','No model was retrained','0.65 / 0.50 threshold remains unchanged','V4 Step 43','Best diagnostic candidate by average excess']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
