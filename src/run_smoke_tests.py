@@ -65,6 +65,8 @@ PY_COMPILE_FILES = [
     "src/run_sideways_regime_trade_sufficiency_remediation.py",
     "src/integrated_remediation_revalidation.py",
     "src/run_integrated_remediation_revalidation.py",
+    "src/bull_regime_failure_drilldown.py",
+    "src/run_bull_regime_failure_drilldown.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -181,6 +183,14 @@ COMMAND_CHECKS = [
     (
         "integrated remediation revalidation import",
         ["-c", "import src.integrated_remediation_revalidation"],
+    ),
+    (
+        "run_bull_regime_failure_drilldown help",
+        ["src/run_bull_regime_failure_drilldown.py", "--help"],
+    ),
+    (
+        "bull regime failure drilldown import",
+        ["-c", "import src.bull_regime_failure_drilldown"],
     ),
     ("generate_model_report help", ["src/generate_model_report.py", "--help"]),
     ("show_feature_sources help", ["src/show_feature_sources.py", "--help"]),
@@ -1525,6 +1535,75 @@ COMMAND_CHECKS = [
                 "assert 'role_allowed' not in set(risk_types); "
                 "report=(base/'integrated_remediation_revalidation_report.md').read_text(encoding='utf-8'); "
                 "phrases=['No candidate is trading-ready','canonical_reduced_40 remains research-only','Bull remediation failed','Sideways aggregate remediation passed','V4 Step 37']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "offline synthetic bull failure drilldown inputs",
+        [
+            "-c",
+            (
+                "exec("
+                "\"from pathlib import Path\\n"
+                "import pandas as pd\\n"
+                "base=Path('outputs/bull_regime_failure_drilldown_smoke_inputs')\\n"
+                "bull=base/'bull'\\n"
+                "integrated=base/'integrated'\\n"
+                "for d in [bull, integrated]: d.mkdir(parents=True, exist_ok=True)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','model_type':'logistic_regression','buy_threshold':0.65,'sell_threshold':0.50,'regime':'bull','avg_total_return_pct':5.0,'avg_benchmark_return_pct':5.2,'avg_strategy_vs_benchmark_pct':-0.2,'beat_benchmark_rate':0.5,'sufficient_trade_rate':0.5,'tested_symbol_count':2,'bull_gate_passed':False,'final_decision':'bull_remediation_failed'}]).to_csv(bull/'bull_threshold_summary.csv', index=False)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','model_type':'logistic_regression','buy_threshold':0.65,'sell_threshold':0.50,'regime':'bull','avg_total_return_pct':5.0,'avg_benchmark_return_pct':5.2,'avg_strategy_vs_benchmark_pct':-0.2,'beat_benchmark_rate':0.5,'sufficient_trade_rate':0.5,'tested_symbol_count':2,'bull_gate_passed':False,'final_decision':'bull_remediation_failed','selected':False}]).to_csv(bull/'best_bull_thresholds.csv', index=False)\\n"
+                "rows=[{'symbol':'000001','canonical_mode':'canonical_reduced_40','model_type':'logistic_regression','buy_threshold':0.65,'sell_threshold':0.50,'regime':'bull','total_return_pct':2.0,'benchmark_return_pct':6.0,'strategy_vs_benchmark_pct':-4.0,'trade_count':2,'warning':'low_trade_count: 2 | underperformed_benchmark'},{'symbol':'000858','canonical_mode':'canonical_reduced_40','model_type':'logistic_regression','buy_threshold':0.65,'sell_threshold':0.50,'regime':'bull','total_return_pct':8.0,'benchmark_return_pct':4.0,'strategy_vs_benchmark_pct':4.0,'trade_count':3,'warning':''}]\\n"
+                "pd.DataFrame(rows).to_csv(bull/'bull_threshold_results.csv', index=False)\\n"
+                "pd.DataFrame(rows).to_csv(bull/'per_symbol_bull_results.csv', index=False)\\n"
+                "pd.DataFrame([{'symbol':'000001','canonical_mode':'canonical_reduced_40','regime':'bull','warning_type':'low_trade_count','message':'low_trade_count: 2'}]).to_csv(bull/'warnings.csv', index=False)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','overall_decision':'research_only_not_trading_ready','trading_ready':False,'main_blocker':'bull_remediation_failed'}]).to_csv(integrated/'integrated_remediation_summary.csv', index=False)\\n"
+                "pd.DataFrame([{'regime':'bull','final_decision':'bull_remediation_failed'}]).to_csv(integrated/'regime_remediation_status.csv', index=False)\\n"
+                "pd.DataFrame([{'canonical_mode':'canonical_reduced_40','trading_ready':False,'gate_decision':'research_only_not_trading_ready'}]).to_csv(integrated/'integrated_gate_results.csv', index=False)\\n"
+                "pd.DataFrame([{'source':'smoke','canonical_mode':'canonical_reduced_40','regime':'bull','symbol':'000001','risk_type':'low_trade_count','severity':'medium','message':'low trade'}]).to_csv(integrated/'integrated_risk_flags.csv', index=False)\\n"
+                "(integrated/'integrated_remediation_revalidation_report.md').write_text('No candidate is trading-ready.', encoding='utf-8')\\n"
+                "\")"
+            ),
+        ],
+    ),
+    (
+        "offline bull regime failure drilldown",
+        [
+            "src/run_bull_regime_failure_drilldown.py",
+            "--bull-dir",
+            "outputs/bull_regime_failure_drilldown_smoke_inputs/bull",
+            "--integrated-dir",
+            "outputs/bull_regime_failure_drilldown_smoke_inputs/integrated",
+            "--output-dir",
+            "outputs/bull_regime_failure_drilldown_smoke",
+        ],
+    ),
+    (
+        "offline bull regime failure drilldown assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_regime_failure_drilldown_smoke'); "
+                "required=['bull_regime_failure_drilldown_report.md','bull_symbol_failure_summary.csv','bull_failure_contribution.csv','bull_failure_reasons.csv','bull_threshold_context.csv','bull_drilldown_limitations.csv','bull_trade_level_diagnostics.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "context=pd.read_csv(base/'bull_threshold_context.csv'); "
+                "assert set(context['threshold_action']) == {'reused_for_diagnosis_only'}; "
+                "symbols=pd.read_csv(base/'bull_symbol_failure_summary.csv', dtype={'symbol': str}); "
+                "assert '000001' in set(symbols['symbol']); "
+                "assert 'trading_ready' not in symbols.columns; "
+                "reasons=pd.read_csv(base/'bull_failure_reasons.csv', dtype={'symbol': str}); "
+                "assert not reasons.empty; "
+                "assert 'trade_level_data_unavailable' in set(reasons['reason_type']); "
+                "limitations=pd.read_csv(base/'bull_drilldown_limitations.csv'); "
+                "assert 'trade_level_data_may_be_unavailable' in set(limitations['limitation_type']); "
+                "trade=pd.read_csv(base/'bull_trade_level_diagnostics.csv'); "
+                "assert set(trade['diagnostic_status']) == {'trade_level_data_unavailable'}; "
+                "report=(base/'bull_regime_failure_drilldown_report.md').read_text(encoding='utf-8'); "
+                "phrases=['No candidate is trading-ready','does not tune thresholds','canonical_reduced_40 remains research-only','Bull remediation failed']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

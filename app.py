@@ -4653,6 +4653,43 @@ def load_integrated_remediation_revalidation_outputs(output_dir: str) -> dict[st
     }
 
 
+def load_bull_regime_failure_drilldown_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "bull_regime_failure_drilldown_report.md"
+    return {
+        "symbol_summary": pd.read_csv(
+            base / "bull_symbol_failure_summary.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "bull_symbol_failure_summary.csv").exists()
+        else pd.DataFrame(),
+        "contribution": pd.read_csv(
+            base / "bull_failure_contribution.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "bull_failure_contribution.csv").exists()
+        else pd.DataFrame(),
+        "reasons": pd.read_csv(
+            base / "bull_failure_reasons.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "bull_failure_reasons.csv").exists()
+        else pd.DataFrame(),
+        "threshold_context": pd.read_csv(base / "bull_threshold_context.csv")
+        if (base / "bull_threshold_context.csv").exists()
+        else pd.DataFrame(),
+        "limitations": pd.read_csv(base / "bull_drilldown_limitations.csv")
+        if (base / "bull_drilldown_limitations.csv").exists()
+        else pd.DataFrame(),
+        "trade_level": pd.read_csv(base / "bull_trade_level_diagnostics.csv")
+        if (base / "bull_trade_level_diagnostics.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -5927,6 +5964,54 @@ def render_integrated_remediation_revalidation_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_bull_regime_failure_drilldown_tab() -> None:
+    st.write(
+        "Load the Step 37 bull-regime failure drilldown outputs for the "
+        "canonical_reduced_40 + logistic_regression research candidate."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It does not tune "
+        "thresholds, change models, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Bull drilldown output directory",
+        value="outputs/bull_regime_failure_drilldown_real_v1",
+        key="bull_regime_failure_drilldown_output_dir",
+    )
+    if not st.button(
+        "Load bull drilldown",
+        key="load_bull_regime_failure_drilldown_button",
+        type="primary",
+    ):
+        return
+
+    output = load_bull_regime_failure_drilldown_outputs(output_dir)
+    st.subheader("Bull Symbol Failure Summary")
+    st.dataframe(output["symbol_summary"], width="stretch")
+    st.subheader("Bull Failure Contribution")
+    st.dataframe(output["contribution"], width="stretch")
+    st.subheader("Bull Failure Reasons")
+    st.dataframe(output["reasons"], width="stretch")
+    st.subheader("Bull Threshold Context")
+    st.dataframe(output["threshold_context"], width="stretch")
+    st.subheader("Bull Drilldown Limitations")
+    st.dataframe(output["limitations"], width="stretch")
+    st.subheader("Bull Trade-Level Diagnostics")
+    st.dataframe(output["trade_level"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download bull drilldown report",
+            data=output["markdown_report"],
+            file_name="bull_regime_failure_drilldown_report.md",
+            mime="text/markdown",
+            key="download_bull_regime_failure_drilldown_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6021,6 +6106,7 @@ def main() -> None:
         bull_regime_threshold_remediation_tab,
         sideways_regime_trade_sufficiency_remediation_tab,
         integrated_remediation_revalidation_tab,
+        bull_regime_failure_drilldown_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6052,6 +6138,7 @@ def main() -> None:
             "Bull Regime Remediation",
             "Sideways Regime Remediation",
             "Integrated Remediation Revalidation",
+            "Bull Regime Failure Drilldown",
         ]
     )
     with single_tab:
@@ -6150,6 +6237,9 @@ def main() -> None:
 
     with integrated_remediation_revalidation_tab:
         render_integrated_remediation_revalidation_tab()
+
+    with bull_regime_failure_drilldown_tab:
+        render_bull_regime_failure_drilldown_tab()
 
 
 if __name__ == "__main__":
