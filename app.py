@@ -4622,6 +4622,37 @@ def load_sideways_regime_trade_sufficiency_remediation_outputs(
     }
 
 
+def load_integrated_remediation_revalidation_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "integrated_remediation_revalidation_report.md"
+    return {
+        "summary": pd.read_csv(base / "integrated_remediation_summary.csv")
+        if (base / "integrated_remediation_summary.csv").exists()
+        else pd.DataFrame(),
+        "regime_status": pd.read_csv(base / "regime_remediation_status.csv")
+        if (base / "regime_remediation_status.csv").exists()
+        else pd.DataFrame(),
+        "per_symbol_risk": pd.read_csv(
+            base / "per_symbol_remediation_risk.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "per_symbol_remediation_risk.csv").exists()
+        else pd.DataFrame(),
+        "gate_results": pd.read_csv(base / "integrated_gate_results.csv")
+        if (base / "integrated_gate_results.csv").exists()
+        else pd.DataFrame(),
+        "risk_flags": pd.read_csv(
+            base / "integrated_risk_flags.csv",
+            dtype={"symbol": str},
+        )
+        if (base / "integrated_risk_flags.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -5850,6 +5881,52 @@ def render_sideways_regime_trade_sufficiency_remediation_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_integrated_remediation_revalidation_tab() -> None:
+    st.write(
+        "Load the Step 36 integrated remediation revalidation outputs that "
+        "combine bull and sideways remediation diagnostics."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It does not "
+        "make any trading-ready claim and is not financial advice."
+    )
+    output_dir = st.text_input(
+        "Integrated revalidation output directory",
+        value="outputs/integrated_remediation_revalidation_real_v1",
+        key="integrated_remediation_revalidation_output_dir",
+    )
+    if not st.button(
+        "Load integrated revalidation",
+        key="load_integrated_remediation_revalidation_button",
+        type="primary",
+    ):
+        return
+
+    output = load_integrated_remediation_revalidation_outputs(output_dir)
+    st.subheader("Integrated Remediation Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Regime Remediation Status")
+    st.dataframe(output["regime_status"], width="stretch")
+    st.subheader("Per-Symbol Remediation Risk")
+    st.dataframe(output["per_symbol_risk"], width="stretch")
+    st.subheader("Integrated Gate Results")
+    st.dataframe(output["gate_results"], width="stretch")
+    st.subheader("Integrated Risk Flags")
+    st.dataframe(output["risk_flags"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download integrated revalidation report",
+            data=output["markdown_report"],
+            file_name="integrated_remediation_revalidation_report.md",
+            mime="text/markdown",
+            key="download_integrated_remediation_revalidation_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -5943,6 +6020,7 @@ def main() -> None:
         targeted_remediation_design_tab,
         bull_regime_threshold_remediation_tab,
         sideways_regime_trade_sufficiency_remediation_tab,
+        integrated_remediation_revalidation_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -5973,6 +6051,7 @@ def main() -> None:
             "Targeted Remediation Design",
             "Bull Regime Remediation",
             "Sideways Regime Remediation",
+            "Integrated Remediation Revalidation",
         ]
     )
     with single_tab:
@@ -6068,6 +6147,9 @@ def main() -> None:
 
     with sideways_regime_trade_sufficiency_remediation_tab:
         render_sideways_regime_trade_sufficiency_remediation_tab()
+
+    with integrated_remediation_revalidation_tab:
+        render_integrated_remediation_revalidation_tab()
 
 
 if __name__ == "__main__":

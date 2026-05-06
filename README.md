@@ -44,6 +44,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run model robustness training | `python src/run_batch_model_training.py --symbols 000001,600519 --source demo --start 20240101 --end 20241231 --output-dir outputs/model_robustness_demo --models logistic_regression,random_forest` |
 | Run real P0 robustness workflow | `python src/run_real_p0_robustness.py --symbols 000001,600519,000858,600036,601318 --start 20210101 --end 20241231 --output-dir outputs/model_robustness_real_v2` |
 | Run sideways regime remediation diagnostic | `python src/run_sideways_regime_trade_sufficiency_remediation.py --factor-dir outputs/model_robustness_real_v2/factors --symbols 000001,600519,000858,600036,601318 --recommendations outputs/feature_ablation_real_v1/feature_pruning_recommendations.csv` |
+| Run integrated remediation revalidation | `python src/run_integrated_remediation_revalidation.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --sideways-dir outputs/sideways_regime_trade_sufficiency_remediation_real_v1 --output-dir outputs/integrated_remediation_revalidation_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -94,6 +95,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_real_p0_robustness.py`: Real Baostock workflow for rebuilding P0 factor robustness outputs.
 - `src/sideways_regime_trade_sufficiency_remediation.py`: Sideways-regime trade sufficiency remediation diagnostics for the primary research candidate.
 - `src/run_sideways_regime_trade_sufficiency_remediation.py`: Command-line tool for sideways-regime trade sufficiency remediation.
+- `src/integrated_remediation_revalidation.py`: Integrated bull/sideways remediation revalidation and gate update report.
+- `src/run_integrated_remediation_revalidation.py`: Command-line tool for integrated remediation revalidation.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1308,6 +1311,27 @@ pair is included in the grid.
 
 The dashboard has a `Sideways Regime Remediation` tab for running or loading
 this diagnostic.
+
+## V4 Step 36: Integrated Remediation Revalidation
+
+Step 36 integrates the Step 34 bull remediation and Step 35 sideways remediation
+outputs into one conservative gate update. It does not add data sources, agents,
+features, model logic, or threshold tuning.
+
+Example:
+
+```powershell
+python src/run_integrated_remediation_revalidation.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --sideways-dir outputs/sideways_regime_trade_sufficiency_remediation_real_v1 --validation-gate-dir outputs/candidate_validation_gate_real_v1 --failure-analysis-dir outputs/validation_gate_failure_analysis_real_v1 --output-dir outputs/integrated_remediation_revalidation_real_v1
+```
+
+The report states that no candidate is trading-ready. `canonical_reduced_40`
+remains research-only because bull remediation remains the main blocker.
+Sideways remediation passed configured aggregate research gates, but selected
+per-symbol weaknesses remain. `full` remains baseline only and `keep_core_only`
+remains a low-feature challenger only.
+
+The dashboard has an `Integrated Remediation Revalidation` tab for loading the
+Step 36 output directory.
 
 ## Smoke Tests
 
