@@ -48,6 +48,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run bull failure drilldown | `python src/run_bull_regime_failure_drilldown.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_regime_failure_drilldown_real_v1` |
 | Run bull trade/window diagnostics | `python src/run_bull_trade_window_diagnostics.py --bull-dir outputs/bull_regime_threshold_remediation_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --output-dir outputs/bull_trade_window_diagnostics_real_v1` |
 | Run bull error remediation design | `python src/run_bull_error_pattern_remediation_design.py --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --drilldown-dir outputs/bull_regime_failure_drilldown_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_error_pattern_remediation_design_real_v1` |
+| Run bull prototype design | `python src/run_bull_remediation_prototype_design.py --design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_remediation_prototype_design_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -1400,6 +1401,26 @@ remediation remains unresolved until a later controlled prototype and validation
 step explicitly changes that status.
 
 The dashboard has a `Step 39 Bull Error Design` tab for loading this output
+directory.
+
+## V4 Step 40: Bull Remediation Prototype Design
+
+Step 40 converts the Step 39 remediation design options into controlled
+prototype experiment specifications. It defines hypotheses, metrics, risks,
+guardrails, and future execution sequencing, but it does not execute prototypes
+or implement remediation logic in the trading/backtest pipeline.
+
+Example:
+
+```powershell
+python src/run_bull_remediation_prototype_design.py --design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_remediation_prototype_design_real_v1
+```
+
+`canonical_reduced_40` remains research-only and not trading-ready. Bull
+remediation remains failed until future controlled experiments and validation
+explicitly show otherwise.
+
+The dashboard has a `Step 40 Bull Prototype Design` tab for loading this output
 directory.
 
 ## Smoke Tests

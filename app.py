@@ -4758,6 +4758,34 @@ def load_bull_error_pattern_remediation_design_outputs(output_dir: str) -> dict[
     }
 
 
+def load_bull_remediation_prototype_design_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "bull_remediation_prototype_design_report.md"
+    return {
+        "specs": pd.read_csv(base / "bull_prototype_experiment_specs.csv")
+        if (base / "bull_prototype_experiment_specs.csv").exists()
+        else pd.DataFrame(),
+        "metric_plan": pd.read_csv(base / "bull_prototype_metric_plan.csv")
+        if (base / "bull_prototype_metric_plan.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "bull_prototype_guardrails.csv")
+        if (base / "bull_prototype_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "risk_assessment": pd.read_csv(base / "bull_prototype_risk_assessment.csv")
+        if (base / "bull_prototype_risk_assessment.csv").exists()
+        else pd.DataFrame(),
+        "priority_ranking": pd.read_csv(base / "bull_prototype_priority_ranking.csv")
+        if (base / "bull_prototype_priority_ranking.csv").exists()
+        else pd.DataFrame(),
+        "not_implemented": pd.read_csv(base / "bull_prototype_not_implemented_log.csv")
+        if (base / "bull_prototype_not_implemented_log.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6175,6 +6203,53 @@ def render_bull_error_pattern_remediation_design_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_bull_remediation_prototype_design_tab() -> None:
+    st.write(
+        "Load Step 40 bull remediation prototype design outputs."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It does not "
+        "execute prototypes or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Bull prototype design output directory",
+        value="outputs/bull_remediation_prototype_design_real_v1",
+        key="bull_remediation_prototype_design_output_dir",
+    )
+    if not st.button(
+        "Load bull prototype design",
+        key="load_bull_remediation_prototype_design_button",
+        type="primary",
+    ):
+        return
+
+    output = load_bull_remediation_prototype_design_outputs(output_dir)
+    st.subheader("Prototype Experiment Specs")
+    st.dataframe(output["specs"], width="stretch")
+    st.subheader("Metric Plan")
+    st.dataframe(output["metric_plan"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Risk Assessment")
+    st.dataframe(output["risk_assessment"], width="stretch")
+    st.subheader("Priority Ranking")
+    st.dataframe(output["priority_ranking"], width="stretch")
+    st.subheader("Not Implemented Log")
+    st.dataframe(output["not_implemented"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download bull prototype design report",
+            data=output["markdown_report"],
+            file_name="bull_remediation_prototype_design_report.md",
+            mime="text/markdown",
+            key="download_bull_remediation_prototype_design_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6272,6 +6347,7 @@ def main() -> None:
         bull_regime_failure_drilldown_tab,
         bull_trade_window_diagnostics_tab,
         bull_error_pattern_remediation_design_tab,
+        bull_remediation_prototype_design_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6306,6 +6382,7 @@ def main() -> None:
             "Bull Regime Failure Drilldown",
             "Bull Trade/Window Diagnostics",
             "Step 39 Bull Error Design",
+            "Step 40 Bull Prototype Design",
         ]
     )
     with single_tab:
@@ -6413,6 +6490,9 @@ def main() -> None:
 
     with bull_error_pattern_remediation_design_tab:
         render_bull_error_pattern_remediation_design_tab()
+
+    with bull_remediation_prototype_design_tab:
+        render_bull_remediation_prototype_design_tab()
 
 
 if __name__ == "__main__":

@@ -71,6 +71,8 @@ PY_COMPILE_FILES = [
     "src/run_bull_trade_window_diagnostics.py",
     "src/bull_error_pattern_remediation_design.py",
     "src/run_bull_error_pattern_remediation_design.py",
+    "src/bull_remediation_prototype_design.py",
+    "src/run_bull_remediation_prototype_design.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -286,6 +288,61 @@ COMMAND_CHECKS = [
                 "assert values['trading_ready'] in ['False', False]; "
                 "report=(base/'bull_error_pattern_remediation_design_report.md').read_text(encoding='utf-8'); "
                 "phrases=['does not implement remediation','No threshold, model, factor, data source, or agent was changed','No candidate is trading-ready','V4 Step 40']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_bull_remediation_prototype_design help",
+        ["src/run_bull_remediation_prototype_design.py", "--help"],
+    ),
+    (
+        "bull remediation prototype design import",
+        ["-c", "import src.bull_remediation_prototype_design"],
+    ),
+    (
+        "offline bull remediation prototype design",
+        [
+            "src/run_bull_remediation_prototype_design.py",
+            "--design-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke",
+            "--diagnostics-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/diag",
+            "--integrated-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/integrated",
+            "--output-dir",
+            "outputs/bull_remediation_prototype_design_smoke",
+        ],
+    ),
+    (
+        "offline bull remediation prototype design assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_remediation_prototype_design_smoke'); "
+                "required=['bull_remediation_prototype_design_report.md','bull_prototype_experiment_specs.csv','bull_prototype_metric_plan.csv','bull_prototype_guardrails.csv','bull_prototype_risk_assessment.csv','bull_prototype_execution_plan.csv','bull_prototype_not_implemented_log.csv','bull_prototype_priority_ranking.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "specs=pd.read_csv(base/'bull_prototype_experiment_specs.csv'); "
+                "assert set(specs['implementation_status']) == {'prototype_design_only'}; "
+                "assert set(specs['execution_status']) == {'not_executed'}; "
+                "assert not specs['allowed_in_current_step'].fillna(True).astype(bool).any(); "
+                "assert {'benchmark_lag_reduction_for_601318','negative_trade_cluster_review_for_000858_600519_600036'} <= set(specs['prototype_name']); "
+                "targets=' '.join(specs['target_symbols'].astype(str)); "
+                "assert '601318' in targets and '600519' in targets; "
+                "guardrails=pd.read_csv(base/'bull_prototype_guardrails.csv'); "
+                "required_guardrails={'no_execution_in_step40','no_threshold_change','no_model_retraining','no_feature_engineering_change','no_new_data_sources','no_new_agents','no_trading_ready_upgrade'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "log=pd.read_csv(base/'bull_prototype_not_implemented_log.csv'); "
+                "assert {'prototypes_not_executed','no_trading_ready_claim'} <= set(log['item']); "
+                "metrics=pd.read_csv(base/'bull_prototype_metric_plan.csv'); "
+                "assert {'avg_strategy_vs_benchmark_pct','symbol_level_excess_for_601318','symbol_level_excess_for_600036'} <= set(metrics['metric_name']); "
+                "report=(base/'bull_remediation_prototype_design_report.md').read_text(encoding='utf-8'); "
+                "phrases=['No prototype was executed','No threshold was changed','No candidate is trading-ready','V4 Step 41']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
