@@ -4786,6 +4786,37 @@ def load_bull_remediation_prototype_design_outputs(output_dir: str) -> dict[str,
     }
 
 
+def load_bull_prototype_experiment_harness_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "bull_prototype_experiment_harness_report.md"
+    return {
+        "registry": pd.read_csv(base / "bull_prototype_registry.csv")
+        if (base / "bull_prototype_registry.csv").exists()
+        else pd.DataFrame(),
+        "dry_run_plan": pd.read_csv(base / "bull_prototype_dry_run_plan.csv")
+        if (base / "bull_prototype_dry_run_plan.csv").exists()
+        else pd.DataFrame(),
+        "config_validation": pd.read_csv(base / "bull_prototype_config_validation.csv")
+        if (base / "bull_prototype_config_validation.csv").exists()
+        else pd.DataFrame(),
+        "baseline_requirements": pd.read_csv(base / "bull_prototype_baseline_requirements.csv")
+        if (base / "bull_prototype_baseline_requirements.csv").exists()
+        else pd.DataFrame(),
+        "metric_contract": pd.read_csv(base / "bull_prototype_metric_contract.csv")
+        if (base / "bull_prototype_metric_contract.csv").exists()
+        else pd.DataFrame(),
+        "execution_guardrails": pd.read_csv(base / "bull_prototype_execution_guardrails.csv")
+        if (base / "bull_prototype_execution_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "not_executed": pd.read_csv(base / "bull_prototype_not_executed_log.csv")
+        if (base / "bull_prototype_not_executed_log.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6250,6 +6281,55 @@ def render_bull_remediation_prototype_design_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_bull_prototype_experiment_harness_tab() -> None:
+    st.write(
+        "Load Step 41 bull prototype experiment harness dry-run outputs."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It does not "
+        "execute prototype backtests or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Bull prototype harness output directory",
+        value="outputs/bull_prototype_experiment_harness_real_v1",
+        key="bull_prototype_experiment_harness_output_dir",
+    )
+    if not st.button(
+        "Load bull prototype harness",
+        key="load_bull_prototype_experiment_harness_button",
+        type="primary",
+    ):
+        return
+
+    output = load_bull_prototype_experiment_harness_outputs(output_dir)
+    st.subheader("Prototype Registry")
+    st.dataframe(output["registry"], width="stretch")
+    st.subheader("Dry-Run Plan")
+    st.dataframe(output["dry_run_plan"], width="stretch")
+    st.subheader("Config Validation")
+    st.dataframe(output["config_validation"], width="stretch")
+    st.subheader("Baseline Requirements")
+    st.dataframe(output["baseline_requirements"], width="stretch")
+    st.subheader("Metric Contract")
+    st.dataframe(output["metric_contract"], width="stretch")
+    st.subheader("Execution Guardrails")
+    st.dataframe(output["execution_guardrails"], width="stretch")
+    st.subheader("Not Executed Log")
+    st.dataframe(output["not_executed"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download bull prototype harness report",
+            data=output["markdown_report"],
+            file_name="bull_prototype_experiment_harness_report.md",
+            mime="text/markdown",
+            key="download_bull_prototype_experiment_harness_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6348,6 +6428,7 @@ def main() -> None:
         bull_trade_window_diagnostics_tab,
         bull_error_pattern_remediation_design_tab,
         bull_remediation_prototype_design_tab,
+        bull_prototype_experiment_harness_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6383,6 +6464,7 @@ def main() -> None:
             "Bull Trade/Window Diagnostics",
             "Step 39 Bull Error Design",
             "Step 40 Bull Prototype Design",
+            "Step 41 Bull Prototype Harness",
         ]
     )
     with single_tab:
@@ -6493,6 +6575,9 @@ def main() -> None:
 
     with bull_remediation_prototype_design_tab:
         render_bull_remediation_prototype_design_tab()
+
+    with bull_prototype_experiment_harness_tab:
+        render_bull_prototype_experiment_harness_tab()
 
 
 if __name__ == "__main__":

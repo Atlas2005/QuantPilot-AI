@@ -73,6 +73,8 @@ PY_COMPILE_FILES = [
     "src/run_bull_error_pattern_remediation_design.py",
     "src/bull_remediation_prototype_design.py",
     "src/run_bull_remediation_prototype_design.py",
+    "src/bull_prototype_experiment_harness.py",
+    "src/run_bull_prototype_experiment_harness.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -343,6 +345,64 @@ COMMAND_CHECKS = [
                 "assert {'avg_strategy_vs_benchmark_pct','symbol_level_excess_for_601318','symbol_level_excess_for_600036'} <= set(metrics['metric_name']); "
                 "report=(base/'bull_remediation_prototype_design_report.md').read_text(encoding='utf-8'); "
                 "phrases=['No prototype was executed','No threshold was changed','No candidate is trading-ready','V4 Step 41']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_bull_prototype_experiment_harness help",
+        ["src/run_bull_prototype_experiment_harness.py", "--help"],
+    ),
+    (
+        "bull prototype experiment harness import",
+        ["-c", "import src.bull_prototype_experiment_harness"],
+    ),
+    (
+        "offline bull prototype experiment harness",
+        [
+            "src/run_bull_prototype_experiment_harness.py",
+            "--prototype-design-dir",
+            "outputs/bull_remediation_prototype_design_smoke",
+            "--diagnostics-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/diag",
+            "--integrated-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/integrated",
+            "--output-dir",
+            "outputs/bull_prototype_experiment_harness_smoke",
+        ],
+    ),
+    (
+        "offline bull prototype experiment harness assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_prototype_experiment_harness_smoke'); "
+                "required=['bull_prototype_experiment_harness_report.md','bull_prototype_registry.csv','bull_prototype_dry_run_plan.csv','bull_prototype_config_validation.csv','bull_prototype_baseline_requirements.csv','bull_prototype_metric_contract.csv','bull_prototype_execution_guardrails.csv','bull_prototype_harness_limitations.csv','bull_prototype_not_executed_log.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "registry=pd.read_csv(base/'bull_prototype_registry.csv'); "
+                "assert set(registry['execution_status']) == {'not_executed'}; "
+                "assert not registry['allowed_to_execute_in_step41'].fillna(True).astype(bool).any(); "
+                "targets=' '.join(registry['target_symbols'].astype(str)); "
+                "assert '601318' in targets and '600519' in targets; "
+                "dry=pd.read_csv(base/'bull_prototype_dry_run_plan.csv'); "
+                "assert not dry['would_execute_backtest'].fillna(True).astype(bool).any(); "
+                "assert not dry['would_modify_model'].fillna(True).astype(bool).any(); "
+                "assert not dry['would_modify_features'].fillna(True).astype(bool).any(); "
+                "assert not dry['would_modify_threshold'].fillna(True).astype(bool).any(); "
+                "guardrails=pd.read_csv(base/'bull_prototype_execution_guardrails.csv'); "
+                "required_guardrails={'no_real_backtest_execution_in_step41','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_new_agents','no_trading_ready_upgrade'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "validation=pd.read_csv(base/'bull_prototype_config_validation.csv'); "
+                "assert 'target_symbols_preserved' in set(validation['validation_check']); "
+                "log=pd.read_csv(base/'bull_prototype_not_executed_log.csv'); "
+                "assert {'prototypes_registered_not_executed','no_backtests_run','no_trading_ready_claim'} <= set(log['item']); "
+                "report=(base/'bull_prototype_experiment_harness_report.md').read_text(encoding='utf-8'); "
+                "phrases=['No prototype was executed','No real prototype backtest was run','No new performance claim is made','V4 Step 42']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
