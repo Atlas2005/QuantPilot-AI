@@ -5073,6 +5073,31 @@ def load_semi_auto_order_generator_outputs(output_dir: str) -> dict[str, object]
     }
 
 
+def load_broker_integration_research_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "broker_integration_research_report.md"
+    return {
+        "summary": pd.read_csv(base / "broker_integration_summary.csv")
+        if (base / "broker_integration_summary.csv").exists()
+        else pd.DataFrame(),
+        "modes": pd.read_csv(base / "broker_integration_modes.csv")
+        if (base / "broker_integration_modes.csv").exists()
+        else pd.DataFrame(),
+        "constraints": pd.read_csv(base / "broker_integration_constraints.csv")
+        if (base / "broker_integration_constraints.csv").exists()
+        else pd.DataFrame(),
+        "risks": pd.read_csv(base / "broker_integration_risk_register.csv")
+        if (base / "broker_integration_risk_register.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "broker_integration_guardrails.csv")
+        if (base / "broker_integration_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7044,6 +7069,52 @@ def render_semi_auto_order_generator_tab() -> None:
         st.info("No Markdown ticket text is available.")
 
 
+def render_broker_integration_research_tab() -> None:
+    st.write(
+        "Load V5 Step 8 broker integration research outputs."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not request "
+        "credentials, import broker SDKs, connect to brokers, execute orders, "
+        "or enable live trading."
+    )
+    output_dir = st.text_input(
+        "Broker integration research output directory",
+        value="outputs/broker_integration_research_real_v1",
+        key="broker_integration_research_output_dir",
+    )
+    if not st.button(
+        "Load broker integration research outputs",
+        key="load_broker_integration_research_button",
+        type="primary",
+    ):
+        return
+
+    output = load_broker_integration_research_outputs(output_dir)
+    st.subheader("Broker Integration Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Integration Modes")
+    st.dataframe(output["modes"], width="stretch")
+    st.subheader("Constraints")
+    st.dataframe(output["constraints"], width="stretch")
+    st.subheader("Risk Register")
+    st.dataframe(output["risks"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Research Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download broker integration research report",
+            data=output["markdown_report"],
+            file_name="broker_integration_research_report.md",
+            mime="text/markdown",
+            key="download_broker_integration_research_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7153,6 +7224,7 @@ def main() -> None:
         daily_trading_plan_tab,
         paper_trading_ledger_tab,
         semi_auto_order_generator_tab,
+        broker_integration_research_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7199,6 +7271,7 @@ def main() -> None:
             "V5 Step 5 Daily Plan",
             "V5 Step 6 Paper Ledger",
             "V5 Step 7 Semi-Auto Orders",
+            "V5 Step 8 Broker Research",
         ]
     )
     with single_tab:
@@ -7342,6 +7415,9 @@ def main() -> None:
 
     with semi_auto_order_generator_tab:
         render_semi_auto_order_generator_tab()
+
+    with broker_integration_research_tab:
+        render_broker_integration_research_tab()
 
 
 if __name__ == "__main__":

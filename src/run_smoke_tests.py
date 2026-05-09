@@ -95,6 +95,8 @@ PY_COMPILE_FILES = [
     "src/run_paper_trading_ledger.py",
     "src/semi_auto_order_generator.py",
     "src/run_semi_auto_order_generator.py",
+    "src/broker_integration_research.py",
+    "src/run_broker_integration_research.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1053,6 +1055,70 @@ COMMAND_CHECKS = [
                 "tickets=(base/'broker_neutral_order_tickets.md').read_text(encoding='utf-8'); "
                 "phrases=['Draft Order: DRAFT-BUY-001','Symbol: 600000','Side: BUY','Quantity: 100','Limit Price: 8.0','Estimated Notional: 800.0','Stop Loss: 7.6','Take Profit: 8.8','Max Holding Days: 10','Human Review Required: True','Execution Allowed: False','Broker Connected: False','Trading Ready: False']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in tickets]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_broker_integration_research help",
+        ["src/run_broker_integration_research.py", "--help"],
+    ),
+    (
+        "broker integration research import",
+        ["-c", "import src.broker_integration_research"],
+    ),
+    (
+        "offline broker integration research",
+        [
+            "src/run_broker_integration_research.py",
+            "--input-dir",
+            "outputs/semi_auto_order_generator_smoke",
+            "--output-dir",
+            "outputs/broker_integration_research_smoke",
+        ],
+    ),
+    (
+        "offline broker integration research assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/broker_integration_research_smoke'); "
+                "required=['broker_integration_summary.csv','broker_integration_modes.csv','broker_integration_constraints.csv','broker_integration_risk_register.csv','broker_integration_guardrails.csv','broker_integration_research_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'broker_integration_summary.csv'); "
+                "modes=pd.read_csv(base/'broker_integration_modes.csv'); "
+                "constraints=pd.read_csv(base/'broker_integration_constraints.csv'); "
+                "risks=pd.read_csv(base/'broker_integration_risk_register.csv'); "
+                "guardrails=pd.read_csv(base/'broker_integration_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['input_draft_order_count']) == 1; "
+                "assert int(row['researched_mode_count']) == 5; "
+                "assert int(row['constraint_count']) >= 15; "
+                "assert int(row['high_risk_constraint_count']) >= 8; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['trading_ready_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert row['conclusion'] == 'broker_integration_research_only_no_execution'; "
+                "flag_cols=['broker_connected','execution_allowed','trading_ready','live_trading','real_order_submission']; "
+                "frames={'summary':summary,'modes':modes,'constraints':constraints,'risks':risks}; "
+                "bad_flags=[(name,col) for name,frame in frames.items() for col in flag_cols if col in frame.columns and frame[col].fillna(True).astype(bool).any()]; "
+                "assert not bad_flags, bad_flags; "
+                "required_modes={'manual_review_only','broker_neutral_ticket_export','paper_trading_only','broker_api_research_only','future_human_approved_broker_bridge'}; "
+                "assert required_modes <= set(modes['integration_mode']); "
+                "required_constraints={'account_login_credential_risk','broker_api_availability','region_market_restrictions','two_factor_authentication','trading_permissions','order_type_support','lot_size_compatibility','minimum_cash_capital_constraints','rate_limits','market_hours','quote_latency','failure_handling','audit_logging','manual_confirmation','legal_compliance_limitations'}; "
+                "assert required_constraints <= set(constraints['constraint']); "
+                "assert len(risks) == len(constraints); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_credentials','no_broker_sdk_import','no_broker_connection','no_live_trading','no_order_execution','no_trading_ready_upgrade','broker_research_only','human_review_required','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'broker_integration_research_report.md').read_text(encoding='utf-8'); "
+                "phrases=['does not connect to any broker','does not request or store credentials','does not place orders','does not simulate real broker routing','All outputs preserve broker_connected=False','trading_ready=False']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
         ],

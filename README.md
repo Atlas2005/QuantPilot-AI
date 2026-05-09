@@ -60,6 +60,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V5 daily trading plan | `python src/run_daily_trading_plan.py --output-dir outputs/daily_trading_plan_real_v1` |
 | Run V5 paper trading ledger | `python src/run_paper_trading_ledger.py --output-dir outputs/paper_trading_ledger_real_v1` |
 | Run V5 semi-auto order generator | `python src/run_semi_auto_order_generator.py --output-dir outputs/semi_auto_order_generator_real_v1` |
+| Run V5 broker integration research | `python src/run_broker_integration_research.py --output-dir outputs/broker_integration_research_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -134,6 +135,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_paper_trading_ledger.py`: Command-line tool for the paper trading ledger.
 - `src/semi_auto_order_generator.py`: V5 Step 7 broker-neutral research-only order draft generator.
 - `src/run_semi_auto_order_generator.py`: Command-line tool for the semi-auto order generator.
+- `src/broker_integration_research.py`: V5 Step 8 research-only broker integration constraint analysis.
+- `src/run_broker_integration_research.py`: Command-line tool for broker integration research.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1700,6 +1703,31 @@ trading-ready claims. The project remains educational/research-only and not
 trading-ready.
 
 The dashboard has a `V5 Step 7 Semi-Auto Orders` tab for loading this output
+directory.
+
+## V5 Step 8: Broker Integration Research
+
+V5 Step 8 adds a research-only broker integration constraint layer. It reads the
+V5 Step 7 draft order outputs when available, classifies possible integration
+modes, documents broker constraints, and creates a risk register for future
+human review.
+
+Example:
+
+```powershell
+python src/run_broker_integration_research.py --output-dir outputs/broker_integration_research_real_v1
+```
+
+The step classifies `manual_review_only`, `broker_neutral_ticket_export`,
+`paper_trading_only`, `broker_api_research_only`, and
+`future_human_approved_broker_bridge`. It does not request credentials, import
+broker SDKs, connect to brokers, fetch live market data, place orders, simulate
+real broker routing, create live execution paths, or mark anything
+trading-ready. All outputs preserve `broker_connected=False`,
+`execution_allowed=False`, `live_trading=False`, `real_order_submission=False`,
+and `trading_ready=False`.
+
+The dashboard has a `V5 Step 8 Broker Research` tab for loading this output
 directory.
 
 ## Smoke Tests
