@@ -83,6 +83,8 @@ PY_COMPILE_FILES = [
     "src/run_project_retrospective_v1_v4.py",
     "src/capital_constraint_engine.py",
     "src/run_capital_constraint_engine.py",
+    "src/tradable_universe_filter.py",
+    "src/run_tradable_universe_filter.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -652,6 +654,69 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
                 "report=(base/'capital_constraint_report.md').read_text(encoding='utf-8'); "
                 "phrases=['This is educational/research tooling only','No broker execution is performed','The project remains not trading-ready','V5 Step 1 checks candidate buy-order capital feasibility only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_tradable_universe_filter help",
+        ["src/run_tradable_universe_filter.py", "--help"],
+    ),
+    (
+        "tradable universe filter import",
+        ["-c", "import src.tradable_universe_filter"],
+    ),
+    (
+        "offline tradable universe filter",
+        [
+            "src/run_tradable_universe_filter.py",
+            "--cash",
+            "1000",
+            "--output-dir",
+            "outputs/tradable_universe_filter_smoke",
+        ],
+    ),
+    (
+        "offline tradable universe filter assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/tradable_universe_filter_smoke'); "
+                "required=['tradable_universe.csv','excluded_universe.csv','universe_filter_summary.csv','universe_filter_guardrails.csv','universe_filter_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "tradable=pd.read_csv(base/'tradable_universe.csv', dtype={'symbol': str}); "
+                "excluded=pd.read_csv(base/'excluded_universe.csv', dtype={'symbol': str}); "
+                "summary=pd.read_csv(base/'universe_filter_summary.csv'); "
+                "assert '600000' in set(tradable['symbol']); "
+                "assert '688001' in set(tradable['symbol']); "
+                "star=tradable[tradable['symbol']=='688001'].iloc[0]; "
+                "assert int(star['lot_size']) == 200; "
+                "assert star['lot_rule']=='star_or_kcb_min_lot'; "
+                "assert float(star['minimum_required_cash']) == 800.0; "
+                "main=tradable[tradable['symbol']=='600000'].iloc[0]; "
+                "assert float(main['minimum_required_cash']) == 800.0; "
+                "reasons=dict(zip(excluded['symbol'], excluded['exclusion_reason'])); "
+                "row_600519=excluded[excluded['symbol']=='600519'].iloc[0]; "
+                "assert float(row_600519['minimum_required_cash']) == 170000.0; "
+                "assert 'insufficient_cash_for_min_lot' in reasons['600519']; "
+                "assert 'st_or_star_st_flag' in reasons['600001']; "
+                "assert 'suspended' in reasons['600002']; "
+                "assert 'invalid_or_missing_price' in reasons['000001']; "
+                "assert 'liquidity_below_min_turnover' in reasons['600003']; "
+                "assert not summary['trading_ready'].fillna(True).astype(bool).any(); "
+                "checked=['tradable_universe.csv','excluded_universe.csv']; "
+                "bad=[name for name in checked if 'trading_ready' in pd.read_csv(base/name).columns and pd.read_csv(base/name)['trading_ready'].fillna(True).astype(bool).any()]; "
+                "assert not bad, bad; "
+                "guardrails=pd.read_csv(base/'universe_filter_guardrails.csv'); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_integration','no_live_trading','no_trading_ready_upgrade','universe_filter_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'universe_filter_report.md').read_text(encoding='utf-8'); "
+                "phrases=['V5 Step 2 filters candidate universe eligibility','No broker execution is performed','The project remains not trading-ready','This is educational/research tooling only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

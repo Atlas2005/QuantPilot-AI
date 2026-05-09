@@ -4935,6 +4935,28 @@ def load_capital_constraint_engine_outputs(output_dir: str) -> dict[str, object]
     }
 
 
+def load_tradable_universe_filter_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "universe_filter_report.md"
+    return {
+        "tradable": pd.read_csv(base / "tradable_universe.csv", dtype={"symbol": str})
+        if (base / "tradable_universe.csv").exists()
+        else pd.DataFrame(),
+        "excluded": pd.read_csv(base / "excluded_universe.csv", dtype={"symbol": str})
+        if (base / "excluded_universe.csv").exists()
+        else pd.DataFrame(),
+        "summary": pd.read_csv(base / "universe_filter_summary.csv")
+        if (base / "universe_filter_summary.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "universe_filter_guardrails.csv")
+        if (base / "universe_filter_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6638,6 +6660,50 @@ def render_capital_constraint_engine_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_tradable_universe_filter_tab() -> None:
+    st.write(
+        "Load V5 Step 2 tradable universe eligibility outputs."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not perform "
+        "position sizing, generate orders, connect to a broker, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Tradable universe output directory",
+        value="outputs/tradable_universe_filter_real_v1",
+        key="tradable_universe_filter_output_dir",
+    )
+    if not st.button(
+        "Load tradable universe outputs",
+        key="load_tradable_universe_filter_button",
+        type="primary",
+    ):
+        return
+
+    output = load_tradable_universe_filter_outputs(output_dir)
+    st.subheader("Universe Filter Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Tradable Universe")
+    st.dataframe(output["tradable"], width="stretch")
+    st.subheader("Excluded Universe")
+    st.dataframe(output["excluded"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download universe filter report",
+            data=output["markdown_report"],
+            file_name="universe_filter_report.md",
+            mime="text/markdown",
+            key="download_universe_filter_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6741,6 +6807,7 @@ def main() -> None:
         bull_prototype_result_review_tab,
         project_retrospective_v1_v4_tab,
         capital_constraint_engine_tab,
+        tradable_universe_filter_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6781,6 +6848,7 @@ def main() -> None:
             "Step 43 V4 Closure Review",
             "Project Retrospective V1-V4",
             "V5 Step 1 Capital Constraints",
+            "V5 Step 2 Tradable Universe",
         ]
     )
     with single_tab:
@@ -6906,6 +6974,9 @@ def main() -> None:
 
     with capital_constraint_engine_tab:
         render_capital_constraint_engine_tab()
+
+    with tradable_universe_filter_tab:
+        render_tradable_universe_filter_tab()
 
 
 if __name__ == "__main__":

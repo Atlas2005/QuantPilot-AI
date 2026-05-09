@@ -54,6 +54,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run bull prototype result review | `python src/run_bull_prototype_result_review.py --controlled-backtest-dir outputs/bull_prototype_controlled_backtest_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --error-design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --output-dir outputs/bull_prototype_result_review_real_v1` |
 | Generate V1-V4 project retrospective | `python src/run_project_retrospective_v1_v4.py --project-root . --output-dir outputs/project_retrospective_v1_v4_real_v1` |
 | Run V5 capital constraint engine | `python src/run_capital_constraint_engine.py --cash 1000 --output-dir outputs/capital_constraint_engine_real_v1` |
+| Run V5 tradable universe filter | `python src/run_tradable_universe_filter.py --cash 1000 --output-dir outputs/tradable_universe_filter_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -116,6 +117,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_project_retrospective_v1_v4.py`: Command-line tool for the V1-V4 retrospective.
 - `src/capital_constraint_engine.py`: V5 Step 1 capital feasibility checks for candidate buy orders.
 - `src/run_capital_constraint_engine.py`: Command-line tool for the capital constraint engine.
+- `src/tradable_universe_filter.py`: V5 Step 2 tradable universe eligibility filters.
+- `src/run_tradable_universe_filter.py`: Command-line tool for the tradable universe filter.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1536,6 +1539,30 @@ does not connect to a broker and does not perform live trading. The project
 remains educational/research-only and not trading-ready.
 
 The dashboard has a `V5 Step 1 Capital Constraints` tab for loading this output
+directory.
+
+## V5 Step 2: Tradable Universe Filter
+
+V5 Step 2 adds a research-only tradable universe filter before position sizing
+or order generation. It checks candidate rows for valid six-digit symbols,
+valid prices, BUY side, supported board, ST flags, suspension flags,
+board-specific minimum lot rules, minimum-lot affordability, and optional
+turnover/liquidity thresholds.
+
+Example:
+
+```powershell
+python src/run_tradable_universe_filter.py --cash 1000 --output-dir outputs/tradable_universe_filter_real_v1
+```
+
+If no candidate CSV is provided, the runner uses deterministic educational
+examples that include affordable, unaffordable, STAR/KCB, ST, suspended,
+invalid-price, and low-liquidity cases. This step does not solve portfolio
+allocation, generate real orders, connect to a broker, perform live trading, or
+change trading-readiness status. The project remains educational/research-only
+and not trading-ready.
+
+The dashboard has a `V5 Step 2 Tradable Universe` tab for loading this output
 directory.
 
 ## Smoke Tests
