@@ -99,6 +99,8 @@ PY_COMPILE_FILES = [
     "src/run_broker_integration_research.py",
     "src/monitoring_reporting_layer.py",
     "src/run_monitoring_reporting_layer.py",
+    "src/capital_aware_infrastructure_review.py",
+    "src/run_capital_aware_infrastructure_review.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1192,6 +1194,95 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
                 "report=(base/'monitoring_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Monitoring / Reporting Layer','does not run backtests','fetch market data','trading_ready=False']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_capital_aware_infrastructure_review help",
+        ["src/run_capital_aware_infrastructure_review.py", "--help"],
+    ),
+    (
+        "capital aware infrastructure review import",
+        ["-c", "import src.capital_aware_infrastructure_review"],
+    ),
+    (
+        "offline capital aware infrastructure review",
+        [
+            "src/run_capital_aware_infrastructure_review.py",
+            "--capital-dir",
+            "outputs/capital_constraint_engine_smoke",
+            "--universe-dir",
+            "outputs/tradable_universe_filter_smoke",
+            "--position-dir",
+            "outputs/position_sizing_engine_smoke",
+            "--exit-dir",
+            "outputs/exit_engine_smoke",
+            "--daily-plan-dir",
+            "outputs/daily_trading_plan_smoke",
+            "--paper-ledger-dir",
+            "outputs/paper_trading_ledger_smoke",
+            "--semi-auto-dir",
+            "outputs/semi_auto_order_generator_smoke",
+            "--broker-research-dir",
+            "outputs/broker_integration_research_smoke",
+            "--monitoring-dir",
+            "outputs/monitoring_reporting_layer_smoke",
+            "--output-dir",
+            "outputs/capital_aware_infrastructure_review_smoke",
+        ],
+    ),
+    (
+        "offline capital aware infrastructure review assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/capital_aware_infrastructure_review_smoke'); "
+                "required=['v5_infrastructure_closure_summary.csv','v5_step_capability_matrix.csv','v5_guardrail_audit.csv','v5_limitations_register.csv','v5_readiness_blockers.csv','v5_next_phase_recommendations.csv','v5_capital_aware_closure_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'v5_infrastructure_closure_summary.csv'); "
+                "matrix=pd.read_csv(base/'v5_step_capability_matrix.csv'); "
+                "guardrails=pd.read_csv(base/'v5_guardrail_audit.csv'); "
+                "limitations=pd.read_csv(base/'v5_limitations_register.csv'); "
+                "blockers=pd.read_csv(base/'v5_readiness_blockers.csv'); "
+                "recs=pd.read_csv(base/'v5_next_phase_recommendations.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['reviewed_step_count']) == 9; "
+                "assert int(row['completed_step_count']) == 9; "
+                "assert int(row['missing_step_count']) == 0; "
+                "assert int(row['trading_ready_true_count']) == 0; "
+                "assert int(row['execution_allowed_true_count']) == 0; "
+                "assert int(row['broker_connected_true_count']) == 0; "
+                "assert int(row['live_trading_true_count']) == 0; "
+                "assert int(row['real_order_submission_true_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['final_v5_status'] == 'capital_aware_infrastructure_closed_research_only'; "
+                "assert str(row['recommended_next_phase']).startswith('V6'); "
+                "assert len(matrix) == 9; "
+                "required_capabilities={'capital feasibility','tradable universe filtering','position sizing','exit planning','daily plan generation','paper ledger','semi-auto draft order generation','broker integration research','monitoring/reporting'}; "
+                "assert required_capabilities <= set(matrix['capability_added']); "
+                "flag_cols=['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "frames={'summary':summary,'matrix':matrix,'guardrails':guardrails,'blockers':blockers}; "
+                "bad_flags=[(name,col) for name,frame in frames.items() for col in flag_cols if col in frame.columns and frame[col].fillna(True).astype(bool).any()]; "
+                "assert not bad_flags, bad_flags; "
+                "required_limitations={'no_validated_profitable_strategy','bull_remediation_unresolved_from_v4','no_live_data_pipeline','no_broker_execution','no_automated_order_routing','no_slippage_commission_tax_realistic_execution_model','no_portfolio_optimizer','no_risk_adjusted_production_validation','no_paper_trading_over_real_time','no_monitoring_daemon','no_autonomous_self_research_agent','no_trading_ready_certification'}; "
+                "assert required_limitations <= set(limitations['limitation']); "
+                "required_blockers={'no_profitable_validated_candidate','no_robust_out_of_sample_live_or_paper_evidence','no_broker_sandbox_or_live_integration','no_compliance_risk_approval_layer','no_production_monitoring','no_kill_switch','no_real_time_capital_account_reconciliation'}; "
+                "assert required_blockers <= set(blockers['blocker']); "
+                "required_recs={'V6 Step 1','V6 Step 2','V6 Step 3','V6 Step 4','V6 Step 5'}; "
+                "assert required_recs <= set(recs['phase_step']); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_model_retraining','no_broker_connection','no_live_trading','no_real_order_submission','no_order_execution','no_trading_ready_upgrade','review_only_closure'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "confirmed_zero={'trading_ready_true_count_zero','execution_allowed_true_count_zero','broker_connected_true_count_zero','live_trading_true_count_zero','real_order_submission_true_count_zero'}; "
+                "assert confirmed_zero <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(confirmed_zero),'status']) == {'confirmed'}; "
+                "report=(base/'v5_capital_aware_closure_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Capital-Aware Infrastructure Review / Closure','review-only closure layer','does not add trading capability','capital_aware_infrastructure_closed_research_only','V6 validation_and_simulation_hardening']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

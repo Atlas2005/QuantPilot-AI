@@ -5120,6 +5120,34 @@ def load_monitoring_reporting_layer_outputs(output_dir: str) -> dict[str, object
     }
 
 
+def load_capital_aware_infrastructure_review_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "v5_capital_aware_closure_report.md"
+    return {
+        "summary": pd.read_csv(base / "v5_infrastructure_closure_summary.csv")
+        if (base / "v5_infrastructure_closure_summary.csv").exists()
+        else pd.DataFrame(),
+        "capability_matrix": pd.read_csv(base / "v5_step_capability_matrix.csv")
+        if (base / "v5_step_capability_matrix.csv").exists()
+        else pd.DataFrame(),
+        "guardrail_audit": pd.read_csv(base / "v5_guardrail_audit.csv")
+        if (base / "v5_guardrail_audit.csv").exists()
+        else pd.DataFrame(),
+        "limitations": pd.read_csv(base / "v5_limitations_register.csv")
+        if (base / "v5_limitations_register.csv").exists()
+        else pd.DataFrame(),
+        "blockers": pd.read_csv(base / "v5_readiness_blockers.csv")
+        if (base / "v5_readiness_blockers.csv").exists()
+        else pd.DataFrame(),
+        "recommendations": pd.read_csv(base / "v5_next_phase_recommendations.csv")
+        if (base / "v5_next_phase_recommendations.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7181,6 +7209,54 @@ def render_monitoring_reporting_layer_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_capital_aware_infrastructure_review_tab() -> None:
+    st.write(
+        "Load V5 Step 10 review-only capital-aware infrastructure closure outputs."
+    )
+    st.warning(
+        "This panel reads the Step 10 closure report only. It does not run "
+        "backtests, fetch market data, train models, change thresholds, "
+        "connect to brokers, submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Capital-aware infrastructure review output directory",
+        value="outputs/capital_aware_infrastructure_review_real_v1",
+        key="capital_aware_infrastructure_review_output_dir",
+    )
+    if not st.button(
+        "Load capital-aware closure outputs",
+        key="load_capital_aware_infrastructure_review_button",
+        type="primary",
+    ):
+        return
+
+    output = load_capital_aware_infrastructure_review_outputs(output_dir)
+    st.subheader("Closure Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Capability Matrix")
+    st.dataframe(output["capability_matrix"], width="stretch")
+    st.subheader("Guardrail Audit")
+    st.dataframe(output["guardrail_audit"], width="stretch")
+    st.subheader("Limitations Register")
+    st.dataframe(output["limitations"], width="stretch")
+    st.subheader("Readiness Blockers")
+    st.dataframe(output["blockers"], width="stretch")
+    st.subheader("Next Phase Recommendations")
+    st.dataframe(output["recommendations"], width="stretch")
+    st.subheader("Closure Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download V5 closure report",
+            data=output["markdown_report"],
+            file_name="v5_capital_aware_closure_report.md",
+            mime="text/markdown",
+            key="download_capital_aware_infrastructure_review_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7292,6 +7368,7 @@ def main() -> None:
         semi_auto_order_generator_tab,
         broker_integration_research_tab,
         monitoring_reporting_layer_tab,
+        capital_aware_infrastructure_review_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7340,6 +7417,7 @@ def main() -> None:
             "V5 Step 7 Semi-Auto Orders",
             "V5 Step 8 Broker Research",
             "V5 Step 9 Monitoring",
+            "V5 Step 10 Closure",
         ]
     )
     with single_tab:
@@ -7489,6 +7567,9 @@ def main() -> None:
 
     with monitoring_reporting_layer_tab:
         render_monitoring_reporting_layer_tab()
+
+    with capital_aware_infrastructure_review_tab:
+        render_capital_aware_infrastructure_review_tab()
 
 
 if __name__ == "__main__":

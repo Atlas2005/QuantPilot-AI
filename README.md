@@ -62,6 +62,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V5 semi-auto order generator | `python src/run_semi_auto_order_generator.py --output-dir outputs/semi_auto_order_generator_real_v1` |
 | Run V5 broker integration research | `python src/run_broker_integration_research.py --output-dir outputs/broker_integration_research_real_v1` |
 | Run V5 monitoring/reporting layer | `python src/run_monitoring_reporting_layer.py --output-dir outputs/monitoring_reporting_layer_real_v1` |
+| Run V5 capital-aware infrastructure closure | `python src/run_capital_aware_infrastructure_review.py --output-dir outputs/capital_aware_infrastructure_review_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -140,6 +141,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_broker_integration_research.py`: Command-line tool for broker integration research.
 - `src/monitoring_reporting_layer.py`: V5 Step 9 research-only monitoring/reporting rollup.
 - `src/run_monitoring_reporting_layer.py`: Command-line tool for the monitoring/reporting layer.
+- `src/capital_aware_infrastructure_review.py`: V5 Step 10 review-only capital-aware infrastructure closure.
+- `src/run_capital_aware_infrastructure_review.py`: Command-line tool for the V5 Step 10 closure review.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1755,6 +1758,32 @@ generate real orders, submit orders, or mark anything trading-ready.
 
 The dashboard has a `V5 Step 9 Monitoring` tab for loading this output
 directory.
+
+## V5 Step 10: Capital-Aware Infrastructure Review / Closure
+
+V5 Step 10 closes the V5 capital-aware infrastructure phase as a review-only
+layer. It reads existing local V5 Step 1-9 outputs and produces a conservative
+closure summary, capability matrix, guardrail audit, limitations register,
+readiness blockers, next-phase recommendations, and Markdown closure report.
+
+Example:
+
+```powershell
+python src/run_capital_aware_infrastructure_review.py --output-dir outputs/capital_aware_infrastructure_review_real_v1
+```
+
+Generated files include `v5_infrastructure_closure_summary.csv`,
+`v5_step_capability_matrix.csv`, `v5_guardrail_audit.csv`,
+`v5_limitations_register.csv`, `v5_readiness_blockers.csv`,
+`v5_next_phase_recommendations.csv`, `v5_capital_aware_closure_report.md`, and
+`run_config.json`. This step does not run backtests, fetch market data, change
+thresholds, retrain models, change features, add data sources, import broker
+SDKs, request credentials, connect to brokers, submit orders, enable live
+trading, or mark anything trading-ready. The expected closure status is
+`capital_aware_infrastructure_closed_research_only`, with V6 validation and
+simulation hardening recommended as future work.
+
+The dashboard has a `V5 Step 10 Closure` tab for loading this output directory.
 
 ## Smoke Tests
 
