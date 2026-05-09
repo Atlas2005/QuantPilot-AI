@@ -77,6 +77,8 @@ PY_COMPILE_FILES = [
     "src/run_bull_prototype_experiment_harness.py",
     "src/bull_prototype_controlled_backtest.py",
     "src/run_bull_prototype_controlled_backtest.py",
+    "src/bull_prototype_result_review.py",
+    "src/run_bull_prototype_result_review.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -473,6 +475,69 @@ COMMAND_CHECKS = [
                 "assert symbols.empty or symbols['symbol'].astype(str).str.len().ge(6).all(); "
                 "report=(base/'bull_prototype_controlled_backtest_report.md').read_text(encoding='utf-8'); "
                 "phrases=['No candidate is trading-ready','No model was retrained','0.65 / 0.50 threshold remains unchanged','V4 Step 43','Best diagnostic candidate by average excess']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_bull_prototype_result_review help",
+        ["src/run_bull_prototype_result_review.py", "--help"],
+    ),
+    (
+        "bull prototype result review import",
+        ["-c", "import src.bull_prototype_result_review"],
+    ),
+    (
+        "offline bull prototype result review",
+        [
+            "src/run_bull_prototype_result_review.py",
+            "--controlled-backtest-dir",
+            "outputs/bull_prototype_controlled_backtest_smoke",
+            "--integrated-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/integrated",
+            "--error-design-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke",
+            "--diagnostics-dir",
+            "outputs/bull_error_pattern_remediation_design_smoke_inputs/diag",
+            "--output-dir",
+            "outputs/bull_prototype_result_review_smoke",
+        ],
+    ),
+    (
+        "offline bull prototype result review assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import json; "
+                "import pandas as pd; "
+                "base=Path('outputs/bull_prototype_result_review_smoke'); "
+                "required=['bull_prototype_result_review_report.md','bull_prototype_review_summary.csv','bull_candidate_selection.csv','bull_unresolved_blockers.csv','bull_v4_closure_status.csv','bull_transition_to_v5_recommendation.csv','bull_result_review_guardrails.csv','bull_result_review_limitations.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'bull_prototype_review_summary.csv'); "
+                "assert not summary.empty; "
+                "assert not summary['trading_ready'].fillna(True).astype(bool).any(); "
+                "summary['delta_avg_excess_pct']=pd.to_numeric(summary['delta_avg_excess_pct'], errors='coerce'); "
+                "bad=summary[summary['delta_avg_excess_pct'].le(0)]; "
+                "assert not bad['reviewed_can_advance_to_further_validation'].fillna(True).astype(bool).any(); "
+                "selection=pd.read_csv(base/'bull_candidate_selection.csv'); "
+                "assert selection.iloc[0]['selected_candidate']=='none'; "
+                "assert selection.iloc[0]['selection_status']=='no_candidate_selected'; "
+                "assert not bool(selection.iloc[0]['trading_ready']); "
+                "guardrails=pd.read_csv(base/'bull_result_review_guardrails.csv'); "
+                "required_guardrails={'no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_new_agents','no_trading_ready_upgrade'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "v5=pd.read_csv(base/'bull_transition_to_v5_recommendation.csv'); "
+                "assert v5.iloc[0]['recommended_step']=='V5 Step 1'; "
+                "assert v5.iloc[0]['step_name']=='Capital Constraint Engine'; "
+                "config=json.loads((base/'run_config.json').read_text(encoding='utf-8')); "
+                "symbols=config.get('step42_symbol_comparison_symbols', []); "
+                "assert not symbols or all(len(str(symbol)) >= 6 for symbol in symbols); "
+                "report=(base/'bull_prototype_result_review_report.md').read_text(encoding='utf-8'); "
+                "phrases=['V4 can close as a research-diagnostic validation cycle','No candidate is selected for further validation from Step 42','canonical_reduced_40 remains research-only','V5 Step 1 Capital Constraint Engine']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

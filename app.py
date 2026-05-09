@@ -4848,6 +4848,37 @@ def load_bull_prototype_controlled_backtest_outputs(output_dir: str) -> dict[str
     }
 
 
+def load_bull_prototype_result_review_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "bull_prototype_result_review_report.md"
+    return {
+        "review_summary": pd.read_csv(base / "bull_prototype_review_summary.csv")
+        if (base / "bull_prototype_review_summary.csv").exists()
+        else pd.DataFrame(),
+        "candidate_selection": pd.read_csv(base / "bull_candidate_selection.csv")
+        if (base / "bull_candidate_selection.csv").exists()
+        else pd.DataFrame(),
+        "unresolved_blockers": pd.read_csv(base / "bull_unresolved_blockers.csv")
+        if (base / "bull_unresolved_blockers.csv").exists()
+        else pd.DataFrame(),
+        "v4_closure_status": pd.read_csv(base / "bull_v4_closure_status.csv")
+        if (base / "bull_v4_closure_status.csv").exists()
+        else pd.DataFrame(),
+        "transition_to_v5": pd.read_csv(base / "bull_transition_to_v5_recommendation.csv")
+        if (base / "bull_transition_to_v5_recommendation.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "bull_result_review_guardrails.csv")
+        if (base / "bull_result_review_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "limitations": pd.read_csv(base / "bull_result_review_limitations.csv")
+        if (base / "bull_result_review_limitations.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6408,6 +6439,55 @@ def render_bull_prototype_controlled_backtest_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_bull_prototype_result_review_tab() -> None:
+    st.write(
+        "Load Step 43 bull prototype result review and V4 closure outputs."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It is a review "
+        "and closure view, not a trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Bull prototype result review output directory",
+        value="outputs/bull_prototype_result_review_real_v1",
+        key="bull_prototype_result_review_output_dir",
+    )
+    if not st.button(
+        "Load bull prototype result review",
+        key="load_bull_prototype_result_review_button",
+        type="primary",
+    ):
+        return
+
+    output = load_bull_prototype_result_review_outputs(output_dir)
+    st.subheader("Prototype Review Summary")
+    st.dataframe(output["review_summary"], width="stretch")
+    st.subheader("Candidate Selection")
+    st.dataframe(output["candidate_selection"], width="stretch")
+    st.subheader("Unresolved Bull Blockers")
+    st.dataframe(output["unresolved_blockers"], width="stretch")
+    st.subheader("V4 Closure Status")
+    st.dataframe(output["v4_closure_status"], width="stretch")
+    st.subheader("Transition to V5 Recommendation")
+    st.dataframe(output["transition_to_v5"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Limitations")
+    st.dataframe(output["limitations"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download bull prototype result review report",
+            data=output["markdown_report"],
+            file_name="bull_prototype_result_review_report.md",
+            mime="text/markdown",
+            key="download_bull_prototype_result_review_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6508,6 +6588,7 @@ def main() -> None:
         bull_remediation_prototype_design_tab,
         bull_prototype_experiment_harness_tab,
         bull_prototype_controlled_backtest_tab,
+        bull_prototype_result_review_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6545,6 +6626,7 @@ def main() -> None:
             "Step 40 Bull Prototype Design",
             "Step 41 Bull Prototype Harness",
             "Step 42 Bull Controlled Backtest",
+            "Step 43 V4 Closure Review",
         ]
     )
     with single_tab:
@@ -6661,6 +6743,9 @@ def main() -> None:
 
     with bull_prototype_controlled_backtest_tab:
         render_bull_prototype_controlled_backtest_tab()
+
+    with bull_prototype_result_review_tab:
+        render_bull_prototype_result_review_tab()
 
 
 if __name__ == "__main__":

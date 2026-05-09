@@ -51,6 +51,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run bull prototype design | `python src/run_bull_remediation_prototype_design.py --design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_remediation_prototype_design_real_v1` |
 | Run bull prototype harness | `python src/run_bull_prototype_experiment_harness.py --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_experiment_harness_real_v1` |
 | Run bull controlled prototype simulations | `python src/run_bull_prototype_controlled_backtest.py --harness-dir outputs/bull_prototype_experiment_harness_real_v1 --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_controlled_backtest_real_v1` |
+| Run bull prototype result review | `python src/run_bull_prototype_result_review.py --controlled-backtest-dir outputs/bull_prototype_controlled_backtest_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --error-design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --output-dir outputs/bull_prototype_result_review_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -107,6 +108,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_bull_regime_failure_drilldown.py`: Command-line tool for bull-regime failure drilldown.
 - `src/bull_trade_window_diagnostics.py`: Bull trade/window diagnostics for the selected Step 34 bull threshold.
 - `src/run_bull_trade_window_diagnostics.py`: Command-line tool for bull trade/window diagnostics.
+- `src/bull_prototype_result_review.py`: Step 43 conservative review and V4 closure report for Step 42 bull prototype results.
+- `src/run_bull_prototype_result_review.py`: Command-line tool for Step 43 bull prototype result review.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1465,6 +1468,26 @@ No trading-ready upgrade is made.
 
 The dashboard has a `Step 42 Bull Controlled Backtest` tab for loading this
 output directory.
+
+## V4 Step 43: Bull Prototype Result Review and V4 Closure
+
+Step 43 reviews the Step 42 controlled prototype results and closes V4 as a
+research-diagnostic cycle. It does not run new experiments, change thresholds,
+retrain models, change features, add data sources, or add agents.
+
+Example:
+
+```powershell
+python src/run_bull_prototype_result_review.py --controlled-backtest-dir outputs/bull_prototype_controlled_backtest_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --error-design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --output-dir outputs/bull_prototype_result_review_real_v1
+```
+
+No Step 42 prototype is selected for further validation, and no trading-ready
+upgrade is made. `canonical_reduced_40` remains research-only, bull remediation
+remains unresolved, and the recommended next phase is V5 capital-aware trading
+utility infrastructure starting with V5 Step 1 Capital Constraint Engine.
+
+The dashboard has a `Step 43 V4 Closure Review` tab for loading this output
+directory.
 
 ## Smoke Tests
 
