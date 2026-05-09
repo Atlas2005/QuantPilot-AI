@@ -97,6 +97,8 @@ PY_COMPILE_FILES = [
     "src/run_semi_auto_order_generator.py",
     "src/broker_integration_research.py",
     "src/run_broker_integration_research.py",
+    "src/monitoring_reporting_layer.py",
+    "src/run_monitoring_reporting_layer.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1118,6 +1120,78 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
                 "report=(base/'broker_integration_research_report.md').read_text(encoding='utf-8'); "
                 "phrases=['does not connect to any broker','does not request or store credentials','does not place orders','does not simulate real broker routing','All outputs preserve broker_connected=False','trading_ready=False']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_monitoring_reporting_layer help",
+        ["src/run_monitoring_reporting_layer.py", "--help"],
+    ),
+    (
+        "monitoring reporting layer import",
+        ["-c", "import src.monitoring_reporting_layer"],
+    ),
+    (
+        "offline monitoring reporting layer",
+        [
+            "src/run_monitoring_reporting_layer.py",
+            "--capital-dir",
+            "outputs/capital_constraint_engine_smoke",
+            "--universe-dir",
+            "outputs/tradable_universe_filter_smoke",
+            "--position-dir",
+            "outputs/position_sizing_engine_smoke",
+            "--exit-dir",
+            "outputs/exit_engine_smoke",
+            "--daily-plan-dir",
+            "outputs/daily_trading_plan_smoke",
+            "--paper-ledger-dir",
+            "outputs/paper_trading_ledger_smoke",
+            "--semi-auto-dir",
+            "outputs/semi_auto_order_generator_smoke",
+            "--broker-research-dir",
+            "outputs/broker_integration_research_smoke",
+            "--output-dir",
+            "outputs/monitoring_reporting_layer_smoke",
+        ],
+    ),
+    (
+        "offline monitoring reporting layer assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/monitoring_reporting_layer_smoke'); "
+                "required=['monitoring_summary.csv','monitoring_status_dashboard.csv','monitoring_alerts.csv','monitoring_guardrails.csv','monitoring_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'monitoring_summary.csv'); "
+                "dashboard=pd.read_csv(base/'monitoring_status_dashboard.csv'); "
+                "alerts=pd.read_csv(base/'monitoring_alerts.csv'); "
+                "guardrails=pd.read_csv(base/'monitoring_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['monitored_step_count']) == 8; "
+                "assert int(row['dashboard_row_count']) >= 30; "
+                "assert int(row['blocking_alert_count']) == 0; "
+                "assert int(row['warning_alert_count']) >= 2; "
+                "assert int(row['trading_ready_true_count']) == 0; "
+                "assert int(row['execution_allowed_true_count']) == 0; "
+                "assert int(row['broker_connected_true_count']) == 0; "
+                "assert int(row['live_trading_true_count']) == 0; "
+                "assert int(row['real_order_submission_true_count']) == 0; "
+                "assert row['conclusion'] == 'monitoring_reporting_only_no_execution'; "
+                "warning_types=set(alerts.loc[alerts['severity']=='warning','alert_type']); "
+                "assert {'approved_exceeds_available_cash','approved_exceeds_usable_cash'} <= warning_types; "
+                "assert not dashboard[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "assert not alerts[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_credentials','no_broker_sdk_import','no_broker_connection','no_live_trading','no_order_execution','no_trading_ready_upgrade','monitoring_reporting_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'monitoring_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Monitoring / Reporting Layer','does not run backtests','fetch market data','trading_ready=False']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

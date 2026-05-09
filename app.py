@@ -5098,6 +5098,28 @@ def load_broker_integration_research_outputs(output_dir: str) -> dict[str, objec
     }
 
 
+def load_monitoring_reporting_layer_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "monitoring_report.md"
+    return {
+        "summary": pd.read_csv(base / "monitoring_summary.csv")
+        if (base / "monitoring_summary.csv").exists()
+        else pd.DataFrame(),
+        "dashboard": pd.read_csv(base / "monitoring_status_dashboard.csv")
+        if (base / "monitoring_status_dashboard.csv").exists()
+        else pd.DataFrame(),
+        "alerts": pd.read_csv(base / "monitoring_alerts.csv")
+        if (base / "monitoring_alerts.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "monitoring_guardrails.csv")
+        if (base / "monitoring_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7115,6 +7137,50 @@ def render_broker_integration_research_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_monitoring_reporting_layer_tab() -> None:
+    st.write(
+        "Load V5 Step 9 research-only monitoring/reporting outputs."
+    )
+    st.warning(
+        "This panel reads existing local V5 outputs only. It does not run "
+        "backtests, fetch market data, connect to brokers, submit orders, or "
+        "make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Monitoring/reporting output directory",
+        value="outputs/monitoring_reporting_layer_real_v1",
+        key="monitoring_reporting_layer_output_dir",
+    )
+    if not st.button(
+        "Load monitoring/reporting outputs",
+        key="load_monitoring_reporting_layer_button",
+        type="primary",
+    ):
+        return
+
+    output = load_monitoring_reporting_layer_outputs(output_dir)
+    st.subheader("Monitoring Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Status Dashboard")
+    st.dataframe(output["dashboard"], width="stretch")
+    st.subheader("Alerts")
+    st.dataframe(output["alerts"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Monitoring Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download monitoring report",
+            data=output["markdown_report"],
+            file_name="monitoring_report.md",
+            mime="text/markdown",
+            key="download_monitoring_reporting_layer_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7225,6 +7291,7 @@ def main() -> None:
         paper_trading_ledger_tab,
         semi_auto_order_generator_tab,
         broker_integration_research_tab,
+        monitoring_reporting_layer_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7272,6 +7339,7 @@ def main() -> None:
             "V5 Step 6 Paper Ledger",
             "V5 Step 7 Semi-Auto Orders",
             "V5 Step 8 Broker Research",
+            "V5 Step 9 Monitoring",
         ]
     )
     with single_tab:
@@ -7418,6 +7486,9 @@ def main() -> None:
 
     with broker_integration_research_tab:
         render_broker_integration_research_tab()
+
+    with monitoring_reporting_layer_tab:
+        render_monitoring_reporting_layer_tab()
 
 
 if __name__ == "__main__":

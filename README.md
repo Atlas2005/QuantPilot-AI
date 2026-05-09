@@ -61,6 +61,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V5 paper trading ledger | `python src/run_paper_trading_ledger.py --output-dir outputs/paper_trading_ledger_real_v1` |
 | Run V5 semi-auto order generator | `python src/run_semi_auto_order_generator.py --output-dir outputs/semi_auto_order_generator_real_v1` |
 | Run V5 broker integration research | `python src/run_broker_integration_research.py --output-dir outputs/broker_integration_research_real_v1` |
+| Run V5 monitoring/reporting layer | `python src/run_monitoring_reporting_layer.py --output-dir outputs/monitoring_reporting_layer_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -137,6 +138,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_semi_auto_order_generator.py`: Command-line tool for the semi-auto order generator.
 - `src/broker_integration_research.py`: V5 Step 8 research-only broker integration constraint analysis.
 - `src/run_broker_integration_research.py`: Command-line tool for broker integration research.
+- `src/monitoring_reporting_layer.py`: V5 Step 9 research-only monitoring/reporting rollup.
+- `src/run_monitoring_reporting_layer.py`: Command-line tool for the monitoring/reporting layer.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1728,6 +1731,29 @@ trading-ready. All outputs preserve `broker_connected=False`,
 and `trading_ready=False`.
 
 The dashboard has a `V5 Step 8 Broker Research` tab for loading this output
+directory.
+
+## V5 Step 9: Monitoring / Reporting Layer
+
+V5 Step 9 adds a research-only monitoring/reporting layer that reads existing
+local V5 Step 1-8 outputs and produces a unified status dashboard, alerts table,
+guardrails table, and Markdown report.
+
+Example:
+
+```powershell
+python src/run_monitoring_reporting_layer.py --output-dir outputs/monitoring_reporting_layer_real_v1
+```
+
+Generated files include `monitoring_summary.csv`,
+`monitoring_status_dashboard.csv`, `monitoring_alerts.csv`,
+`monitoring_guardrails.csv`, `monitoring_report.md`, and `run_config.json`.
+The layer handles missing prior output files by recording missing/warning
+status instead of crashing. It does not run backtests, fetch market data, train
+or retrain models, change thresholds, change features, connect to brokers,
+generate real orders, submit orders, or mark anything trading-ready.
+
+The dashboard has a `V5 Step 9 Monitoring` tab for loading this output
 directory.
 
 ## Smoke Tests
