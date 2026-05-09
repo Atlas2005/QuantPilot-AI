@@ -4910,6 +4910,31 @@ def load_project_retrospective_v1_v4_outputs(output_dir: str) -> dict[str, objec
     }
 
 
+def load_capital_constraint_engine_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "capital_constraint_report.md"
+    return {
+        "feasibility": pd.read_csv(base / "capital_feasibility.csv", dtype={"symbol": str})
+        if (base / "capital_feasibility.csv").exists()
+        else pd.DataFrame(),
+        "approved": pd.read_csv(base / "approved_orders.csv", dtype={"symbol": str})
+        if (base / "approved_orders.csv").exists()
+        else pd.DataFrame(),
+        "rejected": pd.read_csv(base / "rejected_orders.csv", dtype={"symbol": str})
+        if (base / "rejected_orders.csv").exists()
+        else pd.DataFrame(),
+        "summary": pd.read_csv(base / "capital_constraint_summary.csv")
+        if (base / "capital_constraint_summary.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "capital_constraint_guardrails.csv")
+        if (base / "capital_constraint_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6568,6 +6593,51 @@ def render_project_retrospective_v1_v4_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_capital_constraint_engine_tab() -> None:
+    st.write(
+        "Load V5 Step 1 capital feasibility outputs for candidate buy orders."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not connect "
+        "to a broker, perform live trading, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Capital constraint output directory",
+        value="outputs/capital_constraint_engine_real_v1",
+        key="capital_constraint_engine_output_dir",
+    )
+    if not st.button(
+        "Load capital constraint outputs",
+        key="load_capital_constraint_engine_button",
+        type="primary",
+    ):
+        return
+
+    output = load_capital_constraint_engine_outputs(output_dir)
+    st.subheader("Capital Constraint Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Capital Feasibility")
+    st.dataframe(output["feasibility"], width="stretch")
+    st.subheader("Approved Orders")
+    st.dataframe(output["approved"], width="stretch")
+    st.subheader("Rejected Orders")
+    st.dataframe(output["rejected"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download capital constraint report",
+            data=output["markdown_report"],
+            file_name="capital_constraint_report.md",
+            mime="text/markdown",
+            key="download_capital_constraint_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6670,6 +6740,7 @@ def main() -> None:
         bull_prototype_controlled_backtest_tab,
         bull_prototype_result_review_tab,
         project_retrospective_v1_v4_tab,
+        capital_constraint_engine_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6709,6 +6780,7 @@ def main() -> None:
             "Step 42 Bull Controlled Backtest",
             "Step 43 V4 Closure Review",
             "Project Retrospective V1-V4",
+            "V5 Step 1 Capital Constraints",
         ]
     )
     with single_tab:
@@ -6831,6 +6903,9 @@ def main() -> None:
 
     with project_retrospective_v1_v4_tab:
         render_project_retrospective_v1_v4_tab()
+
+    with capital_constraint_engine_tab:
+        render_capital_constraint_engine_tab()
 
 
 if __name__ == "__main__":

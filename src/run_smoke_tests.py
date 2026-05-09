@@ -81,6 +81,8 @@ PY_COMPILE_FILES = [
     "src/run_bull_prototype_result_review.py",
     "src/project_retrospective_v1_v4.py",
     "src/run_project_retrospective_v1_v4.py",
+    "src/capital_constraint_engine.py",
+    "src/run_capital_constraint_engine.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -597,6 +599,59 @@ COMMAND_CHECKS = [
                 "assert 'no_candidate_trading_ready' in set(conclusions['conclusion_id']); "
                 "report=(base/'project_retrospective_v1_v4_report.md').read_text(encoding='utf-8'); "
                 "phrases=['The project is not trading-ready','No candidate should be treated as deployable','V5 Step 1 Capital Constraint Engine','This retrospective is educational/research diagnostics only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_capital_constraint_engine help",
+        ["src/run_capital_constraint_engine.py", "--help"],
+    ),
+    (
+        "capital constraint engine import",
+        ["-c", "import src.capital_constraint_engine"],
+    ),
+    (
+        "offline capital constraint engine",
+        [
+            "src/run_capital_constraint_engine.py",
+            "--cash",
+            "1000",
+            "--output-dir",
+            "outputs/capital_constraint_engine_smoke",
+        ],
+    ),
+    (
+        "offline capital constraint engine assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/capital_constraint_engine_smoke'); "
+                "required=['capital_feasibility.csv','approved_orders.csv','rejected_orders.csv','capital_constraint_summary.csv','capital_constraint_report.md','capital_constraint_guardrails.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "feas=pd.read_csv(base/'capital_feasibility.csv', dtype={'symbol': str}); "
+                "assert '600519' in set(feas['symbol']); "
+                "row_600519=feas[feas['symbol']=='600519'].iloc[0]; "
+                "assert not bool(row_600519['order_allowed']); "
+                "assert row_600519['rejection_reason']=='insufficient_cash_for_min_lot'; "
+                "approved=pd.read_csv(base/'approved_orders.csv', dtype={'symbol': str}); "
+                "assert '600000' in set(approved['symbol']); "
+                "star=feas[feas['symbol']=='688001'].iloc[0]; "
+                "assert int(star['lot_size']) == 200; "
+                "assert star['lot_rule']=='star_or_kcb_min_lot'; "
+                "checked=['capital_feasibility.csv','approved_orders.csv','rejected_orders.csv','capital_constraint_summary.csv']; "
+                "bad=[name for name in checked if 'trading_ready' in pd.read_csv(base/name).columns and pd.read_csv(base/name)['trading_ready'].fillna(True).astype(bool).any()]; "
+                "assert not bad, bad; "
+                "guardrails=pd.read_csv(base/'capital_constraint_guardrails.csv'); "
+                "required_guardrails={'no_model_retraining','no_threshold_change','no_feature_change','no_new_data_sources','no_broker_integration','no_live_trading','no_trading_ready_upgrade'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'capital_constraint_report.md').read_text(encoding='utf-8'); "
+                "phrases=['This is educational/research tooling only','No broker execution is performed','The project remains not trading-ready','V5 Step 1 checks candidate buy-order capital feasibility only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

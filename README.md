@@ -53,6 +53,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run bull controlled prototype simulations | `python src/run_bull_prototype_controlled_backtest.py --harness-dir outputs/bull_prototype_experiment_harness_real_v1 --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_controlled_backtest_real_v1` |
 | Run bull prototype result review | `python src/run_bull_prototype_result_review.py --controlled-backtest-dir outputs/bull_prototype_controlled_backtest_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --error-design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --output-dir outputs/bull_prototype_result_review_real_v1` |
 | Generate V1-V4 project retrospective | `python src/run_project_retrospective_v1_v4.py --project-root . --output-dir outputs/project_retrospective_v1_v4_real_v1` |
+| Run V5 capital constraint engine | `python src/run_capital_constraint_engine.py --cash 1000 --output-dir outputs/capital_constraint_engine_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -113,6 +114,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_bull_prototype_result_review.py`: Command-line tool for Step 43 bull prototype result review.
 - `src/project_retrospective_v1_v4.py`: Audit-only V1-V4 project retrospective and architecture review.
 - `src/run_project_retrospective_v1_v4.py`: Command-line tool for the V1-V4 retrospective.
+- `src/capital_constraint_engine.py`: V5 Step 1 capital feasibility checks for candidate buy orders.
+- `src/run_capital_constraint_engine.py`: Command-line tool for the capital constraint engine.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1511,6 +1514,28 @@ trading utility infrastructure is recommended next, starting with V5 Step 1
 Capital Constraint Engine.
 
 The dashboard has a `Project Retrospective V1-V4` tab for loading this output
+directory.
+
+## V5 Step 1: Capital Constraint Engine
+
+V5 Step 1 adds a capital feasibility engine for candidate buy orders. It checks
+available cash, a usable-cash buffer, minimum required cash, minimum lot size,
+STAR/KCB-style 200-share lot rules, maximum affordable price, affordable
+quantity, remaining cash, exposure percentage, and rejection reasons.
+
+Example:
+
+```powershell
+python src/run_capital_constraint_engine.py --cash 1000 --output-dir outputs/capital_constraint_engine_real_v1
+```
+
+If no candidate CSV is provided, the runner uses deterministic educational
+examples. This step does not change strategy logic, thresholds, models,
+features, data sources, historical outputs, or trading-readiness status. It
+does not connect to a broker and does not perform live trading. The project
+remains educational/research-only and not trading-ready.
+
+The dashboard has a `V5 Step 1 Capital Constraints` tab for loading this output
 directory.
 
 ## Smoke Tests
