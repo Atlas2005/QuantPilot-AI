@@ -57,6 +57,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V5 tradable universe filter | `python src/run_tradable_universe_filter.py --cash 1000 --output-dir outputs/tradable_universe_filter_real_v1` |
 | Run V5 position sizing engine | `python src/run_position_sizing_engine.py --cash 1000 --output-dir outputs/position_sizing_engine_real_v1` |
 | Run V5 exit engine | `python src/run_exit_engine.py --input-path outputs/position_sizing_engine_real_v1/sized_positions.csv --output-dir outputs/exit_engine_real_v1` |
+| Run V5 daily trading plan | `python src/run_daily_trading_plan.py --output-dir outputs/daily_trading_plan_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -125,6 +126,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_position_sizing_engine.py`: Command-line tool for the position sizing engine.
 - `src/exit_engine.py`: V5 Step 4 research-only exit planning for sized positions.
 - `src/run_exit_engine.py`: Command-line tool for the exit engine.
+- `src/daily_trading_plan.py`: V5 Step 5 research-only daily plan generator.
+- `src/run_daily_trading_plan.py`: Command-line tool for the daily trading plan generator.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1616,6 +1619,32 @@ change trading-readiness status. The project remains educational/research-only
 and not trading-ready.
 
 The dashboard has a `V5 Step 4 Exit Engine` tab for loading this output
+directory.
+
+## V5 Step 5: Daily Trading Plan
+
+V5 Step 5 adds a research-only daily trading plan generator that combines the
+local V5 Step 2 tradable universe, V5 Step 3 sized/deferred positions, and V5
+Step 4 exit plan into a human-reviewable daily plan.
+
+Example:
+
+```powershell
+python src/run_daily_trading_plan.py --output-dir outputs/daily_trading_plan_real_v1
+```
+
+By default, the runner reads only existing local outputs:
+`outputs/tradable_universe_filter_real_v1/tradable_universe.csv`,
+`outputs/position_sizing_engine_real_v1/sized_positions.csv`,
+`outputs/position_sizing_engine_real_v1/deferred_positions.csv`, and
+`outputs/exit_engine_real_v1/exit_plan.csv`. The Markdown plan includes a
+capital summary, tradable candidates, sized positions, deferred positions, and
+the exit plan. This step does not run backtests, tune thresholds, retrain
+models, change features, add data sources, connect to a broker, perform live
+trading, execute orders, or change trading-readiness status. The project
+remains educational/research-only and not trading-ready.
+
+The dashboard has a `V5 Step 5 Daily Plan` tab for loading this output
 directory.
 
 ## Smoke Tests

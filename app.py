@@ -5001,6 +5001,25 @@ def load_exit_engine_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_daily_trading_plan_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "daily_trading_plan.md"
+    return {
+        "summary": pd.read_csv(base / "daily_trading_plan_summary.csv")
+        if (base / "daily_trading_plan_summary.csv").exists()
+        else pd.DataFrame(),
+        "plan": pd.read_csv(base / "daily_trading_plan.csv", dtype={"symbol": str})
+        if (base / "daily_trading_plan.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "daily_trading_plan_guardrails.csv")
+        if (base / "daily_trading_plan_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6836,6 +6855,48 @@ def render_exit_engine_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_daily_trading_plan_tab() -> None:
+    st.write(
+        "Load V5 Step 5 research-only daily trading plan outputs."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not generate "
+        "orders, connect to a broker, perform live trading, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Daily trading plan output directory",
+        value="outputs/daily_trading_plan_real_v1",
+        key="daily_trading_plan_output_dir",
+    )
+    if not st.button(
+        "Load daily trading plan outputs",
+        key="load_daily_trading_plan_button",
+        type="primary",
+    ):
+        return
+
+    output = load_daily_trading_plan_outputs(output_dir)
+    st.subheader("Daily Plan Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Daily Plan Rows")
+    st.dataframe(output["plan"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download daily trading plan",
+            data=output["markdown_report"],
+            file_name="daily_trading_plan.md",
+            mime="text/markdown",
+            key="download_daily_trading_plan_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6942,6 +7003,7 @@ def main() -> None:
         tradable_universe_filter_tab,
         position_sizing_engine_tab,
         exit_engine_tab,
+        daily_trading_plan_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6985,6 +7047,7 @@ def main() -> None:
             "V5 Step 2 Tradable Universe",
             "V5 Step 3 Position Sizing",
             "V5 Step 4 Exit Engine",
+            "V5 Step 5 Daily Plan",
         ]
     )
     with single_tab:
@@ -7119,6 +7182,9 @@ def main() -> None:
 
     with exit_engine_tab:
         render_exit_engine_tab()
+
+    with daily_trading_plan_tab:
+        render_daily_trading_plan_tab()
 
 
 if __name__ == "__main__":

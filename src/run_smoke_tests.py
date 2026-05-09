@@ -89,6 +89,8 @@ PY_COMPILE_FILES = [
     "src/run_position_sizing_engine.py",
     "src/exit_engine.py",
     "src/run_exit_engine.py",
+    "src/daily_trading_plan.py",
+    "src/run_daily_trading_plan.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -840,6 +842,67 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
                 "report=(base/'exit_engine_report.md').read_text(encoding='utf-8'); "
                 "phrases=['V5 Step 4 creates explicit research-only exit plans','No broker execution is performed','No live trading is performed','The project remains not trading-ready']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_daily_trading_plan help",
+        ["src/run_daily_trading_plan.py", "--help"],
+    ),
+    (
+        "daily trading plan import",
+        ["-c", "import src.daily_trading_plan"],
+    ),
+    (
+        "offline daily trading plan",
+        [
+            "src/run_daily_trading_plan.py",
+            "--tradable-path",
+            "outputs/tradable_universe_filter_smoke/tradable_universe.csv",
+            "--sized-path",
+            "outputs/position_sizing_engine_smoke/sized_positions.csv",
+            "--deferred-path",
+            "outputs/position_sizing_engine_smoke/deferred_positions.csv",
+            "--exit-plan-path",
+            "outputs/exit_engine_smoke/exit_plan.csv",
+            "--output-dir",
+            "outputs/daily_trading_plan_smoke",
+        ],
+    ),
+    (
+        "offline daily trading plan assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/daily_trading_plan_smoke'); "
+                "required=['daily_trading_plan.md','daily_trading_plan.csv','daily_trading_plan_summary.csv','daily_trading_plan_guardrails.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'daily_trading_plan_summary.csv'); "
+                "plan=pd.read_csv(base/'daily_trading_plan.csv', dtype={'symbol': str}); "
+                "row=summary.iloc[0]; "
+                "assert int(row['tradable_candidate_count']) == 2; "
+                "assert int(row['sized_position_count']) == 1; "
+                "assert int(row['deferred_position_count']) == 1; "
+                "assert int(row['exit_plan_count']) == 1; "
+                "assert int(row['daily_plan_row_count']) == 5; "
+                "assert not bool(row['trading_ready']); "
+                "assert {'tradable_candidate','sized_position','deferred_position','exit_plan'} <= set(plan['plan_section']); "
+                "assert not plan['trading_ready'].fillna(True).astype(bool).any(); "
+                "exit_rows=plan[plan['plan_section']=='exit_plan']; "
+                "assert len(exit_rows) == 1; "
+                "assert float(exit_rows.iloc[0]['stop_loss_price']) == 7.6; "
+                "assert float(exit_rows.iloc[0]['take_profit_price']) == 8.8; "
+                "guardrails=pd.read_csv(base/'daily_trading_plan_guardrails.csv'); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_integration','no_live_trading','no_order_execution','no_trading_ready_upgrade','daily_plan_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'daily_trading_plan.md').read_text(encoding='utf-8'); "
+                "phrases=['Capital Summary','Tradable Candidates','Sized Positions','Deferred Positions','Exit Plan','Research only','Not financial advice','No broker execution','No live trading','trading_ready=False']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
