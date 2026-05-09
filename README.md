@@ -59,6 +59,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V5 exit engine | `python src/run_exit_engine.py --input-path outputs/position_sizing_engine_real_v1/sized_positions.csv --output-dir outputs/exit_engine_real_v1` |
 | Run V5 daily trading plan | `python src/run_daily_trading_plan.py --output-dir outputs/daily_trading_plan_real_v1` |
 | Run V5 paper trading ledger | `python src/run_paper_trading_ledger.py --output-dir outputs/paper_trading_ledger_real_v1` |
+| Run V5 semi-auto order generator | `python src/run_semi_auto_order_generator.py --output-dir outputs/semi_auto_order_generator_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -131,6 +132,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_daily_trading_plan.py`: Command-line tool for the daily trading plan generator.
 - `src/paper_trading_ledger.py`: V5 Step 6 deterministic research-only paper trading ledger.
 - `src/run_paper_trading_ledger.py`: Command-line tool for the paper trading ledger.
+- `src/semi_auto_order_generator.py`: V5 Step 7 broker-neutral research-only order draft generator.
+- `src/run_semi_auto_order_generator.py`: Command-line tool for the semi-auto order generator.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1672,6 +1675,31 @@ project remains educational/research-only and not trading-ready. The recommended
 next step is V5 Step 7 Semi-Auto Order Generator.
 
 The dashboard has a `V5 Step 6 Paper Ledger` tab for loading this output
+directory.
+
+## V5 Step 7: Semi-Auto Order Generator
+
+V5 Step 7 adds a broker-neutral, human-reviewable semi-auto order draft
+generator. It reads the existing V5 daily trading plan and exit plan outputs,
+then creates draft order tickets only for already-sized BUY positions.
+
+Example:
+
+```powershell
+python src/run_semi_auto_order_generator.py --output-dir outputs/semi_auto_order_generator_real_v1
+```
+
+By default, the runner reads
+`outputs/daily_trading_plan_real_v1/daily_trading_plan.csv` and
+`outputs/exit_engine_real_v1/exit_plan.csv`. Generated drafts require human
+review and always write `execution_allowed=False`, `broker_connected=False`,
+and `trading_ready=False`. This step does not connect to broker APIs, create
+live execution paths, submit orders, simulate real broker orders, run backtests,
+tune thresholds, retrain models, change features, add data sources, or make
+trading-ready claims. The project remains educational/research-only and not
+trading-ready.
+
+The dashboard has a `V5 Step 7 Semi-Auto Orders` tab for loading this output
 directory.
 
 ## Smoke Tests

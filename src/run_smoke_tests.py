@@ -93,6 +93,8 @@ PY_COMPILE_FILES = [
     "src/run_daily_trading_plan.py",
     "src/paper_trading_ledger.py",
     "src/run_paper_trading_ledger.py",
+    "src/semi_auto_order_generator.py",
+    "src/run_semi_auto_order_generator.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -976,6 +978,81 @@ COMMAND_CHECKS = [
                 "report=(base/'paper_trading_report.md').read_text(encoding='utf-8'); "
                 "phrases=['paper trading only','No broker execution occurred','No real orders were submitted','No live market data was fetched','No strategy performance claim is made','All outputs remain trading_ready=False','V5 Step 7 Semi-Auto Order Generator']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_semi_auto_order_generator help",
+        ["src/run_semi_auto_order_generator.py", "--help"],
+    ),
+    (
+        "semi auto order generator import",
+        ["-c", "import src.semi_auto_order_generator"],
+    ),
+    (
+        "offline semi auto order generator",
+        [
+            "src/run_semi_auto_order_generator.py",
+            "--daily-plan-path",
+            "outputs/daily_trading_plan_smoke/daily_trading_plan.csv",
+            "--exit-plan-path",
+            "outputs/exit_engine_smoke/exit_plan.csv",
+            "--output-dir",
+            "outputs/semi_auto_order_generator_smoke",
+        ],
+    ),
+    (
+        "offline semi auto order generator assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/semi_auto_order_generator_smoke'); "
+                "required=['order_drafts.csv','broker_neutral_order_tickets.md','manual_review_checklist.csv','semi_auto_order_summary.csv','semi_auto_order_guardrails.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "drafts=pd.read_csv(base/'order_drafts.csv', dtype={'symbol': str}); "
+                "checklist=pd.read_csv(base/'manual_review_checklist.csv', dtype={'symbol': str}); "
+                "summary=pd.read_csv(base/'semi_auto_order_summary.csv'); "
+                "guardrails=pd.read_csv(base/'semi_auto_order_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['draft_order_count']) == 1; "
+                "assert int(row['buy_draft_count']) == 1; "
+                "assert int(row['sell_draft_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['trading_ready_count']) == 0; "
+                "assert int(row['human_review_required_count']) == 1; "
+                "assert not bool(row['trading_ready']); "
+                "draft=drafts.iloc[0]; "
+                "assert draft['draft_order_id'] == 'DRAFT-BUY-001'; "
+                "assert draft['source_plan_section'] == 'sized_position'; "
+                "assert draft['symbol'] == '600000'; "
+                "assert draft['side'] == 'BUY'; "
+                "assert int(draft['quantity']) == 100; "
+                "assert float(draft['limit_price']) == 8.0; "
+                "assert float(draft['estimated_notional']) == 800.0; "
+                "assert float(draft['stop_loss_price']) == 7.6; "
+                "assert float(draft['take_profit_price']) == 8.8; "
+                "assert int(draft['max_holding_days']) == 10; "
+                "assert bool(draft['human_review_required']); "
+                "assert not bool(draft['execution_allowed']); "
+                "assert not bool(draft['broker_connected']); "
+                "assert not bool(draft['trading_ready']); "
+                "assert draft['draft_status'] == 'draft_only'; "
+                "required_checks={'confirm_symbol','confirm_side','confirm_quantity','confirm_limit_price','confirm_cash_available','confirm_stop_loss','confirm_take_profit','confirm_no_broker_execution','confirm_human_review_required'}; "
+                "assert required_checks <= set(checklist['check_name']); "
+                "assert not checklist['execution_allowed'].fillna(True).astype(bool).any(); "
+                "assert not checklist['broker_connected'].fillna(True).astype(bool).any(); "
+                "assert not checklist['trading_ready'].fillna(True).astype(bool).any(); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_integration','no_live_trading','no_order_execution','no_trading_ready_upgrade','semi_auto_order_draft_only','human_review_required','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "tickets=(base/'broker_neutral_order_tickets.md').read_text(encoding='utf-8'); "
+                "phrases=['Draft Order: DRAFT-BUY-001','Symbol: 600000','Side: BUY','Quantity: 100','Limit Price: 8.0','Estimated Notional: 800.0','Stop Loss: 7.6','Take Profit: 8.8','Max Holding Days: 10','Human Review Required: True','Execution Allowed: False','Broker Connected: False','Trading Ready: False']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in tickets]; "
                 "assert not missing_phrases, missing_phrases"
             ),
         ],

@@ -5051,6 +5051,28 @@ def load_paper_trading_ledger_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_semi_auto_order_generator_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    tickets_path = base / "broker_neutral_order_tickets.md"
+    return {
+        "summary": pd.read_csv(base / "semi_auto_order_summary.csv")
+        if (base / "semi_auto_order_summary.csv").exists()
+        else pd.DataFrame(),
+        "drafts": pd.read_csv(base / "order_drafts.csv", dtype={"symbol": str})
+        if (base / "order_drafts.csv").exists()
+        else pd.DataFrame(),
+        "checklist": pd.read_csv(base / "manual_review_checklist.csv", dtype={"symbol": str})
+        if (base / "manual_review_checklist.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "semi_auto_order_guardrails.csv")
+        if (base / "semi_auto_order_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": tickets_path.read_text(encoding="utf-8")
+        if tickets_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6978,6 +7000,50 @@ def render_paper_trading_ledger_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_semi_auto_order_generator_tab() -> None:
+    st.write(
+        "Load V5 Step 7 broker-neutral semi-auto order draft outputs."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not connect "
+        "to a broker, submit orders, execute orders, enable live trading, or "
+        "make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Semi-auto order generator output directory",
+        value="outputs/semi_auto_order_generator_real_v1",
+        key="semi_auto_order_generator_output_dir",
+    )
+    if not st.button(
+        "Load semi-auto order draft outputs",
+        key="load_semi_auto_order_generator_button",
+        type="primary",
+    ):
+        return
+
+    output = load_semi_auto_order_generator_outputs(output_dir)
+    st.subheader("Semi-Auto Order Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Order Drafts")
+    st.dataframe(output["drafts"], width="stretch")
+    st.subheader("Manual Review Checklist")
+    st.dataframe(output["checklist"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Broker-Neutral Tickets")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download broker-neutral order tickets",
+            data=output["markdown_report"],
+            file_name="broker_neutral_order_tickets.md",
+            mime="text/markdown",
+            key="download_semi_auto_order_tickets_button",
+        )
+    else:
+        st.info("No Markdown ticket text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7086,6 +7152,7 @@ def main() -> None:
         exit_engine_tab,
         daily_trading_plan_tab,
         paper_trading_ledger_tab,
+        semi_auto_order_generator_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7131,6 +7198,7 @@ def main() -> None:
             "V5 Step 4 Exit Engine",
             "V5 Step 5 Daily Plan",
             "V5 Step 6 Paper Ledger",
+            "V5 Step 7 Semi-Auto Orders",
         ]
     )
     with single_tab:
@@ -7271,6 +7339,9 @@ def main() -> None:
 
     with paper_trading_ledger_tab:
         render_paper_trading_ledger_tab()
+
+    with semi_auto_order_generator_tab:
+        render_semi_auto_order_generator_tab()
 
 
 if __name__ == "__main__":
