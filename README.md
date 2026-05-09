@@ -52,6 +52,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run bull prototype harness | `python src/run_bull_prototype_experiment_harness.py --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_experiment_harness_real_v1` |
 | Run bull controlled prototype simulations | `python src/run_bull_prototype_controlled_backtest.py --harness-dir outputs/bull_prototype_experiment_harness_real_v1 --prototype-design-dir outputs/bull_remediation_prototype_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --output-dir outputs/bull_prototype_controlled_backtest_real_v1` |
 | Run bull prototype result review | `python src/run_bull_prototype_result_review.py --controlled-backtest-dir outputs/bull_prototype_controlled_backtest_real_v1 --integrated-dir outputs/integrated_remediation_revalidation_real_v1 --error-design-dir outputs/bull_error_pattern_remediation_design_real_v1 --diagnostics-dir outputs/bull_trade_window_diagnostics_real_v1 --output-dir outputs/bull_prototype_result_review_real_v1` |
+| Generate V1-V4 project retrospective | `python src/run_project_retrospective_v1_v4.py --project-root . --output-dir outputs/project_retrospective_v1_v4_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -110,6 +111,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_bull_trade_window_diagnostics.py`: Command-line tool for bull trade/window diagnostics.
 - `src/bull_prototype_result_review.py`: Step 43 conservative review and V4 closure report for Step 42 bull prototype results.
 - `src/run_bull_prototype_result_review.py`: Command-line tool for Step 43 bull prototype result review.
+- `src/project_retrospective_v1_v4.py`: Audit-only V1-V4 project retrospective and architecture review.
+- `src/run_project_retrospective_v1_v4.py`: Command-line tool for the V1-V4 retrospective.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1487,6 +1490,27 @@ remains unresolved, and the recommended next phase is V5 capital-aware trading
 utility infrastructure starting with V5 Step 1 Capital Constraint Engine.
 
 The dashboard has a `Step 43 V4 Closure Review` tab for loading this output
+directory.
+
+## Project Retrospective: V1-V4 Architecture and Progress Audit
+
+After V4 closure, the project retrospective audits V1-V4 progress and current
+architecture. This is an audit-only step, not V4 Step 44 and not V5 Step 1. It
+does not run backtests, tune thresholds, retrain models, change features, add
+data sources, or add agents.
+
+Example:
+
+```powershell
+python src/run_project_retrospective_v1_v4.py --project-root . --output-dir outputs/project_retrospective_v1_v4_real_v1
+```
+
+The retrospective concludes that V1-V4 built a research diagnostics framework,
+not a trading-ready system. No candidate is deployable, and V5 capital-aware
+trading utility infrastructure is recommended next, starting with V5 Step 1
+Capital Constraint Engine.
+
+The dashboard has a `Project Retrospective V1-V4` tab for loading this output
 directory.
 
 ## Smoke Tests

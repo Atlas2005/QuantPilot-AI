@@ -4879,6 +4879,37 @@ def load_bull_prototype_result_review_outputs(output_dir: str) -> dict[str, obje
     }
 
 
+def load_project_retrospective_v1_v4_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "project_retrospective_v1_v4_report.md"
+    return {
+        "phase_progress": pd.read_csv(base / "phase_progress_summary.csv")
+        if (base / "phase_progress_summary.csv").exists()
+        else pd.DataFrame(),
+        "architecture": pd.read_csv(base / "architecture_layer_summary.csv")
+        if (base / "architecture_layer_summary.csv").exists()
+        else pd.DataFrame(),
+        "capabilities": pd.read_csv(base / "current_capability_inventory.csv")
+        if (base / "current_capability_inventory.csv").exists()
+        else pd.DataFrame(),
+        "conclusions": pd.read_csv(base / "reliable_conclusions.csv")
+        if (base / "reliable_conclusions.csv").exists()
+        else pd.DataFrame(),
+        "limitations": pd.read_csv(base / "unresolved_limitations.csv")
+        if (base / "unresolved_limitations.csv").exists()
+        else pd.DataFrame(),
+        "next_phase": pd.read_csv(base / "recommended_next_phase.csv")
+        if (base / "recommended_next_phase.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "project_retrospective_guardrails.csv")
+        if (base / "project_retrospective_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6488,6 +6519,55 @@ def render_bull_prototype_result_review_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_project_retrospective_v1_v4_tab() -> None:
+    st.write(
+        "Load the audit-only V1-V4 project retrospective and architecture review."
+    )
+    st.warning(
+        "This panel is educational research diagnostics only. It does not run "
+        "backtests, change strategy logic, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Project retrospective output directory",
+        value="outputs/project_retrospective_v1_v4_real_v1",
+        key="project_retrospective_v1_v4_output_dir",
+    )
+    if not st.button(
+        "Load project retrospective",
+        key="load_project_retrospective_v1_v4_button",
+        type="primary",
+    ):
+        return
+
+    output = load_project_retrospective_v1_v4_outputs(output_dir)
+    st.subheader("Phase Progress Summary")
+    st.dataframe(output["phase_progress"], width="stretch")
+    st.subheader("Architecture Layer Summary")
+    st.dataframe(output["architecture"], width="stretch")
+    st.subheader("Current Capability Inventory")
+    st.dataframe(output["capabilities"], width="stretch")
+    st.subheader("Reliable Conclusions")
+    st.dataframe(output["conclusions"], width="stretch")
+    st.subheader("Unresolved Limitations")
+    st.dataframe(output["limitations"], width="stretch")
+    st.subheader("Recommended Next Phase")
+    st.dataframe(output["next_phase"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download project retrospective report",
+            data=output["markdown_report"],
+            file_name="project_retrospective_v1_v4_report.md",
+            mime="text/markdown",
+            key="download_project_retrospective_v1_v4_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6589,6 +6669,7 @@ def main() -> None:
         bull_prototype_experiment_harness_tab,
         bull_prototype_controlled_backtest_tab,
         bull_prototype_result_review_tab,
+        project_retrospective_v1_v4_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6627,6 +6708,7 @@ def main() -> None:
             "Step 41 Bull Prototype Harness",
             "Step 42 Bull Controlled Backtest",
             "Step 43 V4 Closure Review",
+            "Project Retrospective V1-V4",
         ]
     )
     with single_tab:
@@ -6746,6 +6828,9 @@ def main() -> None:
 
     with bull_prototype_result_review_tab:
         render_bull_prototype_result_review_tab()
+
+    with project_retrospective_v1_v4_tab:
+        render_project_retrospective_v1_v4_tab()
 
 
 if __name__ == "__main__":

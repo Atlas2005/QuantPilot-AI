@@ -79,6 +79,8 @@ PY_COMPILE_FILES = [
     "src/run_bull_prototype_controlled_backtest.py",
     "src/bull_prototype_result_review.py",
     "src/run_bull_prototype_result_review.py",
+    "src/project_retrospective_v1_v4.py",
+    "src/run_project_retrospective_v1_v4.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -538,6 +540,63 @@ COMMAND_CHECKS = [
                 "assert not symbols or all(len(str(symbol)) >= 6 for symbol in symbols); "
                 "report=(base/'bull_prototype_result_review_report.md').read_text(encoding='utf-8'); "
                 "phrases=['V4 can close as a research-diagnostic validation cycle','No candidate is selected for further validation from Step 42','canonical_reduced_40 remains research-only','V5 Step 1 Capital Constraint Engine']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_project_retrospective_v1_v4 help",
+        ["src/run_project_retrospective_v1_v4.py", "--help"],
+    ),
+    (
+        "project retrospective v1 v4 import",
+        ["-c", "import src.project_retrospective_v1_v4"],
+    ),
+    (
+        "offline project retrospective v1 v4",
+        [
+            "src/run_project_retrospective_v1_v4.py",
+            "--project-root",
+            ".",
+            "--output-dir",
+            "outputs/project_retrospective_v1_v4_smoke",
+        ],
+    ),
+    (
+        "offline project retrospective v1 v4 assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import json; "
+                "import pandas as pd; "
+                "base=Path('outputs/project_retrospective_v1_v4_smoke'); "
+                "required=['project_retrospective_v1_v4_report.md','phase_progress_summary.csv','architecture_layer_summary.csv','current_capability_inventory.csv','reliable_conclusions.csv','unresolved_limitations.csv','recommended_next_phase.csv','project_retrospective_guardrails.csv','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "phase=pd.read_csv(base/'phase_progress_summary.csv'); "
+                "assert {'V1','V2','V3','V4'} <= set(phase['phase']); "
+                "cap=pd.read_csv(base/'current_capability_inventory.csv'); "
+                "capabilities=dict(zip(cap['capability'], cap['available'].astype(str))); "
+                "assert capabilities['capital feasibility checks'] in {'False','false','0'}; "
+                "assert capabilities['paper trading ledger'] in {'False','false','0'}; "
+                "assert not cap['production_ready'].fillna(True).astype(bool).any(); "
+                "next_phase=pd.read_csv(base/'recommended_next_phase.csv'); "
+                "assert next_phase.iloc[0]['recommended_step']=='V5 Step 1'; "
+                "assert next_phase.iloc[0]['step_name']=='Capital Constraint Engine'; "
+                "guardrails=pd.read_csv(base/'project_retrospective_guardrails.csv'); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_new_agents','no_previous_outputs_overwritten','no_trading_ready_claim','audit_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails['status']) == {'confirmed'}; "
+                "config=json.loads((base/'run_config.json').read_text(encoding='utf-8')); "
+                "assert config['audit_only'] is True; "
+                "assert config['educational_research_only'] is True; "
+                "assert config['trading_ready'] is False; "
+                "conclusions=pd.read_csv(base/'reliable_conclusions.csv'); "
+                "assert 'no_candidate_trading_ready' in set(conclusions['conclusion_id']); "
+                "report=(base/'project_retrospective_v1_v4_report.md').read_text(encoding='utf-8'); "
+                "phrases=['The project is not trading-ready','No candidate should be treated as deployable','V5 Step 1 Capital Constraint Engine','This retrospective is educational/research diagnostics only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
