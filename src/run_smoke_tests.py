@@ -85,6 +85,8 @@ PY_COMPILE_FILES = [
     "src/run_capital_constraint_engine.py",
     "src/tradable_universe_filter.py",
     "src/run_tradable_universe_filter.py",
+    "src/position_sizing_engine.py",
+    "src/run_position_sizing_engine.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -717,6 +719,66 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
                 "report=(base/'universe_filter_report.md').read_text(encoding='utf-8'); "
                 "phrases=['V5 Step 2 filters candidate universe eligibility','No broker execution is performed','The project remains not trading-ready','This is educational/research tooling only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_position_sizing_engine help",
+        ["src/run_position_sizing_engine.py", "--help"],
+    ),
+    (
+        "position sizing engine import",
+        ["-c", "import src.position_sizing_engine"],
+    ),
+    (
+        "offline position sizing engine",
+        [
+            "src/run_position_sizing_engine.py",
+            "--input-path",
+            "outputs/tradable_universe_filter_smoke/tradable_universe.csv",
+            "--cash",
+            "1000",
+            "--output-dir",
+            "outputs/position_sizing_engine_smoke",
+        ],
+    ),
+    (
+        "offline position sizing engine assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/position_sizing_engine_smoke'); "
+                "required=['position_sizing_summary.csv','sized_positions.csv','deferred_positions.csv','rejected_positions.csv','position_sizing_guardrails.csv','position_sizing_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'position_sizing_summary.csv'); "
+                "sized=pd.read_csv(base/'sized_positions.csv', dtype={'symbol': str}); "
+                "deferred=pd.read_csv(base/'deferred_positions.csv', dtype={'symbol': str}); "
+                "rejected=pd.read_csv(base/'rejected_positions.csv', dtype={'symbol': str}); "
+                "row=summary.iloc[0]; "
+                "assert int(row['candidate_count']) == 2; "
+                "assert int(row['sized_position_count']) == 1; "
+                "assert int(row['deferred_position_count']) == 1; "
+                "assert int(row['rejected_position_count']) == 0; "
+                "assert float(row['total_approved_notional']) == 800.0; "
+                "assert not bool(row['trading_ready']); "
+                "assert len(sized) == 1 and len(deferred) == 1 and rejected.empty; "
+                "assert float(sized.iloc[0]['approved_notional']) == 800.0; "
+                "assert int(sized.iloc[0]['quantity']) in {100, 200}; "
+                "assert deferred.iloc[0]['sizing_reason'] == 'account_cash_exhausted_or_allocation_limit'; "
+                "checked=['position_sizing_summary.csv','sized_positions.csv','deferred_positions.csv','rejected_positions.csv']; "
+                "bad=[name for name in checked if 'trading_ready' in pd.read_csv(base/name).columns and pd.read_csv(base/name)['trading_ready'].fillna(True).astype(bool).any()]; "
+                "assert not bad, bad; "
+                "guardrails=pd.read_csv(base/'position_sizing_guardrails.csv'); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_integration','no_live_trading','no_trading_ready_upgrade','position_sizing_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'position_sizing_report.md').read_text(encoding='utf-8'); "
+                "phrases=['V5 Step 3 converts Step 2 tradable candidates','No broker execution is performed','The project remains not trading-ready','This is educational/research tooling only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

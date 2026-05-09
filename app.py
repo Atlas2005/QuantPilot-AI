@@ -4957,6 +4957,31 @@ def load_tradable_universe_filter_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_position_sizing_engine_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "position_sizing_report.md"
+    return {
+        "summary": pd.read_csv(base / "position_sizing_summary.csv")
+        if (base / "position_sizing_summary.csv").exists()
+        else pd.DataFrame(),
+        "sized": pd.read_csv(base / "sized_positions.csv", dtype={"symbol": str})
+        if (base / "sized_positions.csv").exists()
+        else pd.DataFrame(),
+        "deferred": pd.read_csv(base / "deferred_positions.csv", dtype={"symbol": str})
+        if (base / "deferred_positions.csv").exists()
+        else pd.DataFrame(),
+        "rejected": pd.read_csv(base / "rejected_positions.csv", dtype={"symbol": str})
+        if (base / "rejected_positions.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "position_sizing_guardrails.csv")
+        if (base / "position_sizing_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6704,6 +6729,52 @@ def render_tradable_universe_filter_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_position_sizing_engine_tab() -> None:
+    st.write(
+        "Load V5 Step 3 research-only position sizing outputs."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not generate "
+        "orders, connect to a broker, perform live trading, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Position sizing output directory",
+        value="outputs/position_sizing_engine_real_v1",
+        key="position_sizing_engine_output_dir",
+    )
+    if not st.button(
+        "Load position sizing outputs",
+        key="load_position_sizing_engine_button",
+        type="primary",
+    ):
+        return
+
+    output = load_position_sizing_engine_outputs(output_dir)
+    st.subheader("Position Sizing Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Sized Positions")
+    st.dataframe(output["sized"], width="stretch")
+    st.subheader("Deferred Positions")
+    st.dataframe(output["deferred"], width="stretch")
+    st.subheader("Rejected Positions")
+    st.dataframe(output["rejected"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download position sizing report",
+            data=output["markdown_report"],
+            file_name="position_sizing_report.md",
+            mime="text/markdown",
+            key="download_position_sizing_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6808,6 +6879,7 @@ def main() -> None:
         project_retrospective_v1_v4_tab,
         capital_constraint_engine_tab,
         tradable_universe_filter_tab,
+        position_sizing_engine_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6849,6 +6921,7 @@ def main() -> None:
             "Project Retrospective V1-V4",
             "V5 Step 1 Capital Constraints",
             "V5 Step 2 Tradable Universe",
+            "V5 Step 3 Position Sizing",
         ]
     )
     with single_tab:
@@ -6977,6 +7050,9 @@ def main() -> None:
 
     with tradable_universe_filter_tab:
         render_tradable_universe_filter_tab()
+
+    with position_sizing_engine_tab:
+        render_position_sizing_engine_tab()
 
 
 if __name__ == "__main__":
