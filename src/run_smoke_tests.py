@@ -91,6 +91,8 @@ PY_COMPILE_FILES = [
     "src/run_exit_engine.py",
     "src/daily_trading_plan.py",
     "src/run_daily_trading_plan.py",
+    "src/paper_trading_ledger.py",
+    "src/run_paper_trading_ledger.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -903,6 +905,76 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
                 "report=(base/'daily_trading_plan.md').read_text(encoding='utf-8'); "
                 "phrases=['Capital Summary','Tradable Candidates','Sized Positions','Deferred Positions','Exit Plan','Research only','Not financial advice','No broker execution','No live trading','trading_ready=False']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_paper_trading_ledger help",
+        ["src/run_paper_trading_ledger.py", "--help"],
+    ),
+    (
+        "paper trading ledger import",
+        ["-c", "import src.paper_trading_ledger"],
+    ),
+    (
+        "offline paper trading ledger",
+        [
+            "src/run_paper_trading_ledger.py",
+            "--input-dir",
+            "outputs/daily_trading_plan_smoke",
+            "--output-dir",
+            "outputs/paper_trading_ledger_smoke",
+        ],
+    ),
+    (
+        "offline paper trading ledger assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/paper_trading_ledger_smoke'); "
+                "required=['paper_orders.csv','paper_fills.csv','paper_positions.csv','paper_cash_ledger.csv','paper_trade_ledger.csv','paper_trading_summary.csv','paper_trading_guardrails.csv','paper_trading_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'paper_trading_summary.csv'); "
+                "orders=pd.read_csv(base/'paper_orders.csv', dtype={'symbol': str}); "
+                "fills=pd.read_csv(base/'paper_fills.csv', dtype={'symbol': str}); "
+                "positions=pd.read_csv(base/'paper_positions.csv', dtype={'symbol': str}); "
+                "cash=pd.read_csv(base/'paper_cash_ledger.csv'); "
+                "ledger=pd.read_csv(base/'paper_trade_ledger.csv', dtype={'symbol': str}); "
+                "row=summary.iloc[0]; "
+                "assert int(row['paper_order_count']) == 2; "
+                "assert int(row['paper_filled_order_count']) == 1; "
+                "assert int(row['paper_deferred_order_count']) == 1; "
+                "assert int(row['open_paper_position_count']) == 1; "
+                "assert float(row['starting_cash']) == 1000.0; "
+                "assert float(row['ending_cash']) == 200.0; "
+                "assert float(row['total_filled_notional']) == 800.0; "
+                "assert row['conclusion'] == 'research_only_paper_ledger_created'; "
+                "assert not bool(row['trading_ready']); "
+                "assert set(orders['order_status']) == {'paper_filled','deferred_not_filled'}; "
+                "filled=fills[fills['fill_status']=='simulated_filled'].iloc[0]; "
+                "assert filled['symbol'] == '600000'; "
+                "assert int(filled['fill_quantity']) == 100; "
+                "assert float(filled['fill_notional']) == 800.0; "
+                "assert not fills['trading_ready'].fillna(True).astype(bool).any(); "
+                "pos=positions.iloc[0]; "
+                "assert pos['position_status'] == 'open_paper_position'; "
+                "assert float(pos['stop_loss_price']) == 7.6; "
+                "assert float(pos['take_profit_price']) == 8.8; "
+                "assert float(pos['unrealized_pnl']) == 0.0; "
+                "assert not positions['trading_ready'].fillna(True).astype(bool).any(); "
+                "assert float(cash.iloc[-1]['ending_cash']) == 200.0; "
+                "assert not ledger['trading_ready'].fillna(True).astype(bool).any(); "
+                "guardrails=pd.read_csv(base/'paper_trading_guardrails.csv'); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_integration','no_live_trading','no_order_execution','no_trading_ready_upgrade','paper_ledger_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'paper_trading_report.md').read_text(encoding='utf-8'); "
+                "phrases=['paper trading only','No broker execution occurred','No real orders were submitted','No live market data was fetched','No strategy performance claim is made','All outputs remain trading_ready=False','V5 Step 7 Semi-Auto Order Generator']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

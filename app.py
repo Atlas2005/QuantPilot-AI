@@ -5020,6 +5020,37 @@ def load_daily_trading_plan_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_paper_trading_ledger_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "paper_trading_report.md"
+    return {
+        "summary": pd.read_csv(base / "paper_trading_summary.csv")
+        if (base / "paper_trading_summary.csv").exists()
+        else pd.DataFrame(),
+        "orders": pd.read_csv(base / "paper_orders.csv", dtype={"symbol": str})
+        if (base / "paper_orders.csv").exists()
+        else pd.DataFrame(),
+        "fills": pd.read_csv(base / "paper_fills.csv", dtype={"symbol": str})
+        if (base / "paper_fills.csv").exists()
+        else pd.DataFrame(),
+        "positions": pd.read_csv(base / "paper_positions.csv", dtype={"symbol": str})
+        if (base / "paper_positions.csv").exists()
+        else pd.DataFrame(),
+        "cash": pd.read_csv(base / "paper_cash_ledger.csv")
+        if (base / "paper_cash_ledger.csv").exists()
+        else pd.DataFrame(),
+        "ledger": pd.read_csv(base / "paper_trade_ledger.csv", dtype={"symbol": str})
+        if (base / "paper_trade_ledger.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "paper_trading_guardrails.csv")
+        if (base / "paper_trading_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6897,6 +6928,56 @@ def render_daily_trading_plan_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_paper_trading_ledger_tab() -> None:
+    st.write(
+        "Load V5 Step 6 research-only paper trading ledger outputs."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not connect "
+        "to a broker, submit real orders, fetch live market data, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Paper trading ledger output directory",
+        value="outputs/paper_trading_ledger_real_v1",
+        key="paper_trading_ledger_output_dir",
+    )
+    if not st.button(
+        "Load paper trading ledger outputs",
+        key="load_paper_trading_ledger_button",
+        type="primary",
+    ):
+        return
+
+    output = load_paper_trading_ledger_outputs(output_dir)
+    st.subheader("Paper Trading Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Paper Orders")
+    st.dataframe(output["orders"], width="stretch")
+    st.subheader("Paper Fills")
+    st.dataframe(output["fills"], width="stretch")
+    st.subheader("Paper Positions")
+    st.dataframe(output["positions"], width="stretch")
+    st.subheader("Paper Cash Ledger")
+    st.dataframe(output["cash"], width="stretch")
+    st.subheader("Paper Trade Ledger")
+    st.dataframe(output["ledger"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download paper trading report",
+            data=output["markdown_report"],
+            file_name="paper_trading_report.md",
+            mime="text/markdown",
+            key="download_paper_trading_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7004,6 +7085,7 @@ def main() -> None:
         position_sizing_engine_tab,
         exit_engine_tab,
         daily_trading_plan_tab,
+        paper_trading_ledger_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7048,6 +7130,7 @@ def main() -> None:
             "V5 Step 3 Position Sizing",
             "V5 Step 4 Exit Engine",
             "V5 Step 5 Daily Plan",
+            "V5 Step 6 Paper Ledger",
         ]
     )
     with single_tab:
@@ -7185,6 +7268,9 @@ def main() -> None:
 
     with daily_trading_plan_tab:
         render_daily_trading_plan_tab()
+
+    with paper_trading_ledger_tab:
+        render_paper_trading_ledger_tab()
 
 
 if __name__ == "__main__":
