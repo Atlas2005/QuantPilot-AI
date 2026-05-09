@@ -56,6 +56,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V5 capital constraint engine | `python src/run_capital_constraint_engine.py --cash 1000 --output-dir outputs/capital_constraint_engine_real_v1` |
 | Run V5 tradable universe filter | `python src/run_tradable_universe_filter.py --cash 1000 --output-dir outputs/tradable_universe_filter_real_v1` |
 | Run V5 position sizing engine | `python src/run_position_sizing_engine.py --cash 1000 --output-dir outputs/position_sizing_engine_real_v1` |
+| Run V5 exit engine | `python src/run_exit_engine.py --input-path outputs/position_sizing_engine_real_v1/sized_positions.csv --output-dir outputs/exit_engine_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -122,6 +123,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_tradable_universe_filter.py`: Command-line tool for the tradable universe filter.
 - `src/position_sizing_engine.py`: V5 Step 3 research-only position sizing under account-level cash constraints.
 - `src/run_position_sizing_engine.py`: Command-line tool for the position sizing engine.
+- `src/exit_engine.py`: V5 Step 4 research-only exit planning for sized positions.
+- `src/run_exit_engine.py`: Command-line tool for the exit engine.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1589,6 +1592,30 @@ or change features. The project remains educational/research-only and not
 trading-ready.
 
 The dashboard has a `V5 Step 3 Position Sizing` tab for loading this output
+directory.
+
+## V5 Step 4: Exit Engine
+
+V5 Step 4 adds a research-only exit planning layer that reads the V5 Step 3
+sized positions output and writes explicit static exit rules for each sized
+position.
+
+Example:
+
+```powershell
+python src/run_exit_engine.py --input-path outputs/position_sizing_engine_real_v1/sized_positions.csv --output-dir outputs/exit_engine_real_v1
+```
+
+By default, the runner reads
+`outputs/position_sizing_engine_real_v1/sized_positions.csv`, applies a `0.05`
+stop loss, a `0.10` take profit, a 10-day maximum holding period, and the
+`exit_if_underperform_benchmark_by_3pct_after_5_days` benchmark lag rule. This
+step does not run backtests, tune thresholds, retrain models, change features,
+add data sources, connect to a broker, perform live trading, execute orders, or
+change trading-readiness status. The project remains educational/research-only
+and not trading-ready.
+
+The dashboard has a `V5 Step 4 Exit Engine` tab for loading this output
 directory.
 
 ## Smoke Tests

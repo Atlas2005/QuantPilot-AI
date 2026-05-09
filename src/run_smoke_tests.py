@@ -87,6 +87,8 @@ PY_COMPILE_FILES = [
     "src/run_tradable_universe_filter.py",
     "src/position_sizing_engine.py",
     "src/run_position_sizing_engine.py",
+    "src/exit_engine.py",
+    "src/run_exit_engine.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -779,6 +781,65 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
                 "report=(base/'position_sizing_report.md').read_text(encoding='utf-8'); "
                 "phrases=['V5 Step 3 converts Step 2 tradable candidates','No broker execution is performed','The project remains not trading-ready','This is educational/research tooling only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_exit_engine help",
+        ["src/run_exit_engine.py", "--help"],
+    ),
+    (
+        "exit engine import",
+        ["-c", "import src.exit_engine"],
+    ),
+    (
+        "offline exit engine",
+        [
+            "src/run_exit_engine.py",
+            "--input-path",
+            "outputs/position_sizing_engine_smoke/sized_positions.csv",
+            "--output-dir",
+            "outputs/exit_engine_smoke",
+        ],
+    ),
+    (
+        "offline exit engine assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/exit_engine_smoke'); "
+                "required=['exit_plan.csv','exit_guardrails.csv','exit_summary.csv','exit_engine_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'exit_summary.csv'); "
+                "plan=pd.read_csv(base/'exit_plan.csv', dtype={'symbol': str}); "
+                "row=summary.iloc[0]; "
+                "assert int(row['sized_position_count']) == 1; "
+                "assert int(row['planned_exit_count']) == 1; "
+                "assert int(row['invalid_exit_plan_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert len(plan) == 1; "
+                "planned=plan.iloc[0]; "
+                "assert planned['symbol'] == '600000'; "
+                "assert float(planned['entry_price']) == 8.0; "
+                "assert float(planned['stop_loss_pct']) == 0.05; "
+                "assert float(planned['stop_loss_price']) == 7.6; "
+                "assert float(planned['take_profit_pct']) == 0.10; "
+                "assert float(planned['take_profit_price']) == 8.8; "
+                "assert int(planned['max_holding_days']) == 10; "
+                "assert planned['benchmark_lag_exit_rule'] == 'exit_if_underperform_benchmark_by_3pct_after_5_days'; "
+                "assert planned['exit_plan_status'] == 'planned'; "
+                "assert not bool(planned['trading_ready']); "
+                "guardrails=pd.read_csv(base/'exit_guardrails.csv'); "
+                "required_guardrails={'no_new_backtests','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_integration','no_live_trading','no_order_execution','no_trading_ready_upgrade','exit_planning_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "report=(base/'exit_engine_report.md').read_text(encoding='utf-8'); "
+                "phrases=['V5 Step 4 creates explicit research-only exit plans','No broker execution is performed','No live trading is performed','The project remains not trading-ready']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

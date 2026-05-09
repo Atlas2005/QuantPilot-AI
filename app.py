@@ -4982,6 +4982,25 @@ def load_position_sizing_engine_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_exit_engine_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "exit_engine_report.md"
+    return {
+        "summary": pd.read_csv(base / "exit_summary.csv")
+        if (base / "exit_summary.csv").exists()
+        else pd.DataFrame(),
+        "exit_plan": pd.read_csv(base / "exit_plan.csv", dtype={"symbol": str})
+        if (base / "exit_plan.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "exit_guardrails.csv")
+        if (base / "exit_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -6775,6 +6794,48 @@ def render_position_sizing_engine_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_exit_engine_tab() -> None:
+    st.write(
+        "Load V5 Step 4 research-only exit planning outputs."
+    )
+    st.warning(
+        "This panel is educational research tooling only. It does not generate "
+        "orders, connect to a broker, perform live trading, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Exit engine output directory",
+        value="outputs/exit_engine_real_v1",
+        key="exit_engine_output_dir",
+    )
+    if not st.button(
+        "Load exit engine outputs",
+        key="load_exit_engine_button",
+        type="primary",
+    ):
+        return
+
+    output = load_exit_engine_outputs(output_dir)
+    st.subheader("Exit Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Exit Plan")
+    st.dataframe(output["exit_plan"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Markdown Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download exit engine report",
+            data=output["markdown_report"],
+            file_name="exit_engine_report.md",
+            mime="text/markdown",
+            key="download_exit_engine_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -6880,6 +6941,7 @@ def main() -> None:
         capital_constraint_engine_tab,
         tradable_universe_filter_tab,
         position_sizing_engine_tab,
+        exit_engine_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -6922,6 +6984,7 @@ def main() -> None:
             "V5 Step 1 Capital Constraints",
             "V5 Step 2 Tradable Universe",
             "V5 Step 3 Position Sizing",
+            "V5 Step 4 Exit Engine",
         ]
     )
     with single_tab:
@@ -7053,6 +7116,9 @@ def main() -> None:
 
     with position_sizing_engine_tab:
         render_position_sizing_engine_tab()
+
+    with exit_engine_tab:
+        render_exit_engine_tab()
 
 
 if __name__ == "__main__":
