@@ -101,6 +101,8 @@ PY_COMPILE_FILES = [
     "src/run_monitoring_reporting_layer.py",
     "src/capital_aware_infrastructure_review.py",
     "src/run_capital_aware_infrastructure_review.py",
+    "src/validation_baseline_manifest.py",
+    "src/run_validation_baseline_manifest.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1283,6 +1285,88 @@ COMMAND_CHECKS = [
                 "assert set(guardrails.loc[guardrails['guardrail'].isin(confirmed_zero),'status']) == {'confirmed'}; "
                 "report=(base/'v5_capital_aware_closure_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Capital-Aware Infrastructure Review / Closure','review-only closure layer','does not add trading capability','capital_aware_infrastructure_closed_research_only','V6 validation_and_simulation_hardening']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_validation_baseline_manifest help",
+        ["src/run_validation_baseline_manifest.py", "--help"],
+    ),
+    (
+        "validation baseline manifest import",
+        ["-c", "import src.validation_baseline_manifest"],
+    ),
+    (
+        "offline validation baseline manifest",
+        [
+            "src/run_validation_baseline_manifest.py",
+            "--capital-dir",
+            "outputs/capital_constraint_engine_smoke",
+            "--universe-dir",
+            "outputs/tradable_universe_filter_smoke",
+            "--position-dir",
+            "outputs/position_sizing_engine_smoke",
+            "--exit-dir",
+            "outputs/exit_engine_smoke",
+            "--daily-plan-dir",
+            "outputs/daily_trading_plan_smoke",
+            "--paper-ledger-dir",
+            "outputs/paper_trading_ledger_smoke",
+            "--semi-auto-dir",
+            "outputs/semi_auto_order_generator_smoke",
+            "--broker-research-dir",
+            "outputs/broker_integration_research_smoke",
+            "--monitoring-dir",
+            "outputs/monitoring_reporting_layer_smoke",
+            "--v5-closure-dir",
+            "outputs/capital_aware_infrastructure_review_smoke",
+            "--output-dir",
+            "outputs/validation_baseline_manifest_smoke",
+        ],
+    ),
+    (
+        "offline validation baseline manifest assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/validation_baseline_manifest_smoke'); "
+                "required=['validation_baseline_summary.csv','validation_baseline_manifest.csv','validation_baseline_guardrails.csv','validation_baseline_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'validation_baseline_summary.csv'); "
+                "manifest=pd.read_csv(base/'validation_baseline_manifest.csv'); "
+                "guardrails=pd.read_csv(base/'validation_baseline_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['baseline_step_count']) == 10; "
+                "assert int(row['present_output_dir_count']) == 10; "
+                "assert int(row['missing_output_dir_count']) == 0; "
+                "assert int(row['total_file_count']) >= 50; "
+                "assert int(row['total_csv_file_count']) >= 35; "
+                "assert int(row['total_markdown_file_count']) >= 9; "
+                "assert int(row['total_json_file_count']) >= 10; "
+                "assert int(row['trading_ready_true_count']) == 0; "
+                "assert int(row['execution_allowed_true_count']) == 0; "
+                "assert int(row['broker_connected_true_count']) == 0; "
+                "assert int(row['live_trading_true_count']) == 0; "
+                "assert int(row['real_order_submission_true_count']) == 0; "
+                "assert row['baseline_status'] == 'v6_validation_baseline_manifest_created_research_only'; "
+                "assert not bool(row['trading_ready']); "
+                "assert len(manifest) == 10; "
+                "assert manifest['directory_exists'].fillna(False).astype(bool).all(); "
+                "required_steps={'V5 Step 1 Capital Constraint Engine','V5 Step 2 Tradable Universe Filter','V5 Step 3 Position Sizing Engine','V5 Step 4 Exit Engine','V5 Step 5 Daily Trading Plan','V5 Step 6 Paper Trading Ledger','V5 Step 7 Semi-Auto Order Generator','V5 Step 8 Broker Integration Research','V5 Step 9 Monitoring / Reporting Layer','V5 Step 10 Capital-Aware Infrastructure Review / Closure'}; "
+                "assert required_steps <= set(manifest['step_name']); "
+                "flag_cols=['trading_ready_true_count','execution_allowed_true_count','broker_connected_true_count','live_trading_true_count','real_order_submission_true_count']; "
+                "assert not manifest[flag_cols].fillna(0).astype(int).any().any(); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_threshold_change','no_model_retraining','no_feature_engineering_change','no_new_data_sources','no_broker_credentials','no_broker_sdk_import','no_broker_connection','no_live_trading','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','manifest_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "report=(base/'validation_baseline_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Validation Baseline Manifest','stable research baseline','does not create any trading capability','v6_validation_baseline_manifest_created_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

@@ -5148,6 +5148,25 @@ def load_capital_aware_infrastructure_review_outputs(output_dir: str) -> dict[st
     }
 
 
+def load_validation_baseline_manifest_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "validation_baseline_report.md"
+    return {
+        "summary": pd.read_csv(base / "validation_baseline_summary.csv")
+        if (base / "validation_baseline_summary.csv").exists()
+        else pd.DataFrame(),
+        "manifest": pd.read_csv(base / "validation_baseline_manifest.csv")
+        if (base / "validation_baseline_manifest.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "validation_baseline_guardrails.csv")
+        if (base / "validation_baseline_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7257,6 +7276,48 @@ def render_capital_aware_infrastructure_review_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_validation_baseline_manifest_tab() -> None:
+    st.write(
+        "Load V6 Step 1 research-only validation baseline manifest outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 1 manifest only. It does not run "
+        "backtests, fetch market data, train models, change thresholds, "
+        "connect to brokers, submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Validation baseline manifest output directory",
+        value="outputs/validation_baseline_manifest_real_v1",
+        key="validation_baseline_manifest_output_dir",
+    )
+    if not st.button(
+        "Load validation baseline manifest",
+        key="load_validation_baseline_manifest_button",
+        type="primary",
+    ):
+        return
+
+    output = load_validation_baseline_manifest_outputs(output_dir)
+    st.subheader("Baseline Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Baseline Manifest")
+    st.dataframe(output["manifest"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Manifest Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download validation baseline report",
+            data=output["markdown_report"],
+            file_name="validation_baseline_report.md",
+            mime="text/markdown",
+            key="download_validation_baseline_manifest_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7369,6 +7430,7 @@ def main() -> None:
         broker_integration_research_tab,
         monitoring_reporting_layer_tab,
         capital_aware_infrastructure_review_tab,
+        validation_baseline_manifest_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7418,6 +7480,7 @@ def main() -> None:
             "V5 Step 8 Broker Research",
             "V5 Step 9 Monitoring",
             "V5 Step 10 Closure",
+            "V6 Step 1 Baseline",
         ]
     )
     with single_tab:
@@ -7570,6 +7633,9 @@ def main() -> None:
 
     with capital_aware_infrastructure_review_tab:
         render_capital_aware_infrastructure_review_tab()
+
+    with validation_baseline_manifest_tab:
+        render_validation_baseline_manifest_tab()
 
 
 if __name__ == "__main__":
