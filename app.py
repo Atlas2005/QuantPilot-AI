@@ -5287,6 +5287,31 @@ def load_validation_coverage_gap_review_outputs(output_dir: str) -> dict[str, ob
     }
 
 
+def load_simulation_hardening_design_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "simulation_hardening_design_report.md"
+    return {
+        "summary": pd.read_csv(base / "simulation_hardening_design_summary.csv")
+        if (base / "simulation_hardening_design_summary.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "simulation_hardening_design_guardrails.csv")
+        if (base / "simulation_hardening_design_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "hardening_plan": pd.read_csv(base / "simulation_hardening_plan.csv")
+        if (base / "simulation_hardening_plan.csv").exists()
+        else pd.DataFrame(),
+        "replay_plan": pd.read_csv(base / "multi_day_paper_replay_plan.csv")
+        if (base / "multi_day_paper_replay_plan.csv").exists()
+        else pd.DataFrame(),
+        "risk_controls": pd.read_csv(base / "simulation_risk_controls.csv")
+        if (base / "simulation_risk_controls.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7695,6 +7720,53 @@ def render_validation_coverage_gap_review_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_simulation_hardening_design_tab() -> None:
+    st.write(
+        "Load V6 Step 8 research-only simulation hardening design outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 8 design outputs only. It does not run "
+        "a replay, run backtests, fetch market data, train models, change "
+        "thresholds, connect to brokers, submit orders, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Simulation hardening design directory",
+        value="outputs/simulation_hardening_design_real_v1",
+        key="simulation_hardening_design_output_dir",
+    )
+    if not st.button(
+        "Load simulation hardening design",
+        key="load_simulation_hardening_design_button",
+        type="primary",
+    ):
+        return
+
+    output = load_simulation_hardening_design_outputs(output_dir)
+    st.subheader("Simulation Hardening Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Multi-Day Paper Replay Plan")
+    st.dataframe(output["replay_plan"], width="stretch")
+    st.subheader("Simulation Hardening Plan")
+    st.dataframe(output["hardening_plan"], width="stretch")
+    st.subheader("Simulation Risk Controls")
+    st.dataframe(output["risk_controls"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Simulation Hardening Design Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download simulation hardening design report",
+            data=output["markdown_report"],
+            file_name="simulation_hardening_design_report.md",
+            mime="text/markdown",
+            key="download_simulation_hardening_design_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7814,6 +7886,7 @@ def main() -> None:
         reproducibility_warning_triage_tab,
         validation_evidence_index_tab,
         validation_coverage_gap_review_tab,
+        simulation_hardening_design_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7870,6 +7943,7 @@ def main() -> None:
             "V6 Step 5 Warning Triage",
             "V6 Step 6 Evidence",
             "V6 Step 7 Coverage Gaps",
+            "V6 Step 8 Simulation Design",
         ]
     )
     with single_tab:
@@ -8043,6 +8117,9 @@ def main() -> None:
 
     with validation_coverage_gap_review_tab:
         render_validation_coverage_gap_review_tab()
+
+    with simulation_hardening_design_tab:
+        render_simulation_hardening_design_tab()
 
 
 if __name__ == "__main__":

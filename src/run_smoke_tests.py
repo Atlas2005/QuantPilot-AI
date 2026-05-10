@@ -115,6 +115,8 @@ PY_COMPILE_FILES = [
     "src/run_validation_evidence_index.py",
     "src/validation_coverage_gap_review.py",
     "src/run_validation_coverage_gap_review.py",
+    "src/simulation_hardening_design.py",
+    "src/run_simulation_hardening_design.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1800,6 +1802,84 @@ COMMAND_CHECKS = [
                 "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
                 "report=(base/'validation_coverage_gap_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Validation Coverage Gap','remaining readiness gaps','validation_coverage_gap_review_completed_research_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_simulation_hardening_design help",
+        ["src/run_simulation_hardening_design.py", "--help"],
+    ),
+    (
+        "simulation hardening design import",
+        ["-c", "import src.simulation_hardening_design"],
+    ),
+    (
+        "offline simulation hardening design",
+        [
+            "src/run_simulation_hardening_design.py",
+            "--capital-dir",
+            "outputs/capital_constraint_engine_smoke",
+            "--universe-dir",
+            "outputs/tradable_universe_filter_smoke",
+            "--position-dir",
+            "outputs/position_sizing_engine_smoke",
+            "--exit-dir",
+            "outputs/exit_engine_smoke",
+            "--daily-plan-dir",
+            "outputs/daily_trading_plan_smoke",
+            "--paper-ledger-dir",
+            "outputs/paper_trading_ledger_smoke",
+            "--monitoring-dir",
+            "outputs/monitoring_reporting_layer_smoke",
+            "--v5-closure-dir",
+            "outputs/capital_aware_infrastructure_review_smoke",
+            "--coverage-gap-dir",
+            "outputs/validation_coverage_gap_review_smoke",
+            "--output-dir",
+            "outputs/simulation_hardening_design_smoke",
+        ],
+    ),
+    (
+        "offline simulation hardening design assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/simulation_hardening_design_smoke'); "
+                "required=['run_config.json','simulation_hardening_design_summary.csv','simulation_hardening_design_guardrails.csv','simulation_hardening_plan.csv','multi_day_paper_replay_plan.csv','simulation_risk_controls.csv','simulation_hardening_design_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'simulation_hardening_design_summary.csv'); "
+                "guardrails=pd.read_csv(base/'simulation_hardening_design_guardrails.csv'); "
+                "plan=pd.read_csv(base/'simulation_hardening_plan.csv'); "
+                "replay=pd.read_csv(base/'multi_day_paper_replay_plan.csv'); "
+                "controls=pd.read_csv(base/'simulation_risk_controls.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['planned_replay_phase_count']) == len(replay); "
+                "assert int(row['input_dependency_count']) >= 9; "
+                "assert int(row['risk_control_count']) == len(controls); "
+                "assert int(row['evidence_requirement_count']) == len(plan) + len(replay); "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert not bool(row['execution_allowed']); "
+                "assert not bool(row['broker_connected']); "
+                "assert not bool(row['live_trading']); "
+                "assert not bool(row['real_order_submission']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'simulation_hardening_design_completed_research_only'; "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_credentials','no_broker_sdk_import','no_broker_connection','no_live_trading','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','simulation_design_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "assert set(replay['phase_status']) == {'planned_not_executed'}; "
+                "assert not replay[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "assert set(plan['implementation_status']) == {'planned_not_implemented'}; "
+                "assert not controls[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "report=(base/'simulation_hardening_design_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Simulation Hardening Design','multi-day paper replay','does not run a replay','simulation_hardening_design_completed_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
