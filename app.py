@@ -5265,6 +5265,28 @@ def load_validation_evidence_index_outputs(output_dir: str) -> dict[str, object]
     }
 
 
+def load_validation_coverage_gap_review_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "validation_coverage_gap_report.md"
+    return {
+        "summary": pd.read_csv(base / "validation_coverage_gap_summary.csv")
+        if (base / "validation_coverage_gap_summary.csv").exists()
+        else pd.DataFrame(),
+        "coverage": pd.read_csv(base / "validation_coverage_gap_results.csv")
+        if (base / "validation_coverage_gap_results.csv").exists()
+        else pd.DataFrame(),
+        "risks": pd.read_csv(base / "validation_readiness_risk_register.csv")
+        if (base / "validation_readiness_risk_register.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "validation_coverage_gap_guardrails.csv")
+        if (base / "validation_coverage_gap_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7629,6 +7651,50 @@ def render_validation_evidence_index_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_validation_coverage_gap_review_tab() -> None:
+    st.write(
+        "Load V6 Step 7 research-only validation coverage gap review outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 7 coverage gap review only. It does not "
+        "run backtests, fetch market data, train models, change thresholds, "
+        "connect to brokers, submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Validation coverage gap review directory",
+        value="outputs/validation_coverage_gap_review_real_v1",
+        key="validation_coverage_gap_review_output_dir",
+    )
+    if not st.button(
+        "Load validation coverage gap review",
+        key="load_validation_coverage_gap_review_button",
+        type="primary",
+    ):
+        return
+
+    output = load_validation_coverage_gap_review_outputs(output_dir)
+    st.subheader("Coverage Gap Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Coverage Matrix")
+    st.dataframe(output["coverage"], width="stretch")
+    st.subheader("Readiness Risk Register")
+    st.dataframe(output["risks"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Coverage Gap Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download coverage gap report",
+            data=output["markdown_report"],
+            file_name="validation_coverage_gap_report.md",
+            mime="text/markdown",
+            key="download_validation_coverage_gap_review_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7747,6 +7813,7 @@ def main() -> None:
         reproducibility_rerun_validator_tab,
         reproducibility_warning_triage_tab,
         validation_evidence_index_tab,
+        validation_coverage_gap_review_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7802,6 +7869,7 @@ def main() -> None:
             "V6 Step 4 Reproducibility",
             "V6 Step 5 Warning Triage",
             "V6 Step 6 Evidence",
+            "V6 Step 7 Coverage Gaps",
         ]
     )
     with single_tab:
@@ -7972,6 +8040,9 @@ def main() -> None:
 
     with validation_evidence_index_tab:
         render_validation_evidence_index_tab()
+
+    with validation_coverage_gap_review_tab:
+        render_validation_coverage_gap_review_tab()
 
 
 if __name__ == "__main__":

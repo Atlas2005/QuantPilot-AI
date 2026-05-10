@@ -69,6 +69,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 reproducibility rerun validation | `python src/run_reproducibility_rerun_validator.py --output-dir outputs/reproducibility_rerun_validator_real_v1` |
 | Run V6 reproducibility warning triage | `python src/run_reproducibility_warning_triage.py --output-dir outputs/reproducibility_warning_triage_real_v1` |
 | Run V6 validation evidence index | `python src/run_validation_evidence_index.py --output-dir outputs/validation_evidence_index_real_v1` |
+| Run V6 validation coverage gap review | `python src/run_validation_coverage_gap_review.py --output-dir outputs/validation_coverage_gap_review_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -161,6 +162,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_reproducibility_warning_triage.py`: Command-line tool for the V6 Step 5 warning triage report.
 - `src/validation_evidence_index.py`: V6 Step 6 research-only validation evidence index and audit trail catalog.
 - `src/run_validation_evidence_index.py`: Command-line tool for the V6 Step 6 evidence index.
+- `src/validation_coverage_gap_review.py`: V6 Step 7 research-only validation coverage gap and readiness risk review.
+- `src/run_validation_coverage_gap_review.py`: Command-line tool for the V6 Step 7 coverage gap review.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1949,6 +1952,33 @@ features, add data sources, connect to brokers, execute or submit orders,
 perform live trading, overwrite prior outputs, or mark anything trading-ready.
 
 The dashboard has a `V6 Step 6 Evidence` tab for loading this output directory.
+
+## V6 Step 7: Validation Coverage Gap / Readiness Risk Review
+
+V6 Step 7 reads existing V6 validation outputs and summarizes remaining
+coverage gaps before any future simulation hardening. It builds a coverage
+matrix for V6 Step 1-6 and a readiness risk register for unresolved future-work
+gaps such as real-time paper trading evidence, walk-forward simulation
+hardening, broker/account reconciliation, production monitoring, kill switch,
+compliance/risk approval, and the absence of any trading-ready candidate.
+
+Example:
+
+```powershell
+python src/run_validation_coverage_gap_review.py --output-dir outputs/validation_coverage_gap_review_real_v1
+```
+
+Generated files include `validation_coverage_gap_summary.csv`,
+`validation_coverage_gap_results.csv`,
+`validation_readiness_risk_register.csv`,
+`validation_coverage_gap_guardrails.csv`,
+`validation_coverage_gap_report.md`, and `run_config.json`. This step does not
+run backtests, fetch market data, change thresholds, retrain models, change
+features, add data sources, connect to brokers, execute or submit orders,
+perform live trading, overwrite prior outputs, or mark anything trading-ready.
+
+The dashboard has a `V6 Step 7 Coverage Gaps` tab for loading this output
+directory.
 
 ## Smoke Tests
 

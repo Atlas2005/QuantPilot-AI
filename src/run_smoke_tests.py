@@ -113,6 +113,8 @@ PY_COMPILE_FILES = [
     "src/run_reproducibility_warning_triage.py",
     "src/validation_evidence_index.py",
     "src/run_validation_evidence_index.py",
+    "src/validation_coverage_gap_review.py",
+    "src/run_validation_coverage_gap_review.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1731,6 +1733,73 @@ COMMAND_CHECKS = [
                 "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
                 "report=(base/'validation_evidence_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Validation Evidence Index','unified research audit trail','validation_evidence_index_audit_trail_created_research_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_validation_coverage_gap_review help",
+        ["src/run_validation_coverage_gap_review.py", "--help"],
+    ),
+    (
+        "validation coverage gap review import",
+        ["-c", "import src.validation_coverage_gap_review"],
+    ),
+    (
+        "offline validation coverage gap review",
+        [
+            "src/run_validation_coverage_gap_review.py",
+            "--baseline-dir",
+            "outputs/validation_baseline_manifest_smoke",
+            "--schema-validator-dir",
+            "outputs/output_schema_validator_smoke",
+            "--dependency-validator-dir",
+            "outputs/cross_step_dependency_validator_smoke",
+            "--rerun-validator-dir",
+            "outputs/reproducibility_rerun_validator_smoke",
+            "--warning-triage-dir",
+            "outputs/reproducibility_warning_triage_smoke",
+            "--evidence-index-dir",
+            "outputs/validation_evidence_index_smoke",
+            "--output-dir",
+            "outputs/validation_coverage_gap_review_smoke",
+        ],
+    ),
+    (
+        "offline validation coverage gap review assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/validation_coverage_gap_review_smoke'); "
+                "required=['run_config.json','validation_coverage_gap_summary.csv','validation_coverage_gap_results.csv','validation_readiness_risk_register.csv','validation_coverage_gap_guardrails.csv','validation_coverage_gap_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'validation_coverage_gap_summary.csv'); "
+                "coverage=pd.read_csv(base/'validation_coverage_gap_results.csv'); "
+                "risks=pd.read_csv(base/'validation_readiness_risk_register.csv'); "
+                "guardrails=pd.read_csv(base/'validation_coverage_gap_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['reviewed_v6_step_count']) == 6; "
+                "assert int(row['coverage_result_row_count']) == len(coverage); "
+                "assert int(row['readiness_gap_count']) == len(risks); "
+                "assert int(row['blocking_gap_count']) >= 8; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'validation_coverage_gap_review_completed_research_only'; "
+                "required_gaps={'no_real_time_paper_trading_evidence_yet','no_walk_forward_simulation_hardening_yet','no_out_of_sample_live_or_paper_validation_layer_yet','no_capital_reconciliation_against_real_broker_account_yet','no_broker_sandbox_or_live_integration_yet','no_production_monitoring_or_kill_switch_yet','no_compliance_or_risk_approval_layer_yet','no_trading_ready_candidate_exists'}; "
+                "assert required_gaps <= set(risks['gap_name']); "
+                "assert not risks['allowed_to_fix_now'].fillna(True).astype(bool).any(); "
+                "assert not coverage['trading_ready'].fillna(True).astype(bool).any(); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_connection','no_live_trading','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','coverage_gap_review_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "report=(base/'validation_coverage_gap_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Validation Coverage Gap','remaining readiness gaps','validation_coverage_gap_review_completed_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
