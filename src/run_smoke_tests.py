@@ -107,6 +107,8 @@ PY_COMPILE_FILES = [
     "src/run_output_schema_validator.py",
     "src/cross_step_dependency_validator.py",
     "src/run_cross_step_dependency_validator.py",
+    "src/reproducibility_rerun_validator.py",
+    "src/run_reproducibility_rerun_validator.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1525,6 +1527,87 @@ COMMAND_CHECKS = [
                 "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
                 "report=(base/'cross_step_dependency_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Cross-Step Dependency Integrity Validator','dependency links','does not run backtests','cross_step_dependency_validation']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_reproducibility_rerun_validator help",
+        ["src/run_reproducibility_rerun_validator.py", "--help"],
+    ),
+    (
+        "reproducibility rerun validator import",
+        ["-c", "import src.reproducibility_rerun_validator"],
+    ),
+    (
+        "offline reproducibility rerun validator",
+        [
+            "src/run_reproducibility_rerun_validator.py",
+            "--semi-auto-dir",
+            "outputs/semi_auto_order_generator_smoke",
+            "--broker-research-dir",
+            "outputs/broker_integration_research_smoke",
+            "--capital-dir",
+            "outputs/capital_constraint_engine_smoke",
+            "--universe-dir",
+            "outputs/tradable_universe_filter_smoke",
+            "--position-dir",
+            "outputs/position_sizing_engine_smoke",
+            "--exit-dir",
+            "outputs/exit_engine_smoke",
+            "--daily-plan-dir",
+            "outputs/daily_trading_plan_smoke",
+            "--paper-ledger-dir",
+            "outputs/paper_trading_ledger_smoke",
+            "--monitoring-dir",
+            "outputs/monitoring_reporting_layer_smoke",
+            "--v5-closure-dir",
+            "outputs/capital_aware_infrastructure_review_smoke",
+            "--baseline-dir",
+            "outputs/validation_baseline_manifest_smoke",
+            "--schema-validator-dir",
+            "outputs/output_schema_validator_smoke",
+            "--dependency-validator-dir",
+            "outputs/cross_step_dependency_validator_smoke",
+            "--output-dir",
+            "outputs/reproducibility_rerun_validator_smoke",
+        ],
+    ),
+    (
+        "offline reproducibility rerun validator assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/reproducibility_rerun_validator_smoke'); "
+                "required=['run_config.json','reproducibility_rerun_summary.csv','reproducibility_rerun_results.csv','reproducibility_rerun_guardrails.csv','reproducibility_rerun_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "assert (base/'rerun_workspace').exists(); "
+                "summary=pd.read_csv(base/'reproducibility_rerun_summary.csv'); "
+                "results=pd.read_csv(base/'reproducibility_rerun_results.csv'); "
+                "guardrails=pd.read_csv(base/'reproducibility_rerun_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['checked_rerun_count']) == 6; "
+                "assert int(row['rerun_fail_count']) == 0; "
+                "assert int(row['checked_file_count']) >= 30; "
+                "assert int(row['matched_file_count']) == int(row['checked_file_count']); "
+                "assert int(row['mismatched_file_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['validation_status'] in {'pass','warning'}; "
+                "assert str(row['conclusion']).endswith('_research_only'); "
+                "assert len(results) == int(row['checked_file_count']); "
+                "assert not results[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "assert not results['forbidden_true_flag_count'].fillna(1).astype(int).any(); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_credentials','no_broker_sdk_import','no_broker_connection','no_live_trading','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','isolated_rerun_only','previous_outputs_not_overwritten','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "report=(base/'reproducibility_rerun_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Historical Output Reproducibility','isolated rerun workspace','does not run backtests','reproducibility_rerun']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

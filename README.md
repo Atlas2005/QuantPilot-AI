@@ -66,6 +66,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 validation baseline manifest | `python src/run_validation_baseline_manifest.py --output-dir outputs/validation_baseline_manifest_real_v1` |
 | Run V6 output schema validation | `python src/run_output_schema_validator.py --output-dir outputs/output_schema_validator_real_v1` |
 | Run V6 cross-step dependency validation | `python src/run_cross_step_dependency_validator.py --output-dir outputs/cross_step_dependency_validator_real_v1` |
+| Run V6 reproducibility rerun validation | `python src/run_reproducibility_rerun_validator.py --output-dir outputs/reproducibility_rerun_validator_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -152,6 +153,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_output_schema_validator.py`: Command-line tool for the V6 Step 2 output schema validator.
 - `src/cross_step_dependency_validator.py`: V6 Step 3 research-only cross-step dependency integrity validator.
 - `src/run_cross_step_dependency_validator.py`: Command-line tool for the V6 Step 3 dependency validator.
+- `src/reproducibility_rerun_validator.py`: V6 Step 4 research-only reproducibility rerun consistency validator.
+- `src/run_reproducibility_rerun_validator.py`: Command-line tool for the V6 Step 4 reproducibility validator.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1865,6 +1868,32 @@ features, add data sources, connect to brokers, execute or submit orders,
 perform live trading, or mark anything trading-ready.
 
 The dashboard has a `V6 Step 3 Dependencies` tab for loading this output
+directory.
+
+## V6 Step 4: Historical Output Reproducibility / Rerun Consistency Check
+
+V6 Step 4 reruns selected deterministic local-only V5/V6 output-producing
+commands into an isolated `rerun_workspace` under the Step 4 output directory,
+then compares the rerun outputs against canonical outputs. It checks expected
+files, row counts, key summary values, normalized fingerprints, and forbidden
+safety flags.
+
+Example:
+
+```powershell
+python src/run_reproducibility_rerun_validator.py --output-dir outputs/reproducibility_rerun_validator_real_v1
+```
+
+Generated files include `reproducibility_rerun_summary.csv`,
+`reproducibility_rerun_results.csv`, `reproducibility_rerun_guardrails.csv`,
+`reproducibility_rerun_report.md`, and `run_config.json`. Rerun artifacts are
+written below `outputs/reproducibility_rerun_validator_real_v1/rerun_workspace/`.
+This step does not run backtests, fetch market data, change thresholds, retrain
+models, change features, add data sources, request credentials, import broker
+SDKs, connect to brokers, execute or submit orders, perform live trading,
+overwrite canonical historical outputs, or mark anything trading-ready.
+
+The dashboard has a `V6 Step 4 Reproducibility` tab for loading this output
 directory.
 
 ## Smoke Tests
