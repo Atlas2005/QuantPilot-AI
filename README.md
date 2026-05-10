@@ -64,6 +64,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V5 monitoring/reporting layer | `python src/run_monitoring_reporting_layer.py --output-dir outputs/monitoring_reporting_layer_real_v1` |
 | Run V5 capital-aware infrastructure closure | `python src/run_capital_aware_infrastructure_review.py --output-dir outputs/capital_aware_infrastructure_review_real_v1` |
 | Run V6 validation baseline manifest | `python src/run_validation_baseline_manifest.py --output-dir outputs/validation_baseline_manifest_real_v1` |
+| Run V6 output schema validation | `python src/run_output_schema_validator.py --output-dir outputs/output_schema_validator_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -146,6 +147,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_capital_aware_infrastructure_review.py`: Command-line tool for the V5 Step 10 closure review.
 - `src/validation_baseline_manifest.py`: V6 Step 1 research-only validation baseline manifest.
 - `src/run_validation_baseline_manifest.py`: Command-line tool for the V6 Step 1 baseline manifest.
+- `src/output_schema_validator.py`: V6 Step 2 research-only output consistency and schema validation layer.
+- `src/run_output_schema_validator.py`: Command-line tool for the V6 Step 2 output schema validator.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1811,6 +1814,29 @@ mark anything trading-ready. The expected baseline status is
 `v6_validation_baseline_manifest_created_research_only`.
 
 The dashboard has a `V6 Step 1 Baseline` tab for loading this output directory.
+
+## V6 Step 2: Output Consistency / Schema Validation Layer
+
+V6 Step 2 validates existing local V5/V6 research outputs against expected
+file and CSV-column schemas. It checks key output files from V5 Step 1-10 and
+V6 Step 1, reports missing files, missing required columns, empty CSVs,
+malformed all-null rows, and detectable forbidden safety flag violations.
+
+Example:
+
+```powershell
+python src/run_output_schema_validator.py --output-dir outputs/output_schema_validator_real_v1
+```
+
+Generated files include `output_schema_validation_summary.csv`,
+`output_schema_validation_results.csv`,
+`output_schema_validation_guardrails.csv`, `output_schema_validation_report.md`,
+and `run_config.json`. This step does not run backtests, fetch market data,
+change thresholds, retrain models, change features, add data sources, request
+credentials, import broker SDKs, connect to brokers, execute or submit orders,
+perform live trading, or mark anything trading-ready.
+
+The dashboard has a `V6 Step 2 Schema` tab for loading this output directory.
 
 ## Smoke Tests
 
