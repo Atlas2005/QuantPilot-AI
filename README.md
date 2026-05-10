@@ -68,6 +68,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 cross-step dependency validation | `python src/run_cross_step_dependency_validator.py --output-dir outputs/cross_step_dependency_validator_real_v1` |
 | Run V6 reproducibility rerun validation | `python src/run_reproducibility_rerun_validator.py --output-dir outputs/reproducibility_rerun_validator_real_v1` |
 | Run V6 reproducibility warning triage | `python src/run_reproducibility_warning_triage.py --output-dir outputs/reproducibility_warning_triage_real_v1` |
+| Run V6 validation evidence index | `python src/run_validation_evidence_index.py --output-dir outputs/validation_evidence_index_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -158,6 +159,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_reproducibility_rerun_validator.py`: Command-line tool for the V6 Step 4 reproducibility validator.
 - `src/reproducibility_warning_triage.py`: V6 Step 5 research-only reproducibility warning triage layer.
 - `src/run_reproducibility_warning_triage.py`: Command-line tool for the V6 Step 5 warning triage report.
+- `src/validation_evidence_index.py`: V6 Step 6 research-only validation evidence index and audit trail catalog.
+- `src/run_validation_evidence_index.py`: Command-line tool for the V6 Step 6 evidence index.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -1923,6 +1926,29 @@ prior outputs, or mark anything trading-ready.
 
 The dashboard has a `V6 Step 5 Warning Triage` tab for loading this output
 directory.
+
+## V6 Step 6: Validation Evidence Index / Audit Trail Catalog
+
+V6 Step 6 reads existing local V6 Step 1-5 output directories and builds a
+unified evidence catalog plus traceability matrix. It indexes evidence file
+paths, file categories, source steps, validation status and conclusions when
+available, CSV row counts, and detectable safety flag counts.
+
+Example:
+
+```powershell
+python src/run_validation_evidence_index.py --output-dir outputs/validation_evidence_index_real_v1
+```
+
+Generated files include `validation_evidence_catalog.csv`,
+`validation_evidence_traceability_matrix.csv`,
+`validation_evidence_guardrails.csv`, `validation_evidence_summary.csv`,
+`validation_evidence_report.md`, and `run_config.json`. This step does not run
+backtests, fetch market data, change thresholds, retrain models, change
+features, add data sources, connect to brokers, execute or submit orders,
+perform live trading, overwrite prior outputs, or mark anything trading-ready.
+
+The dashboard has a `V6 Step 6 Evidence` tab for loading this output directory.
 
 ## Smoke Tests
 

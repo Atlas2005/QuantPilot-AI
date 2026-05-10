@@ -111,6 +111,8 @@ PY_COMPILE_FILES = [
     "src/run_reproducibility_rerun_validator.py",
     "src/reproducibility_warning_triage.py",
     "src/run_reproducibility_warning_triage.py",
+    "src/validation_evidence_index.py",
+    "src/run_validation_evidence_index.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1663,6 +1665,72 @@ COMMAND_CHECKS = [
                 "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
                 "report=(base/'reproducibility_warning_triage_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Validation Warning Triage','does not rerun any command','reproducibility_warnings_triaged_as_acceptable_research_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_validation_evidence_index help",
+        ["src/run_validation_evidence_index.py", "--help"],
+    ),
+    (
+        "validation evidence index import",
+        ["-c", "import src.validation_evidence_index"],
+    ),
+    (
+        "offline validation evidence index",
+        [
+            "src/run_validation_evidence_index.py",
+            "--baseline-dir",
+            "outputs/validation_baseline_manifest_smoke",
+            "--schema-validator-dir",
+            "outputs/output_schema_validator_smoke",
+            "--dependency-validator-dir",
+            "outputs/cross_step_dependency_validator_smoke",
+            "--rerun-validator-dir",
+            "outputs/reproducibility_rerun_validator_smoke",
+            "--warning-triage-dir",
+            "outputs/reproducibility_warning_triage_smoke",
+            "--output-dir",
+            "outputs/validation_evidence_index_smoke",
+        ],
+    ),
+    (
+        "offline validation evidence index assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/validation_evidence_index_smoke'); "
+                "required=['validation_evidence_catalog.csv','validation_evidence_traceability_matrix.csv','validation_evidence_guardrails.csv','validation_evidence_summary.csv','validation_evidence_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'validation_evidence_summary.csv'); "
+                "catalog=pd.read_csv(base/'validation_evidence_catalog.csv'); "
+                "trace=pd.read_csv(base/'validation_evidence_traceability_matrix.csv'); "
+                "guardrails=pd.read_csv(base/'validation_evidence_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['indexed_step_count']) == 5; "
+                "assert int(row['expected_step_count']) == 5; "
+                "assert int(row['missing_step_count']) == 0; "
+                "assert int(row['indexed_evidence_file_count']) >= 25; "
+                "assert int(row['total_catalog_row_count']) == len(catalog); "
+                "assert int(row['traceability_row_count']) == len(trace); "
+                "assert int(row['missing_required_evidence_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'validation_evidence_index_audit_trail_created_research_only'; "
+                "assert set(trace['traceability_status']) == {'present'}; "
+                "assert not catalog[['trading_ready_true_count','execution_allowed_true_count','broker_connected_true_count','live_trading_true_count','real_order_submission_true_count']].fillna(0).astype(int).any().any(); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_connection','no_live_trading','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','evidence_index_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "report=(base/'validation_evidence_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Validation Evidence Index','unified research audit trail','validation_evidence_index_audit_trail_created_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
