@@ -5224,6 +5224,25 @@ def load_reproducibility_rerun_validator_outputs(output_dir: str) -> dict[str, o
     }
 
 
+def load_reproducibility_warning_triage_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "reproducibility_warning_triage_report.md"
+    return {
+        "summary": pd.read_csv(base / "reproducibility_warning_triage_summary.csv")
+        if (base / "reproducibility_warning_triage_summary.csv").exists()
+        else pd.DataFrame(),
+        "results": pd.read_csv(base / "reproducibility_warning_triage_results.csv")
+        if (base / "reproducibility_warning_triage_results.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "reproducibility_warning_triage_guardrails.csv")
+        if (base / "reproducibility_warning_triage_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7502,6 +7521,48 @@ def render_reproducibility_rerun_validator_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_reproducibility_warning_triage_tab() -> None:
+    st.write(
+        "Load V6 Step 5 research-only reproducibility warning triage outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 5 warning triage report only. It does "
+        "not run backtests, fetch market data, train models, change thresholds, "
+        "connect to brokers, submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Reproducibility warning triage directory",
+        value="outputs/reproducibility_warning_triage_real_v1",
+        key="reproducibility_warning_triage_output_dir",
+    )
+    if not st.button(
+        "Load reproducibility warning triage",
+        key="load_reproducibility_warning_triage_button",
+        type="primary",
+    ):
+        return
+
+    output = load_reproducibility_warning_triage_outputs(output_dir)
+    st.subheader("Warning Triage Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Warning Triage Results")
+    st.dataframe(output["results"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Warning Triage Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download warning triage report",
+            data=output["markdown_report"],
+            file_name="reproducibility_warning_triage_report.md",
+            mime="text/markdown",
+            key="download_reproducibility_warning_triage_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7618,6 +7679,7 @@ def main() -> None:
         output_schema_validator_tab,
         cross_step_dependency_validator_tab,
         reproducibility_rerun_validator_tab,
+        reproducibility_warning_triage_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7671,6 +7733,7 @@ def main() -> None:
             "V6 Step 2 Schema",
             "V6 Step 3 Dependencies",
             "V6 Step 4 Reproducibility",
+            "V6 Step 5 Warning Triage",
         ]
     )
     with single_tab:
@@ -7835,6 +7898,9 @@ def main() -> None:
 
     with reproducibility_rerun_validator_tab:
         render_reproducibility_rerun_validator_tab()
+
+    with reproducibility_warning_triage_tab:
+        render_reproducibility_warning_triage_tab()
 
 
 if __name__ == "__main__":

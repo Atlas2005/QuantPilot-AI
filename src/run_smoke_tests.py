@@ -109,6 +109,8 @@ PY_COMPILE_FILES = [
     "src/run_cross_step_dependency_validator.py",
     "src/reproducibility_rerun_validator.py",
     "src/run_reproducibility_rerun_validator.py",
+    "src/reproducibility_warning_triage.py",
+    "src/run_reproducibility_warning_triage.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1608,6 +1610,59 @@ COMMAND_CHECKS = [
                 "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
                 "report=(base/'reproducibility_rerun_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Historical Output Reproducibility','isolated rerun workspace','does not run backtests','reproducibility_rerun']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_reproducibility_warning_triage help",
+        ["src/run_reproducibility_warning_triage.py", "--help"],
+    ),
+    (
+        "reproducibility warning triage import",
+        ["-c", "import src.reproducibility_warning_triage"],
+    ),
+    (
+        "offline reproducibility warning triage",
+        [
+            "src/run_reproducibility_warning_triage.py",
+            "--input-dir",
+            "outputs/reproducibility_rerun_validator_smoke",
+            "--output-dir",
+            "outputs/reproducibility_warning_triage_smoke",
+        ],
+    ),
+    (
+        "offline reproducibility warning triage assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/reproducibility_warning_triage_smoke'); "
+                "required=['reproducibility_warning_triage_summary.csv','reproducibility_warning_triage_results.csv','reproducibility_warning_triage_guardrails.csv','reproducibility_warning_triage_report.md','run_config.json']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'reproducibility_warning_triage_summary.csv'); "
+                "triage=pd.read_csv(base/'reproducibility_warning_triage_results.csv'); "
+                "guardrails=pd.read_csv(base/'reproducibility_warning_triage_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['total_warning_row_count']) == len(triage); "
+                "assert int(row['needs_investigation_count']) == 0; "
+                "assert int(row['acceptable_warning_count']) == len(triage); "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'reproducibility_warnings_triaged_as_acceptable_research_only'; "
+                "assert set(triage['triage_status']) <= {'acceptable'}; "
+                "assert not triage[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_credentials','no_broker_sdk_import','no_broker_connection','no_live_trading','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','warning_triage_only','previous_outputs_not_overwritten','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "assert not guardrails[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
+                "report=(base/'reproducibility_warning_triage_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Validation Warning Triage','does not rerun any command','reproducibility_warnings_triaged_as_acceptable_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
