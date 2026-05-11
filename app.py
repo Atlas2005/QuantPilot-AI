@@ -5545,6 +5545,43 @@ def load_open_source_quant_stack_audit_outputs(output_dir: str) -> dict[str, obj
     }
 
 
+def load_a_share_data_asset_map_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "a_share_data_asset_map_report.md"
+    return {
+        "summary": pd.read_csv(base / "a_share_data_asset_map_summary.csv")
+        if (base / "a_share_data_asset_map_summary.csv").exists()
+        else pd.DataFrame(),
+        "inventory": pd.read_csv(base / "a_share_data_source_inventory.csv")
+        if (base / "a_share_data_source_inventory.csv").exists()
+        else pd.DataFrame(),
+        "coverage": pd.read_csv(base / "a_share_data_coverage_matrix.csv")
+        if (base / "a_share_data_coverage_matrix.csv").exists()
+        else pd.DataFrame(),
+        "requirements": pd.read_csv(base / "a_share_market_reality_data_requirements.csv")
+        if (base / "a_share_market_reality_data_requirements.csv").exists()
+        else pd.DataFrame(),
+        "gaps": pd.read_csv(base / "a_share_data_gap_register.csv")
+        if (base / "a_share_data_gap_register.csv").exists()
+        else pd.DataFrame(),
+        "selection": pd.read_csv(base / "a_share_data_source_selection.csv")
+        if (base / "a_share_data_source_selection.csv").exists()
+        else pd.DataFrame(),
+        "storage": pd.read_csv(base / "a_share_data_storage_recommendations.csv")
+        if (base / "a_share_data_storage_recommendations.csv").exists()
+        else pd.DataFrame(),
+        "quality": pd.read_csv(base / "a_share_data_quality_check_plan.csv")
+        if (base / "a_share_data_quality_check_plan.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "a_share_data_guardrails.csv")
+        if (base / "a_share_data_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -8395,6 +8432,61 @@ def render_open_source_quant_stack_audit_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_a_share_data_asset_map_tab() -> None:
+    st.write(
+        "Load V7 Step 2 research-only A-share data asset map and source selection outputs."
+    )
+    st.warning(
+        "This panel reads generated V7 Step 2 artifacts only. It does not install "
+        "data packages, import AkShare/Baostock/Tushare/Qlib, fetch market data, "
+        "call APIs, use tokens, run backtests, train models, connect brokers, "
+        "submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "A-share data asset map directory",
+        value="outputs/a_share_data_asset_map_real_v1",
+        key="a_share_data_asset_map_output_dir",
+    )
+    if not st.button(
+        "Load A-share data asset map",
+        key="load_a_share_data_asset_map_button",
+        type="primary",
+    ):
+        return
+
+    output = load_a_share_data_asset_map_outputs(output_dir)
+    st.subheader("V7 Step 2 Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Data Source Inventory")
+    st.dataframe(output["inventory"], width="stretch")
+    st.subheader("Coverage Matrix")
+    st.dataframe(output["coverage"], width="stretch")
+    st.subheader("Market Reality Requirements")
+    st.dataframe(output["requirements"], width="stretch")
+    st.subheader("Data Gap Register")
+    st.dataframe(output["gaps"], width="stretch")
+    st.subheader("Data Source Selection")
+    st.dataframe(output["selection"], width="stretch")
+    st.subheader("Storage Recommendations")
+    st.dataframe(output["storage"], width="stretch")
+    st.subheader("Data Quality Check Plan")
+    st.dataframe(output["quality"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("V7 Step 2 Data Asset Map Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download V7 Step 2 data asset map report",
+            data=output["markdown_report"],
+            file_name="a_share_data_asset_map_report.md",
+            mime="text/markdown",
+            key="download_a_share_data_asset_map_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -8523,6 +8615,7 @@ def main() -> None:
         synthetic_stress_scenario_generator_tab,
         simulation_hardening_closure_tab,
         open_source_quant_stack_audit_tab,
+        a_share_data_asset_map_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8588,6 +8681,7 @@ def main() -> None:
             "V6 Step 14 Scenario Generator",
             "V6 Step 15 Closure",
             "V7 Step 1 OSS Audit",
+            "V7 Step 2 Data Map",
         ]
     )
     with single_tab:
@@ -8787,6 +8881,8 @@ def main() -> None:
         render_simulation_hardening_closure_tab()
     with open_source_quant_stack_audit_tab:
         render_open_source_quant_stack_audit_tab()
+    with a_share_data_asset_map_tab:
+        render_a_share_data_asset_map_tab()
 
 
 if __name__ == "__main__":

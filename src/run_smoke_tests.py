@@ -133,6 +133,8 @@ PY_COMPILE_FILES = [
     "src/run_simulation_hardening_closure.py",
     "src/open_source_quant_stack_audit.py",
     "src/run_open_source_quant_stack_audit.py",
+    "src/a_share_data_asset_map.py",
+    "src/run_a_share_data_asset_map.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -2580,6 +2582,100 @@ COMMAND_CHECKS = [
                 "assert all(flag_checks), flag_checks; "
                 "report=(base/'open_source_stack_audit_report.md').read_text(encoding='utf-8'); "
                 "phrases=['V7 should not continue pure custom development','Qlib should be evaluated','LEAN should be evaluated','RD-Agent, LangGraph, AutoGen, and CrewAI should be deferred','open_source_quant_stack_audit_completed_research_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_a_share_data_asset_map help",
+        ["src/run_a_share_data_asset_map.py", "--help"],
+    ),
+    (
+        "a share data asset map import",
+        ["-c", "import src.a_share_data_asset_map"],
+    ),
+    (
+        "offline a share data asset map",
+        [
+            "src/run_a_share_data_asset_map.py",
+            "--output-dir",
+            "outputs/a_share_data_asset_map_smoke",
+            "--step1-dir",
+            "outputs/a_share_data_asset_map_missing_step1_smoke",
+            "--v6-closure-dir",
+            "outputs/a_share_data_asset_map_missing_v6_smoke",
+            "--data-dir",
+            "outputs/a_share_data_asset_map_empty_data_smoke",
+        ],
+    ),
+    (
+        "offline a share data asset map assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/a_share_data_asset_map_smoke'); "
+                "required=['run_config.json','a_share_data_source_inventory.csv','a_share_data_coverage_matrix.csv','a_share_market_reality_data_requirements.csv','a_share_data_gap_register.csv','a_share_data_source_selection.csv','a_share_data_storage_recommendations.csv','a_share_data_quality_check_plan.csv','a_share_data_guardrails.csv','a_share_data_asset_map_summary.csv','a_share_data_asset_map_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'a_share_data_asset_map_summary.csv'); "
+                "inventory=pd.read_csv(base/'a_share_data_source_inventory.csv'); "
+                "coverage=pd.read_csv(base/'a_share_data_coverage_matrix.csv'); "
+                "requirements=pd.read_csv(base/'a_share_market_reality_data_requirements.csv'); "
+                "gaps=pd.read_csv(base/'a_share_data_gap_register.csv'); "
+                "selection=pd.read_csv(base/'a_share_data_source_selection.csv'); "
+                "storage=pd.read_csv(base/'a_share_data_storage_recommendations.csv'); "
+                "quality=pd.read_csv(base/'a_share_data_quality_check_plan.csv'); "
+                "guardrails=pd.read_csv(base/'a_share_data_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "expected={'AkShare','Baostock','Tushare','Qlib China Data Workflow','Existing Local CSV/sample data','Future Paid/Commercial Data Vendor','Eastmoney/Sina/163-style Public Endpoints','Local Parquet/DuckDB Data Lake'}; "
+                "assert set(inventory['source_name']) == expected; "
+                "assert set(coverage['source_name']) == expected; "
+                "assert int(row['reviewed_data_source_count']) == 8; "
+                "assert int(row['primary_candidate_count']) == 1; "
+                "assert int(row['secondary_candidate_count']) == 2; "
+                "assert int(row['prototype_required_count']) == 2; "
+                "assert int(row['fixture_only_count']) == 1; "
+                "assert int(row['defer_until_paid_stage_count']) == 1; "
+                "assert int(row['avoid_for_now_count']) == 1; "
+                "assert int(row['minimum_market_reality_requirement_count']) == 11; "
+                "assert int(row['alpha_research_requirement_count']) == 6; "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['external_api_call_count']) == 0; "
+                "assert int(row['package_install_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'a_share_data_asset_map_completed_research_only'; "
+                "assert row['recommended_next_step'] == 'V7 Step 3 Data Quality Validator / Local Data Contract'; "
+                "actions=dict(zip(coverage['source_name'], coverage['recommended_action'])); "
+                "assert actions['AkShare']=='primary_candidate'; "
+                "assert actions['Baostock']=='secondary_candidate'; "
+                "assert actions['Tushare']=='prototype_required'; "
+                "assert actions['Qlib China Data Workflow']=='prototype_required'; "
+                "assert actions['Existing Local CSV/sample data']=='use_as_fixture_only'; "
+                "assert actions['Future Paid/Commercial Data Vendor']=='defer_until_paid_stage'; "
+                "assert actions['Eastmoney/Sina/163-style Public Endpoints']=='avoid_for_now'; "
+                "assert actions['Local Parquet/DuckDB Data Lake']=='secondary_candidate'; "
+                "required_reqs={'daily_ohlcv','adjusted_prices','trading_calendar','suspension_flags','st_flags','limit_up_limit_down_prices','listing_delisting_dates','index_benchmark_prices','index_constituents','transaction_cost_assumptions','liquidity_volume_constraints','technical_price_volume_features','fundamentals','valuations','money_flow_northbound_flow','sector_industry_classification','news_sentiment_later'}; "
+                "assert required_reqs <= set(requirements['requirement_name']); "
+                "assert int((gaps['severity']=='blocking').sum()) >= 11; "
+                "assert {'CSV fixtures','Partitioned Parquet','DuckDB','Qlib binary/cache format'} <= set(storage['storage_option']); "
+                "assert len(quality) >= 10; "
+                "required_guardrails={'no_package_install','no_external_data_framework_import','no_market_data_fetch','no_external_api_call','no_token_or_credentials','no_live_data','no_backtest_execution','no_model_training','no_threshold_change','no_feature_engineering_change','no_broker_sdk_import','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','data_source_selection_only','open_source_first_policy_applied','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['market_data_fetch','external_api_call','package_install','broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [inventory,coverage,requirements,gaps,selection,storage,quality,guardrails]]; "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'a_share_data_asset_map_report.md').read_text(encoding='utf-8'); "
+                "phrases=['No data source is trusted until validated','Public/free data can be unstable','Direct scraping is avoided','V7 Step 3 Data Quality Validator','a_share_data_asset_map_completed_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

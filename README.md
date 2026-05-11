@@ -79,6 +79,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 synthetic stress scenario generator | `python src/run_synthetic_stress_scenario_generator.py --output-dir outputs/synthetic_stress_scenario_generator_real_v1` |
 | Run V6 simulation hardening closure | `python src/run_simulation_hardening_closure.py --output-dir outputs/simulation_hardening_closure_real_v1` |
 | Run V7 open-source quant stack audit | `python src/run_open_source_quant_stack_audit.py --output-dir outputs/open_source_quant_stack_audit_real_v1` |
+| Run V7 A-share data asset map | `python src/run_a_share_data_asset_map.py --output-dir outputs/a_share_data_asset_map_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -191,6 +192,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_simulation_hardening_closure.py`: Command-line tool for the V6 Step 15 closure package.
 - `src/open_source_quant_stack_audit.py`: V7 Step 1 research-only open-source quant stack audit and framework selection.
 - `src/run_open_source_quant_stack_audit.py`: Command-line tool for the V7 Step 1 audit package.
+- `src/a_share_data_asset_map.py`: V7 Step 2 research-only A-share data asset map and source selection.
+- `src/run_a_share_data_asset_map.py`: Command-line tool for the V7 Step 2 data asset map package.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2264,6 +2267,49 @@ The recommended next step is `V7 Step 2 A-share Data Asset Map / Data Source
 Selection`.
 
 The dashboard has a `V7 Step 1 OSS Audit` tab for loading this output
+directory.
+
+## V7 Step 2: A-share Data Asset Map / Data Source Selection
+
+V7 Step 2 creates a research-only A-share data asset map and data source
+selection layer. It evaluates AkShare, Baostock, Tushare, Qlib China data
+workflow, existing local CSV/sample data, future paid/commercial vendors,
+indirect Eastmoney/Sina/163-style public endpoint access through mature
+libraries, and a future local Parquet/DuckDB storage layer.
+
+Example:
+
+```powershell
+python src/run_a_share_data_asset_map.py --output-dir outputs/a_share_data_asset_map_real_v1
+```
+
+Generated files include `a_share_data_source_inventory.csv`,
+`a_share_data_coverage_matrix.csv`,
+`a_share_market_reality_data_requirements.csv`,
+`a_share_data_gap_register.csv`, `a_share_data_source_selection.csv`,
+`a_share_data_storage_recommendations.csv`,
+`a_share_data_quality_check_plan.csv`, `a_share_data_guardrails.csv`,
+`a_share_data_asset_map_summary.csv`, `a_share_data_asset_map_report.md`, and
+`run_config.json`.
+
+This step identifies the minimum data needed before realistic A-share
+backtesting: daily OHLCV, adjusted prices, trading calendar, suspension flags,
+ST flags, limit-up/limit-down prices or inference fields, listing/delisting
+dates, benchmark prices, index constituents, transaction cost assumptions, and
+liquidity/volume constraints. It also records future alpha research needs such
+as technical price-volume features, fundamentals, valuations, money flow,
+sector/industry classification, and later news/sentiment.
+
+No data source is trusted until validated. Public/free data can be unstable and
+needs quality, provenance, rights, and rate-limit checks. This step does not
+install packages, import external data frameworks, fetch market or live data,
+call APIs, use tokens or credentials, run backtests, train models, change
+thresholds, change feature engineering, connect brokers, execute or submit
+orders, introduce agent frameworks, or mark anything trading-ready. The
+recommended next step is `V7 Step 3 Data Quality Validator / Local Data
+Contract`.
+
+The dashboard has a `V7 Step 2 Data Map` tab for loading this output
 directory.
 
 ## Smoke Tests
