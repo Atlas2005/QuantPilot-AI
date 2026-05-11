@@ -123,6 +123,8 @@ PY_COMPILE_FILES = [
     "src/run_simulation_hardening_review.py",
     "src/replay_price_path_simulator.py",
     "src/run_replay_price_path_simulator.py",
+    "src/synthetic_replay_result_review.py",
+    "src/run_synthetic_replay_result_review.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -2134,6 +2136,85 @@ COMMAND_CHECKS = [
                 "assert all(flag_checks), flag_checks; "
                 "report=(base/'replay_price_path_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Multi-Day Replay Price Path Simulator','local synthetic prices only','not a historical backtest','not live trading','not broker paper trading','not trading-ready evidence']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_synthetic_replay_result_review help",
+        ["src/run_synthetic_replay_result_review.py", "--help"],
+    ),
+    (
+        "synthetic replay result review import",
+        ["-c", "import src.synthetic_replay_result_review"],
+    ),
+    (
+        "offline synthetic replay result review",
+        [
+            "src/run_synthetic_replay_result_review.py",
+            "--price-path-dir",
+            "outputs/replay_price_path_simulator_smoke",
+            "--review-dir",
+            "outputs/simulation_hardening_review_smoke",
+            "--replay-dir",
+            "outputs/multi_day_paper_replay_harness_smoke",
+            "--design-dir",
+            "outputs/simulation_hardening_design_smoke",
+            "--output-dir",
+            "outputs/synthetic_replay_result_review_smoke",
+        ],
+    ),
+    (
+        "offline synthetic replay result review assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/synthetic_replay_result_review_smoke'); "
+                "required=['run_config.json','synthetic_replay_result_summary.csv','synthetic_replay_scenario_classification.csv','synthetic_replay_risk_register.csv','synthetic_replay_guardrails.csv','synthetic_replay_review_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'synthetic_replay_result_summary.csv'); "
+                "classification=pd.read_csv(base/'synthetic_replay_scenario_classification.csv'); "
+                "risks=pd.read_csv(base/'synthetic_replay_risk_register.csv'); "
+                "guardrails=pd.read_csv(base/'synthetic_replay_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert row['summary_item'] == 'v6_step12_synthetic_replay_result_review'; "
+                "assert int(row['missing_input_count']) == 0; "
+                "assert int(row['reviewed_scenario_count']) == len(classification); "
+                "assert int(row['stop_loss_touch_count']) >= 1; "
+                "assert int(row['take_profit_touch_count']) >= 1; "
+                "assert int(row['max_holding_or_no_exit_count']) >= 1; "
+                "assert int(row['unresolved_scenario_count']) == 0; "
+                "assert int(row['high_risk_scenario_count']) >= 1; "
+                "assert int(row['synthetic_exit_event_count']) == int(row['stop_loss_touch_count']) + int(row['take_profit_touch_count']); "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert not bool(row['execution_allowed']); "
+                "assert not bool(row['broker_connected']); "
+                "assert not bool(row['live_trading']); "
+                "assert not bool(row['real_order_submission']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'synthetic_replay_result_review_completed_research_only'; "
+                "assert row['recommended_next_step'] == 'V6 Step 13 Synthetic Replay Stress Matrix / Scenario Expansion Plan'; "
+                "required_outcomes={'synthetic_stop_loss_touch','synthetic_take_profit_touch','synthetic_max_holding_reached_or_no_exit'}; "
+                "assert required_outcomes <= set(classification['outcome_type']); "
+                "assert {'high','medium','low'} & set(classification['risk_level']); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_live_data','no_model_retraining','no_threshold_change','no_feature_engineering_change','no_new_external_data_sources','no_broker_sdk_import','no_broker_credentials','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','synthetic_replay_review_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['market_data_fetch','broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [classification,risks,guardrails]]; "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'synthetic_replay_review_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Synthetic Replay Result Review','not real market validation','not broker paper trading','not live evidence','trading_ready remains False']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

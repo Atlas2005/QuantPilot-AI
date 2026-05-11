@@ -74,6 +74,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 multi-day paper replay harness scaffold | `python src/run_multi_day_paper_replay_harness.py --output-dir outputs/multi_day_paper_replay_harness_real_v1` |
 | Run V6 simulation hardening review closure | `python src/run_simulation_hardening_review.py --output-dir outputs/simulation_hardening_review_real_v1` |
 | Run V6 replay price path simulator | `python src/run_replay_price_path_simulator.py --output-dir outputs/replay_price_path_simulator_real_v1` |
+| Run V6 synthetic replay result review | `python src/run_synthetic_replay_result_review.py --output-dir outputs/synthetic_replay_result_review_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -176,6 +177,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_simulation_hardening_review.py`: Command-line tool for the V6 Step 10 simulation hardening review.
 - `src/replay_price_path_simulator.py`: V6 Step 11 research-only local synthetic replay price path scenario layer.
 - `src/run_replay_price_path_simulator.py`: Command-line tool for the V6 Step 11 replay price path simulator.
+- `src/synthetic_replay_result_review.py`: V6 Step 12 research-only synthetic replay result review and scenario risk classification layer.
+- `src/run_synthetic_replay_result_review.py`: Command-line tool for the V6 Step 12 synthetic replay review.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2102,6 +2105,32 @@ change thresholds, change features, add external data sources, or update real
 or paper ledgers.
 
 The dashboard has a `V6 Step 11 Price Paths` tab for loading this output
+directory.
+
+## V6 Step 12: Synthetic Replay Result Review / Scenario Risk Classification
+
+V6 Step 12 reads the local V6 Step 11 synthetic price path simulator outputs and
+classifies each scenario outcome into conservative risk categories. It
+summarizes stop-loss, take-profit, max-holding/no-exit, unresolved, high-risk,
+and synthetic-exit counts while keeping remaining simulation-hardening blockers
+open.
+
+Example:
+
+```powershell
+python src/run_synthetic_replay_result_review.py --output-dir outputs/synthetic_replay_result_review_real_v1
+```
+
+Generated files include `synthetic_replay_result_summary.csv`,
+`synthetic_replay_scenario_classification.csv`,
+`synthetic_replay_risk_register.csv`, `synthetic_replay_guardrails.csv`,
+`synthetic_replay_review_report.md`, and `run_config.json`. Synthetic replay is
+not real market validation, not broker paper trading, not live evidence, and not
+trading-ready evidence. This step does not fetch market data, run a new
+backtest, retrain models, change thresholds, change features, connect to
+brokers, execute or submit orders, or make a trading-ready claim.
+
+The dashboard has a `V6 Step 12 Result Review` tab for loading this output
 directory.
 
 ## Smoke Tests

@@ -5399,6 +5399,28 @@ def load_replay_price_path_simulator_outputs(output_dir: str) -> dict[str, objec
     }
 
 
+def load_synthetic_replay_result_review_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "synthetic_replay_review_report.md"
+    return {
+        "summary": pd.read_csv(base / "synthetic_replay_result_summary.csv")
+        if (base / "synthetic_replay_result_summary.csv").exists()
+        else pd.DataFrame(),
+        "classification": pd.read_csv(base / "synthetic_replay_scenario_classification.csv")
+        if (base / "synthetic_replay_scenario_classification.csv").exists()
+        else pd.DataFrame(),
+        "risk_register": pd.read_csv(base / "synthetic_replay_risk_register.csv")
+        if (base / "synthetic_replay_risk_register.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "synthetic_replay_guardrails.csv")
+        if (base / "synthetic_replay_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -8002,6 +8024,50 @@ def render_replay_price_path_simulator_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_synthetic_replay_result_review_tab() -> None:
+    st.write(
+        "Load V6 Step 12 research-only synthetic replay result review outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 12 review outputs only. It does not run "
+        "backtests, fetch market data, train models, change thresholds, "
+        "connect to brokers, submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Synthetic replay result review directory",
+        value="outputs/synthetic_replay_result_review_real_v1",
+        key="synthetic_replay_result_review_output_dir",
+    )
+    if not st.button(
+        "Load synthetic replay result review",
+        key="load_synthetic_replay_result_review_button",
+        type="primary",
+    ):
+        return
+
+    output = load_synthetic_replay_result_review_outputs(output_dir)
+    st.subheader("Synthetic Replay Review Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Scenario Classification")
+    st.dataframe(output["classification"], width="stretch")
+    st.subheader("Risk Register")
+    st.dataframe(output["risk_register"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Synthetic Replay Review Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download synthetic replay review report",
+            data=output["markdown_report"],
+            file_name="synthetic_replay_review_report.md",
+            mime="text/markdown",
+            key="download_synthetic_replay_result_review_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -8125,6 +8191,7 @@ def main() -> None:
         multi_day_paper_replay_harness_tab,
         simulation_hardening_review_tab,
         replay_price_path_simulator_tab,
+        synthetic_replay_result_review_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8185,6 +8252,7 @@ def main() -> None:
             "V6 Step 9 Replay Harness",
             "V6 Step 10 Review",
             "V6 Step 11 Price Paths",
+            "V6 Step 12 Result Review",
         ]
     )
     with single_tab:
@@ -8370,6 +8438,9 @@ def main() -> None:
 
     with replay_price_path_simulator_tab:
         render_replay_price_path_simulator_tab()
+
+    with synthetic_replay_result_review_tab:
+        render_synthetic_replay_result_review_tab()
 
 
 if __name__ == "__main__":
