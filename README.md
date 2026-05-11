@@ -77,6 +77,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 synthetic replay result review | `python src/run_synthetic_replay_result_review.py --output-dir outputs/synthetic_replay_result_review_real_v1` |
 | Run V6 synthetic replay stress matrix | `python src/run_synthetic_replay_stress_matrix.py --output-dir outputs/synthetic_replay_stress_matrix_real_v1` |
 | Run V6 synthetic stress scenario generator | `python src/run_synthetic_stress_scenario_generator.py --output-dir outputs/synthetic_stress_scenario_generator_real_v1` |
+| Run V6 simulation hardening closure | `python src/run_simulation_hardening_closure.py --output-dir outputs/simulation_hardening_closure_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -185,6 +186,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_synthetic_replay_stress_matrix.py`: Command-line tool for the V6 Step 13 stress matrix design.
 - `src/synthetic_stress_scenario_generator.py`: V6 Step 14 research-only local synthetic stress scenario definition generator.
 - `src/run_synthetic_stress_scenario_generator.py`: Command-line tool for the V6 Step 14 synthetic stress scenario generator.
+- `src/simulation_hardening_closure.py`: V6 Step 15 research-only simulation hardening closure and V7 transition plan.
+- `src/run_simulation_hardening_closure.py`: Command-line tool for the V6 Step 15 closure package.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2196,6 +2199,34 @@ make a trading-ready claim.
 
 The dashboard has a `V6 Step 14 Scenario Generator` tab for loading this output
 directory.
+
+## V6 Step 15: Simulation Hardening Closure / Transition to Data & Market Reality Foundation
+
+V6 Step 15 closes V6 validation and simulation hardening as a research-only
+infrastructure phase and creates the transition plan into V7 Data & Market
+Reality Foundation. It inventories completed V6 Step 1-14 outputs, summarizes
+capabilities, records remaining gaps, and establishes an open-source-first reuse
+policy for future major modules.
+
+Example:
+
+```powershell
+python src/run_simulation_hardening_closure.py --output-dir outputs/simulation_hardening_closure_real_v1
+```
+
+Generated files include `v6_closure_input_manifest.csv`,
+`v6_completed_step_inventory.csv`, `v6_capability_summary.csv`,
+`v6_remaining_gap_register.csv`, `v6_transition_to_v7_plan.csv`,
+`v6_open_source_reuse_policy.csv`, `v6_closure_guardrails.csv`,
+`v6_closure_summary.csv`, `v6_closure_report.md`, and `run_config.json`.
+Future V7 work should evaluate mature open-source tools such as Qlib, LEAN,
+vectorbt, RQAlpha, Backtrader, Alphalens/quantstats-style tooling, and later
+RD-Agent/LangGraph/AutoGen-type orchestration before custom infrastructure.
+This step does not implement engines, fetch market data, connect brokers,
+retrain models, change thresholds or features, execute orders, submit orders,
+or make a trading-ready claim.
+
+The dashboard has a `V6 Step 15 Closure` tab for loading this output directory.
 
 ## Smoke Tests
 

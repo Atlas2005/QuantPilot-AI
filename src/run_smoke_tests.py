@@ -129,6 +129,8 @@ PY_COMPILE_FILES = [
     "src/run_synthetic_replay_stress_matrix.py",
     "src/synthetic_stress_scenario_generator.py",
     "src/run_synthetic_stress_scenario_generator.py",
+    "src/simulation_hardening_closure.py",
+    "src/run_simulation_hardening_closure.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -2382,6 +2384,80 @@ COMMAND_CHECKS = [
                 "assert all(flag_checks), flag_checks; "
                 "report=(base/'synthetic_stress_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Synthetic Stress Matrix Implementation','local synthetic scenario definitions only','not real market evidence','not trading-ready evidence']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_simulation_hardening_closure help",
+        ["src/run_simulation_hardening_closure.py", "--help"],
+    ),
+    (
+        "simulation hardening closure import",
+        ["-c", "import src.simulation_hardening_closure"],
+    ),
+    (
+        "offline simulation hardening closure",
+        [
+            "src/run_simulation_hardening_closure.py",
+            "--output-dir",
+            "outputs/simulation_hardening_closure_smoke",
+        ],
+    ),
+    (
+        "offline simulation hardening closure assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/simulation_hardening_closure_smoke'); "
+                "required=['run_config.json','v6_closure_input_manifest.csv','v6_completed_step_inventory.csv','v6_capability_summary.csv','v6_remaining_gap_register.csv','v6_transition_to_v7_plan.csv','v6_open_source_reuse_policy.csv','v6_closure_guardrails.csv','v6_closure_summary.csv','v6_closure_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'v6_closure_summary.csv'); "
+                "manifest=pd.read_csv(base/'v6_closure_input_manifest.csv'); "
+                "inventory=pd.read_csv(base/'v6_completed_step_inventory.csv'); "
+                "caps=pd.read_csv(base/'v6_capability_summary.csv'); "
+                "gaps=pd.read_csv(base/'v6_remaining_gap_register.csv'); "
+                "transition=pd.read_csv(base/'v6_transition_to_v7_plan.csv'); "
+                "policy=pd.read_csv(base/'v6_open_source_reuse_policy.csv'); "
+                "guardrails=pd.read_csv(base/'v6_closure_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert row['summary_item'] == 'v6_step15_simulation_hardening_closure'; "
+                "assert int(row['reviewed_input_count']) == 14; "
+                "assert int(row['missing_input_count']) == 0; "
+                "assert int(row['completed_v6_step_count']) == 14; "
+                "assert int(row['remaining_gap_count']) == len(gaps) >= 9; "
+                "assert int(row['transition_plan_row_count']) == len(transition) >= 10; "
+                "assert int(row['open_source_policy_row_count']) == len(policy) >= 8; "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert not bool(row['execution_allowed']); "
+                "assert not bool(row['broker_connected']); "
+                "assert not bool(row['live_trading']); "
+                "assert not bool(row['real_order_submission']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'v6_simulation_hardening_closed_research_only'; "
+                "assert row['recommended_next_step'] == 'V7 Step 1 Open-source Quant Stack Audit / Framework Selection'; "
+                "assert set(inventory['completion_status']) == {'completed'}; "
+                "assert {'no_real_alpha_evidence','no_real_market_replay_prices','no_realistic_a_share_execution_model','no_transaction_cost_slippage_engine','no_walk_forward_oos_validation','no_portfolio_engine','no_sustained_paper_trading_feedback_loop','no_broker_sandbox_or_live_validation','no_trading_ready_candidate'} <= set(gaps['gap_name']); "
+                "assert 'Open-source Quant Stack Audit / Framework Selection' in set(transition['v7_workstream']); "
+                "assert {'open_source_first','qlib_evaluation','lean_evaluation','vectorbt_evaluation','rqalpha_backtrader_evaluation','alphalens_quantstats_style_tools','agent_orchestration_later','custom_code_focus'} <= set(policy['policy_name']); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_live_data','no_model_retraining','no_threshold_change','no_feature_engineering_change','no_new_external_data_sources','no_broker_sdk_import','no_broker_credentials','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','closure_only','open_source_reuse_policy_recorded','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['market_data_fetch','broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [manifest,inventory,caps,gaps,transition,policy,guardrails]]; "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'v6_closure_report.md').read_text(encoding='utf-8'); "
+                "phrases=['V6 validation and simulation hardening is closed as a research-only infrastructure phase','No real alpha evidence','Open-source Reuse Policy','V7 Step 1 Open-source Quant Stack Audit']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

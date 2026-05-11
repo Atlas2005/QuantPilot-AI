@@ -5477,6 +5477,40 @@ def load_synthetic_stress_scenario_generator_outputs(output_dir: str) -> dict[st
     }
 
 
+def load_simulation_hardening_closure_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "v6_closure_report.md"
+    return {
+        "summary": pd.read_csv(base / "v6_closure_summary.csv")
+        if (base / "v6_closure_summary.csv").exists()
+        else pd.DataFrame(),
+        "manifest": pd.read_csv(base / "v6_closure_input_manifest.csv")
+        if (base / "v6_closure_input_manifest.csv").exists()
+        else pd.DataFrame(),
+        "inventory": pd.read_csv(base / "v6_completed_step_inventory.csv")
+        if (base / "v6_completed_step_inventory.csv").exists()
+        else pd.DataFrame(),
+        "capabilities": pd.read_csv(base / "v6_capability_summary.csv")
+        if (base / "v6_capability_summary.csv").exists()
+        else pd.DataFrame(),
+        "gaps": pd.read_csv(base / "v6_remaining_gap_register.csv")
+        if (base / "v6_remaining_gap_register.csv").exists()
+        else pd.DataFrame(),
+        "transition": pd.read_csv(base / "v6_transition_to_v7_plan.csv")
+        if (base / "v6_transition_to_v7_plan.csv").exists()
+        else pd.DataFrame(),
+        "reuse_policy": pd.read_csv(base / "v6_open_source_reuse_policy.csv")
+        if (base / "v6_open_source_reuse_policy.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "v6_closure_guardrails.csv")
+        if (base / "v6_closure_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -8222,6 +8256,58 @@ def render_synthetic_stress_scenario_generator_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_simulation_hardening_closure_tab() -> None:
+    st.write(
+        "Load V6 Step 15 research-only simulation hardening closure and V7 transition outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 15 closure outputs only. It does not run "
+        "backtests, fetch market data, train models, change thresholds, connect "
+        "to brokers, submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Simulation hardening closure directory",
+        value="outputs/simulation_hardening_closure_real_v1",
+        key="simulation_hardening_closure_output_dir",
+    )
+    if not st.button(
+        "Load simulation hardening closure",
+        key="load_simulation_hardening_closure_button",
+        type="primary",
+    ):
+        return
+
+    output = load_simulation_hardening_closure_outputs(output_dir)
+    st.subheader("V6 Closure Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Input Manifest")
+    st.dataframe(output["manifest"], width="stretch")
+    st.subheader("Completed Step Inventory")
+    st.dataframe(output["inventory"], width="stretch")
+    st.subheader("Capability Summary")
+    st.dataframe(output["capabilities"], width="stretch")
+    st.subheader("Remaining Gap Register")
+    st.dataframe(output["gaps"], width="stretch")
+    st.subheader("Transition To V7 Plan")
+    st.dataframe(output["transition"], width="stretch")
+    st.subheader("Open-Source Reuse Policy")
+    st.dataframe(output["reuse_policy"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("V6 Closure Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download V6 closure report",
+            data=output["markdown_report"],
+            file_name="v6_closure_report.md",
+            mime="text/markdown",
+            key="download_simulation_hardening_closure_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -8348,6 +8434,7 @@ def main() -> None:
         synthetic_replay_result_review_tab,
         synthetic_replay_stress_matrix_tab,
         synthetic_stress_scenario_generator_tab,
+        simulation_hardening_closure_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8411,6 +8498,7 @@ def main() -> None:
             "V6 Step 12 Result Review",
             "V6 Step 13 Stress Matrix",
             "V6 Step 14 Scenario Generator",
+            "V6 Step 15 Closure",
         ]
     )
     with single_tab:
@@ -8605,6 +8693,9 @@ def main() -> None:
 
     with synthetic_stress_scenario_generator_tab:
         render_synthetic_stress_scenario_generator_tab()
+
+    with simulation_hardening_closure_tab:
+        render_simulation_hardening_closure_tab()
 
 
 if __name__ == "__main__":
