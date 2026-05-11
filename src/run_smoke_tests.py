@@ -135,6 +135,8 @@ PY_COMPILE_FILES = [
     "src/run_open_source_quant_stack_audit.py",
     "src/a_share_data_asset_map.py",
     "src/run_a_share_data_asset_map.py",
+    "src/global_open_source_replacement_audit.py",
+    "src/run_global_open_source_replacement_audit.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -2676,6 +2678,99 @@ COMMAND_CHECKS = [
                 "assert all(flag_checks), flag_checks; "
                 "report=(base/'a_share_data_asset_map_report.md').read_text(encoding='utf-8'); "
                 "phrases=['No data source is trusted until validated','Public/free data can be unstable','Direct scraping is avoided','V7 Step 3 Data Quality Validator','a_share_data_asset_map_completed_research_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_global_open_source_replacement_audit help",
+        ["src/run_global_open_source_replacement_audit.py", "--help"],
+    ),
+    (
+        "global open source replacement audit import",
+        ["-c", "import src.global_open_source_replacement_audit"],
+    ),
+    (
+        "offline global open source replacement audit",
+        [
+            "src/run_global_open_source_replacement_audit.py",
+            "--output-dir",
+            "outputs/global_open_source_replacement_audit_smoke",
+            "--step1-dir",
+            "outputs/global_replacement_missing_step1_smoke",
+            "--step2-dir",
+            "outputs/global_replacement_missing_step2_smoke",
+            "--v6-closure-dir",
+            "outputs/global_replacement_missing_v6_smoke",
+        ],
+    ),
+    (
+        "offline global open source replacement audit assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/global_open_source_replacement_audit_smoke'); "
+                "required=['run_config.json','project_module_inventory.csv','open_source_candidate_expanded_inventory.csv','module_replacement_matrix.csv','past_work_retention_decision.csv','architecture_reassessment_summary.csv','open_source_integration_roadmap.csv','agent_tooling_ecosystem_audit.csv','profitability_alignment_review.csv','replacement_risk_register.csv','global_reassessment_guardrails.csv','global_open_source_replacement_audit_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'architecture_reassessment_summary.csv'); "
+                "inventory=pd.read_csv(base/'project_module_inventory.csv'); "
+                "candidates=pd.read_csv(base/'open_source_candidate_expanded_inventory.csv'); "
+                "matrix=pd.read_csv(base/'module_replacement_matrix.csv'); "
+                "retention=pd.read_csv(base/'past_work_retention_decision.csv'); "
+                "roadmap=pd.read_csv(base/'open_source_integration_roadmap.csv'); "
+                "agents=pd.read_csv(base/'agent_tooling_ecosystem_audit.csv'); "
+                "profit=pd.read_csv(base/'profitability_alignment_review.csv'); "
+                "risk=pd.read_csv(base/'replacement_risk_register.csv'); "
+                "guardrails=pd.read_csv(base/'global_reassessment_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['reviewed_module_area_count']) == 25; "
+                "assert int(row['reviewed_open_source_candidate_count']) == 33; "
+                "assert int(row['keep_as_core_count']) == 3; "
+                "assert int(row['keep_as_guardrail_count']) == 3; "
+                "assert int(row['keep_as_fixture_or_regression_test_count']) == 1; "
+                "assert int(row['wrap_open_source_count']) == 5; "
+                "assert int(row['replace_with_open_source_count']) == 3; "
+                "assert int(row['borrow_architecture_only_count']) == 4; "
+                "assert int(row['defer_until_foundation_ready_count']) == 5; "
+                "assert int(row['deprecate_later_count']) == 1; "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['external_api_call_count']) == 0; "
+                "assert int(row['package_install_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'global_open_source_replacement_audit_completed_research_only'; "
+                "assert row['recommended_next_step'] == 'V7 Step 3 Data Quality Validator / Local Data Contract, revised by replacement audit'; "
+                "required_areas={'data_loading','factor_building','model_training_prediction_evaluation','backtesting','transaction_cost_handling','capital_constraint','tradable_universe','position_sizing','exit_engine','paper_ledger','order_generator','broker_research','monitoring_reporting','v6_validation_simulation_hardening','v7_open_source_audit','v7_data_asset_map','future_data_quality_validator','future_realistic_a_share_rule_engine','future_strategy_tournament','future_walk_forward_oos_validation','future_portfolio_risk_engine','future_paper_trading_feedback_loop','future_multi_agent_system','future_web_news_sentiment_collection','future_agent_skills_tooling'}; "
+                "assert required_areas <= set(matrix['current_quantpilot_module_area']); "
+                "required_candidates={'Qlib','LEAN','vectorbt','vn.py / VeighNa','Backtrader','RQAlpha','Zipline / zipline-reloaded','Alphalens / Alphalens Reloaded','quantstats','PyPortfolioOpt','riskfolio-lib','OpenBB','AkShare','Baostock','Tushare','Pandera','Great Expectations','Polars','DuckDB','PyArrow / Parquet','TradingAgents','FinRobot','FinGPT','RD-Agent','LangGraph','AutoGen','CrewAI','OpenAI Agents SDK','OpenAI Skills','Ruflo','Warp','Scrapling','MCP ecosystem placeholder'}; "
+                "assert required_candidates == set(candidates['candidate_name']); "
+                "mode=dict(zip(matrix['current_quantpilot_module_area'], matrix['replacement_mode'])); "
+                "assert mode['backtesting']=='replace_with_open_source'; "
+                "assert mode['v6_validation_simulation_hardening']=='keep_as_guardrail'; "
+                "assert mode['paper_ledger']=='keep_as_fixture_or_regression_test'; "
+                "assert mode['order_generator']=='deprecate_later'; "
+                "assert 'global_sunk_cost_warning' in set(profit['module_area']); "
+                "assert {'TradingAgents','FinRobot','FinGPT','RD-Agent','LangGraph','AutoGen','CrewAI','OpenAI Agents SDK','OpenAI Skills','Scrapling'} <= set(agents['tooling_candidate']); "
+                "assert len(roadmap) >= 8; "
+                "assert not risk.empty; "
+                "assert retention['sunk_cost_warning'].str.contains('Past effort').all(); "
+                "required_guardrails={'no_package_install','no_external_framework_import','no_market_data_fetch','no_external_api_call','no_live_data','no_backtest_execution','no_model_training','no_threshold_change','no_feature_engineering_change','no_broker_sdk_import','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','architecture_reassessment_only','no_sunk_cost_bias','open_source_first_policy_applied','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['market_data_fetch','external_api_call','package_install','broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [inventory,candidates,matrix,retention,roadmap,agents,profit,risk,guardrails]]; "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'global_open_source_replacement_audit_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Sunk cost warning','Custom backtesting and ML workflow should not become long-term core','Scrapling should be considered later','V7 Step 3 Data Quality Validator','global_open_source_replacement_audit_completed_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

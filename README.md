@@ -80,6 +80,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 simulation hardening closure | `python src/run_simulation_hardening_closure.py --output-dir outputs/simulation_hardening_closure_real_v1` |
 | Run V7 open-source quant stack audit | `python src/run_open_source_quant_stack_audit.py --output-dir outputs/open_source_quant_stack_audit_real_v1` |
 | Run V7 A-share data asset map | `python src/run_a_share_data_asset_map.py --output-dir outputs/a_share_data_asset_map_real_v1` |
+| Run V7 global replacement audit | `python src/run_global_open_source_replacement_audit.py --output-dir outputs/global_open_source_replacement_audit_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -194,6 +195,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_open_source_quant_stack_audit.py`: Command-line tool for the V7 Step 1 audit package.
 - `src/a_share_data_asset_map.py`: V7 Step 2 research-only A-share data asset map and source selection.
 - `src/run_a_share_data_asset_map.py`: Command-line tool for the V7 Step 2 data asset map package.
+- `src/global_open_source_replacement_audit.py`: V7 Step 2.5 research-only global open-source replacement and architecture reassessment.
+- `src/run_global_open_source_replacement_audit.py`: Command-line tool for the V7 Step 2.5 reassessment package.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2310,6 +2313,50 @@ recommended next step is `V7 Step 3 Data Quality Validator / Local Data
 Contract`.
 
 The dashboard has a `V7 Step 2 Data Map` tab for loading this output
+directory.
+
+## V7 Step 2.5: Global Open-source Replacement / Architecture Reassessment
+
+V7 Step 2.5 audits the full QuantPilot-AI project so far and decides which
+custom modules should be kept, wrapped around mature open-source projects,
+replaced by mature tools, downgraded to fixtures/regression tests, deferred, or
+deprecated. The audit is intentionally critical: past effort is not treated as
+a reason to keep inferior architecture.
+
+Example:
+
+```powershell
+python src/run_global_open_source_replacement_audit.py --output-dir outputs/global_open_source_replacement_audit_real_v1
+```
+
+Generated files include `project_module_inventory.csv`,
+`open_source_candidate_expanded_inventory.csv`,
+`module_replacement_matrix.csv`, `past_work_retention_decision.csv`,
+`architecture_reassessment_summary.csv`,
+`open_source_integration_roadmap.csv`, `agent_tooling_ecosystem_audit.csv`,
+`profitability_alignment_review.csv`, `replacement_risk_register.csv`,
+`global_reassessment_guardrails.csv`,
+`global_open_source_replacement_audit_report.md`, and `run_config.json`.
+
+This step reviews data loading, factor building, ML workflow, backtesting,
+transaction costs, capital constraints, universe filtering, sizing, exits,
+paper ledger, order generation, broker research, monitoring/reporting, V6
+guardrails, V7 audits, and planned data quality, A-share rule, strategy
+tournament, walk-forward/OOS, portfolio/risk, paper feedback, multi-agent,
+news/sentiment, and agent tooling layers. It evaluates Qlib, LEAN, vectorbt,
+vn.py/VeighNa, Backtrader, RQAlpha, Zipline, Alphalens, quantstats,
+PyPortfolioOpt, riskfolio-lib, OpenBB, AkShare, Baostock, Tushare, Pandera,
+Great Expectations, Polars, DuckDB, PyArrow/Parquet, TradingAgents, FinRobot,
+FinGPT, RD-Agent, LangGraph, AutoGen, CrewAI, OpenAI Agents SDK, OpenAI Skills,
+Ruflo, Warp, Scrapling, and MCP-style connectors.
+
+This step does not install packages, import external frameworks, fetch market
+or live data, call APIs, run backtests, train models, change thresholds, change
+feature engineering, connect brokers, execute or submit orders, or mark
+anything trading-ready. The recommended next step remains `V7 Step 3 Data
+Quality Validator / Local Data Contract`, revised by the replacement audit.
+
+The dashboard has a `V7 Step 2.5 Reassessment` tab for loading this output
 directory.
 
 ## Smoke Tests

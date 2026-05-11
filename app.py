@@ -5582,6 +5582,46 @@ def load_a_share_data_asset_map_outputs(output_dir: str) -> dict[str, object]:
     }
 
 
+def load_global_open_source_replacement_audit_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "global_open_source_replacement_audit_report.md"
+    return {
+        "summary": pd.read_csv(base / "architecture_reassessment_summary.csv")
+        if (base / "architecture_reassessment_summary.csv").exists()
+        else pd.DataFrame(),
+        "project_inventory": pd.read_csv(base / "project_module_inventory.csv")
+        if (base / "project_module_inventory.csv").exists()
+        else pd.DataFrame(),
+        "candidate_inventory": pd.read_csv(base / "open_source_candidate_expanded_inventory.csv")
+        if (base / "open_source_candidate_expanded_inventory.csv").exists()
+        else pd.DataFrame(),
+        "replacement_matrix": pd.read_csv(base / "module_replacement_matrix.csv")
+        if (base / "module_replacement_matrix.csv").exists()
+        else pd.DataFrame(),
+        "retention": pd.read_csv(base / "past_work_retention_decision.csv")
+        if (base / "past_work_retention_decision.csv").exists()
+        else pd.DataFrame(),
+        "roadmap": pd.read_csv(base / "open_source_integration_roadmap.csv")
+        if (base / "open_source_integration_roadmap.csv").exists()
+        else pd.DataFrame(),
+        "agent_audit": pd.read_csv(base / "agent_tooling_ecosystem_audit.csv")
+        if (base / "agent_tooling_ecosystem_audit.csv").exists()
+        else pd.DataFrame(),
+        "profitability": pd.read_csv(base / "profitability_alignment_review.csv")
+        if (base / "profitability_alignment_review.csv").exists()
+        else pd.DataFrame(),
+        "risk_register": pd.read_csv(base / "replacement_risk_register.csv")
+        if (base / "replacement_risk_register.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "global_reassessment_guardrails.csv")
+        if (base / "global_reassessment_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -8487,6 +8527,63 @@ def render_a_share_data_asset_map_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_global_open_source_replacement_audit_tab() -> None:
+    st.write(
+        "Load V7 Step 2.5 research-only global open-source replacement and architecture reassessment outputs."
+    )
+    st.warning(
+        "This panel reads generated V7 Step 2.5 artifacts only. It does not "
+        "install packages, import frameworks, fetch market data, call APIs, run "
+        "backtests, train models, connect brokers, submit orders, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Global open-source replacement audit directory",
+        value="outputs/global_open_source_replacement_audit_real_v1",
+        key="global_open_source_replacement_audit_output_dir",
+    )
+    if not st.button(
+        "Load global replacement audit",
+        key="load_global_open_source_replacement_audit_button",
+        type="primary",
+    ):
+        return
+
+    output = load_global_open_source_replacement_audit_outputs(output_dir)
+    st.subheader("V7 Step 2.5 Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Project Module Inventory")
+    st.dataframe(output["project_inventory"], width="stretch")
+    st.subheader("Open-source Candidate Expanded Inventory")
+    st.dataframe(output["candidate_inventory"], width="stretch")
+    st.subheader("Module Replacement Matrix")
+    st.dataframe(output["replacement_matrix"], width="stretch")
+    st.subheader("Past Work Retention Decisions")
+    st.dataframe(output["retention"], width="stretch")
+    st.subheader("Revised Integration Roadmap")
+    st.dataframe(output["roadmap"], width="stretch")
+    st.subheader("Agent Tooling Ecosystem Audit")
+    st.dataframe(output["agent_audit"], width="stretch")
+    st.subheader("Profitability Alignment Review")
+    st.dataframe(output["profitability"], width="stretch")
+    st.subheader("Replacement Risk Register")
+    st.dataframe(output["risk_register"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("V7 Step 2.5 Global Replacement Audit Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download V7 Step 2.5 audit report",
+            data=output["markdown_report"],
+            file_name="global_open_source_replacement_audit_report.md",
+            mime="text/markdown",
+            key="download_global_open_source_replacement_audit_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -8616,6 +8713,7 @@ def main() -> None:
         simulation_hardening_closure_tab,
         open_source_quant_stack_audit_tab,
         a_share_data_asset_map_tab,
+        global_open_source_replacement_audit_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8682,6 +8780,7 @@ def main() -> None:
             "V6 Step 15 Closure",
             "V7 Step 1 OSS Audit",
             "V7 Step 2 Data Map",
+            "V7 Step 2.5 Reassessment",
         ]
     )
     with single_tab:
@@ -8883,6 +8982,8 @@ def main() -> None:
         render_open_source_quant_stack_audit_tab()
     with a_share_data_asset_map_tab:
         render_a_share_data_asset_map_tab()
+    with global_open_source_replacement_audit_tab:
+        render_global_open_source_replacement_audit_tab()
 
 
 if __name__ == "__main__":
