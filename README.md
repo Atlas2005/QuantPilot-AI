@@ -75,6 +75,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 simulation hardening review closure | `python src/run_simulation_hardening_review.py --output-dir outputs/simulation_hardening_review_real_v1` |
 | Run V6 replay price path simulator | `python src/run_replay_price_path_simulator.py --output-dir outputs/replay_price_path_simulator_real_v1` |
 | Run V6 synthetic replay result review | `python src/run_synthetic_replay_result_review.py --output-dir outputs/synthetic_replay_result_review_real_v1` |
+| Run V6 synthetic replay stress matrix | `python src/run_synthetic_replay_stress_matrix.py --output-dir outputs/synthetic_replay_stress_matrix_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -179,6 +180,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_replay_price_path_simulator.py`: Command-line tool for the V6 Step 11 replay price path simulator.
 - `src/synthetic_replay_result_review.py`: V6 Step 12 research-only synthetic replay result review and scenario risk classification layer.
 - `src/run_synthetic_replay_result_review.py`: Command-line tool for the V6 Step 12 synthetic replay review.
+- `src/synthetic_replay_stress_matrix.py`: V6 Step 13 research-only synthetic replay stress matrix and scenario expansion plan.
+- `src/run_synthetic_replay_stress_matrix.py`: Command-line tool for the V6 Step 13 stress matrix design.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2131,6 +2134,36 @@ backtest, retrain models, change thresholds, change features, connect to
 brokers, execute or submit orders, or make a trading-ready claim.
 
 The dashboard has a `V6 Step 12 Result Review` tab for loading this output
+directory.
+
+## V6 Step 13: Synthetic Replay Stress Matrix / Scenario Expansion Plan
+
+V6 Step 13 reads existing local V6 Step 11 and Step 12 outputs and creates a
+research-only stress matrix design for expanding synthetic scenario coverage.
+It proposes scenario families such as larger gap down, slow grind down, fast
+rebound, volatile stop-loss whipsaw, near take-profit reversal, flat illiquid
+path, delayed stop-loss touch, delayed take-profit touch, max-holding unresolved
+path, and benchmark-lag stress path.
+
+Example:
+
+```powershell
+python src/run_synthetic_replay_stress_matrix.py --output-dir outputs/synthetic_replay_stress_matrix_real_v1
+```
+
+Generated files include `synthetic_replay_stress_matrix_summary.csv`,
+`synthetic_replay_stress_dimensions.csv`,
+`synthetic_replay_stress_matrix.csv`,
+`synthetic_replay_expansion_plan.csv`,
+`synthetic_replay_stress_risk_register.csv`,
+`synthetic_replay_stress_guardrails.csv`,
+`synthetic_replay_stress_report.md`, and `run_config.json`. This step is a
+design/planning layer only; it does not execute new price simulations, run
+backtests, fetch market or live data, retrain models, change thresholds, change
+features, add external data sources, import broker SDKs, connect to brokers,
+execute or submit orders, or make a trading-ready claim.
+
+The dashboard has a `V6 Step 13 Stress Matrix` tab for loading this output
 directory.
 
 ## Smoke Tests
