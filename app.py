@@ -5511,6 +5511,40 @@ def load_simulation_hardening_closure_outputs(output_dir: str) -> dict[str, obje
     }
 
 
+def load_open_source_quant_stack_audit_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "open_source_stack_audit_report.md"
+    return {
+        "summary": pd.read_csv(base / "open_source_stack_audit_summary.csv")
+        if (base / "open_source_stack_audit_summary.csv").exists()
+        else pd.DataFrame(),
+        "inventory": pd.read_csv(base / "open_source_candidate_inventory.csv")
+        if (base / "open_source_candidate_inventory.csv").exists()
+        else pd.DataFrame(),
+        "evaluation": pd.read_csv(base / "open_source_evaluation_matrix.csv")
+        if (base / "open_source_evaluation_matrix.csv").exists()
+        else pd.DataFrame(),
+        "a_share_fit": pd.read_csv(base / "open_source_a_share_fit_matrix.csv")
+        if (base / "open_source_a_share_fit_matrix.csv").exists()
+        else pd.DataFrame(),
+        "recommendations": pd.read_csv(base / "open_source_integration_recommendations.csv")
+        if (base / "open_source_integration_recommendations.csv").exists()
+        else pd.DataFrame(),
+        "risk_register": pd.read_csv(base / "open_source_risk_register.csv")
+        if (base / "open_source_risk_register.csv").exists()
+        else pd.DataFrame(),
+        "architecture": pd.read_csv(base / "open_source_v7_architecture_decision.csv")
+        if (base / "open_source_v7_architecture_decision.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "open_source_guardrails.csv")
+        if (base / "open_source_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -8308,6 +8342,59 @@ def render_simulation_hardening_closure_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_open_source_quant_stack_audit_tab() -> None:
+    st.write(
+        "Load V7 Step 1 research-only open-source quant stack audit outputs."
+    )
+    st.warning(
+        "This panel reads generated V7 Step 1 audit artifacts only. It does not "
+        "install packages, import external quant frameworks, fetch market data, "
+        "run backtests, train models, connect brokers, submit orders, or make "
+        "any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Open-source quant stack audit directory",
+        value="outputs/open_source_quant_stack_audit_real_v1",
+        key="open_source_quant_stack_audit_output_dir",
+    )
+    if not st.button(
+        "Load open-source quant stack audit",
+        key="load_open_source_quant_stack_audit_button",
+        type="primary",
+    ):
+        return
+
+    output = load_open_source_quant_stack_audit_outputs(output_dir)
+    st.subheader("V7 Step 1 Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Candidate Inventory")
+    st.dataframe(output["inventory"], width="stretch")
+    st.subheader("Evaluation Matrix")
+    st.dataframe(output["evaluation"], width="stretch")
+    st.subheader("A-share Fit Matrix")
+    st.dataframe(output["a_share_fit"], width="stretch")
+    st.subheader("Integration Recommendations")
+    st.dataframe(output["recommendations"], width="stretch")
+    st.subheader("Risk Register")
+    st.dataframe(output["risk_register"], width="stretch")
+    st.subheader("Architecture Decisions")
+    st.dataframe(output["architecture"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("V7 Step 1 Audit Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download V7 Step 1 audit report",
+            data=output["markdown_report"],
+            file_name="open_source_stack_audit_report.md",
+            mime="text/markdown",
+            key="download_open_source_quant_stack_audit_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -8435,6 +8522,7 @@ def main() -> None:
         synthetic_replay_stress_matrix_tab,
         synthetic_stress_scenario_generator_tab,
         simulation_hardening_closure_tab,
+        open_source_quant_stack_audit_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8499,6 +8587,7 @@ def main() -> None:
             "V6 Step 13 Stress Matrix",
             "V6 Step 14 Scenario Generator",
             "V6 Step 15 Closure",
+            "V7 Step 1 OSS Audit",
         ]
     )
     with single_tab:
@@ -8696,6 +8785,8 @@ def main() -> None:
 
     with simulation_hardening_closure_tab:
         render_simulation_hardening_closure_tab()
+    with open_source_quant_stack_audit_tab:
+        render_open_source_quant_stack_audit_tab()
 
 
 if __name__ == "__main__":

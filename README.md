@@ -78,6 +78,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 synthetic replay stress matrix | `python src/run_synthetic_replay_stress_matrix.py --output-dir outputs/synthetic_replay_stress_matrix_real_v1` |
 | Run V6 synthetic stress scenario generator | `python src/run_synthetic_stress_scenario_generator.py --output-dir outputs/synthetic_stress_scenario_generator_real_v1` |
 | Run V6 simulation hardening closure | `python src/run_simulation_hardening_closure.py --output-dir outputs/simulation_hardening_closure_real_v1` |
+| Run V7 open-source quant stack audit | `python src/run_open_source_quant_stack_audit.py --output-dir outputs/open_source_quant_stack_audit_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -188,6 +189,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_synthetic_stress_scenario_generator.py`: Command-line tool for the V6 Step 14 synthetic stress scenario generator.
 - `src/simulation_hardening_closure.py`: V6 Step 15 research-only simulation hardening closure and V7 transition plan.
 - `src/run_simulation_hardening_closure.py`: Command-line tool for the V6 Step 15 closure package.
+- `src/open_source_quant_stack_audit.py`: V7 Step 1 research-only open-source quant stack audit and framework selection.
+- `src/run_open_source_quant_stack_audit.py`: Command-line tool for the V7 Step 1 audit package.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2227,6 +2230,41 @@ retrain models, change thresholds or features, execute orders, submit orders,
 or make a trading-ready claim.
 
 The dashboard has a `V6 Step 15 Closure` tab for loading this output directory.
+
+## V7 Step 1: Open-source Quant Stack Audit / Framework Selection
+
+V7 Step 1 creates a research-only open-source quant stack audit before building
+new V7 data, backtesting, factor, portfolio, risk, workflow, or later agent
+infrastructure. It evaluates Qlib, LEAN, vectorbt, RQAlpha, Backtrader,
+Alphalens, quantstats, PyPortfolioOpt, riskfolio-lib, AkShare, Baostock,
+Tushare, RD-Agent, LangGraph, AutoGen, and CrewAI across maturity,
+maintenance, Windows/Python fit, A-share fit, trading-rule support,
+small-capital constraints, costs/slippage, walk-forward support, factor/ML
+research support, live/broker risk, license risk, and integration complexity.
+
+Example:
+
+```powershell
+python src/run_open_source_quant_stack_audit.py --output-dir outputs/open_source_quant_stack_audit_real_v1
+```
+
+Generated files include `open_source_candidate_inventory.csv`,
+`open_source_evaluation_matrix.csv`, `open_source_a_share_fit_matrix.csv`,
+`open_source_integration_recommendations.csv`,
+`open_source_risk_register.csv`,
+`open_source_v7_architecture_decision.csv`,
+`open_source_guardrails.csv`, `open_source_stack_audit_summary.csv`,
+`open_source_stack_audit_report.md`, and `run_config.json`.
+
+This step is a selection and architecture decision layer only. It does not
+install packages, import external frameworks, fetch market or live data, run
+real backtests, train models, change thresholds, change feature engineering,
+connect brokers, execute or submit orders, or mark anything trading-ready.
+The recommended next step is `V7 Step 2 A-share Data Asset Map / Data Source
+Selection`.
+
+The dashboard has a `V7 Step 1 OSS Audit` tab for loading this output
+directory.
 
 ## Smoke Tests
 

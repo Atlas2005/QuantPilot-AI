@@ -131,6 +131,8 @@ PY_COMPILE_FILES = [
     "src/run_synthetic_stress_scenario_generator.py",
     "src/simulation_hardening_closure.py",
     "src/run_simulation_hardening_closure.py",
+    "src/open_source_quant_stack_audit.py",
+    "src/run_open_source_quant_stack_audit.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -2498,6 +2500,86 @@ COMMAND_CHECKS = [
                 "assert all(flag_checks), flag_checks; "
                 "report=(base/'v6_closure_report.md').read_text(encoding='utf-8'); "
                 "phrases=['V6 validation and simulation hardening is closed as a research-only infrastructure phase','No real alpha evidence','Open-source Reuse Policy','V7 Step 1 Open-source Quant Stack Audit']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_open_source_quant_stack_audit help",
+        ["src/run_open_source_quant_stack_audit.py", "--help"],
+    ),
+    (
+        "open source quant stack audit import",
+        ["-c", "import src.open_source_quant_stack_audit"],
+    ),
+    (
+        "offline open source quant stack audit",
+        [
+            "src/run_open_source_quant_stack_audit.py",
+            "--output-dir",
+            "outputs/open_source_quant_stack_audit_smoke",
+        ],
+    ),
+    (
+        "offline open source quant stack audit assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/open_source_quant_stack_audit_smoke'); "
+                "required=['run_config.json','open_source_candidate_inventory.csv','open_source_evaluation_matrix.csv','open_source_a_share_fit_matrix.csv','open_source_integration_recommendations.csv','open_source_risk_register.csv','open_source_v7_architecture_decision.csv','open_source_guardrails.csv','open_source_stack_audit_summary.csv','open_source_stack_audit_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'open_source_stack_audit_summary.csv'); "
+                "inventory=pd.read_csv(base/'open_source_candidate_inventory.csv'); "
+                "evaluation=pd.read_csv(base/'open_source_evaluation_matrix.csv'); "
+                "a_share=pd.read_csv(base/'open_source_a_share_fit_matrix.csv'); "
+                "recs=pd.read_csv(base/'open_source_integration_recommendations.csv'); "
+                "risk=pd.read_csv(base/'open_source_risk_register.csv'); "
+                "arch=pd.read_csv(base/'open_source_v7_architecture_decision.csv'); "
+                "guardrails=pd.read_csv(base/'open_source_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "expected={'Qlib','LEAN','vectorbt','RQAlpha','Backtrader','Alphalens','quantstats','PyPortfolioOpt','riskfolio-lib','AkShare','Baostock','Tushare','RD-Agent','LangGraph','AutoGen','CrewAI'}; "
+                "assert set(inventory['candidate']) == expected; "
+                "assert set(evaluation['candidate']) == expected; "
+                "assert set(a_share['candidate']) == expected; "
+                "assert int(row['reviewed_candidate_count']) == 16; "
+                "assert int(row['recommended_adopt_directly_count']) == 0; "
+                "assert int(row['recommended_wrap_and_integrate_count']) == 1; "
+                "assert int(row['recommended_evaluate_with_prototype_count']) == 7; "
+                "assert int(row['recommended_borrow_architecture_only_count']) == 2; "
+                "assert int(row['recommended_defer_until_later_count']) == 6; "
+                "assert int(row['recommended_avoid_for_now_count']) == 0; "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'open_source_quant_stack_audit_completed_research_only'; "
+                "assert row['recommended_next_step'] == 'V7 Step 2 A-share Data Asset Map / Data Source Selection'; "
+                "actions=dict(zip(evaluation['candidate'], evaluation['recommended_action'])); "
+                "assert actions['Qlib']=='evaluate_with_prototype'; "
+                "assert actions['LEAN']=='evaluate_with_prototype'; "
+                "assert actions['vectorbt']=='evaluate_with_prototype'; "
+                "assert actions['RQAlpha']=='borrow_architecture_only'; "
+                "assert actions['Backtrader']=='evaluate_with_prototype'; "
+                "assert actions['quantstats']=='wrap_and_integrate'; "
+                "assert actions['RD-Agent']=='defer_until_later'; "
+                "assert set(inventory['installed'].fillna(True).astype(bool)) == {False}; "
+                "assert set(inventory['imported'].fillna(True).astype(bool)) == {False}; "
+                "required_guardrails={'no_package_install','no_external_framework_import','no_market_data_fetch','no_live_data','no_backtest_execution','no_model_training','no_threshold_change','no_feature_engineering_change','no_broker_sdk_import','no_broker_credentials','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','framework_selection_only','open_source_first_policy_applied','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['market_data_fetch','broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [inventory,evaluation,a_share,recs,risk,arch,guardrails]]; "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'open_source_stack_audit_report.md').read_text(encoding='utf-8'); "
+                "phrases=['V7 should not continue pure custom development','Qlib should be evaluated','LEAN should be evaluated','RD-Agent, LangGraph, AutoGen, and CrewAI should be deferred','open_source_quant_stack_audit_completed_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
