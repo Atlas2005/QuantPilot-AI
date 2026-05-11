@@ -71,6 +71,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 validation evidence index | `python src/run_validation_evidence_index.py --output-dir outputs/validation_evidence_index_real_v1` |
 | Run V6 validation coverage gap review | `python src/run_validation_coverage_gap_review.py --output-dir outputs/validation_coverage_gap_review_real_v1` |
 | Run V6 simulation hardening design | `python src/run_simulation_hardening_design.py --output-dir outputs/simulation_hardening_design_real_v1` |
+| Run V6 multi-day paper replay harness scaffold | `python src/run_multi_day_paper_replay_harness.py --output-dir outputs/multi_day_paper_replay_harness_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -167,6 +168,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_validation_coverage_gap_review.py`: Command-line tool for the V6 Step 7 coverage gap review.
 - `src/simulation_hardening_design.py`: V6 Step 8 research-only simulation hardening design and multi-day paper replay planning layer.
 - `src/run_simulation_hardening_design.py`: Command-line tool for the V6 Step 8 simulation hardening design.
+- `src/multi_day_paper_replay_harness.py`: V6 Step 9 research-only multi-day paper replay harness and input scaffold.
+- `src/run_multi_day_paper_replay_harness.py`: Command-line tool for the V6 Step 9 replay harness scaffold.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2008,6 +2011,35 @@ connect to brokers, import broker SDKs, use credentials, execute or submit
 orders, perform live trading, or mark anything trading-ready.
 
 The dashboard has a `V6 Step 8 Simulation Design` tab for loading this output
+directory.
+
+## V6 Step 9: Multi-Day Paper Replay Harness / Replay Input Scaffold
+
+V6 Step 9 creates a deterministic, local-output-only replay harness scaffold
+from existing V5/V6 daily plan, paper ledger, broker-neutral order draft,
+monitoring, closure, coverage gap, and simulation hardening outputs. It records
+an input manifest, controlled replay calendar rows, position snapshots, event
+log, state transitions, guardrails, summary, and Markdown report.
+
+Example:
+
+```powershell
+python src/run_multi_day_paper_replay_harness.py --output-dir outputs/multi_day_paper_replay_harness_real_v1
+```
+
+Generated files include `multi_day_replay_input_manifest.csv`,
+`multi_day_replay_calendar.csv`,
+`multi_day_replay_position_snapshots.csv`,
+`multi_day_replay_event_log.csv`,
+`multi_day_replay_state_transitions.csv`,
+`multi_day_replay_guardrails.csv`, `multi_day_replay_summary.csv`,
+`multi_day_replay_report.md`, and `run_config.json`. This step does not fetch
+live or historical market data, run a new backtest, calculate market-data
+returns, change thresholds, retrain models, change features, add data sources,
+connect to brokers, import broker SDKs, execute or submit orders, perform live
+trading, or mark anything trading-ready.
+
+The dashboard has a `V6 Step 9 Replay Harness` tab for loading this output
 directory.
 
 ## Smoke Tests

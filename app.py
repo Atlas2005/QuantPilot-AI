@@ -5312,6 +5312,37 @@ def load_simulation_hardening_design_outputs(output_dir: str) -> dict[str, objec
     }
 
 
+def load_multi_day_paper_replay_harness_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "multi_day_replay_report.md"
+    return {
+        "summary": pd.read_csv(base / "multi_day_replay_summary.csv")
+        if (base / "multi_day_replay_summary.csv").exists()
+        else pd.DataFrame(),
+        "manifest": pd.read_csv(base / "multi_day_replay_input_manifest.csv")
+        if (base / "multi_day_replay_input_manifest.csv").exists()
+        else pd.DataFrame(),
+        "calendar": pd.read_csv(base / "multi_day_replay_calendar.csv")
+        if (base / "multi_day_replay_calendar.csv").exists()
+        else pd.DataFrame(),
+        "snapshots": pd.read_csv(base / "multi_day_replay_position_snapshots.csv")
+        if (base / "multi_day_replay_position_snapshots.csv").exists()
+        else pd.DataFrame(),
+        "events": pd.read_csv(base / "multi_day_replay_event_log.csv")
+        if (base / "multi_day_replay_event_log.csv").exists()
+        else pd.DataFrame(),
+        "transitions": pd.read_csv(base / "multi_day_replay_state_transitions.csv")
+        if (base / "multi_day_replay_state_transitions.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "multi_day_replay_guardrails.csv")
+        if (base / "multi_day_replay_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7767,6 +7798,57 @@ def render_simulation_hardening_design_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_multi_day_paper_replay_harness_tab() -> None:
+    st.write(
+        "Load V6 Step 9 research-only multi-day paper replay harness scaffold outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 9 scaffold outputs only. It does not run "
+        "a replay, run backtests, fetch market data, train models, change "
+        "thresholds, connect to brokers, submit orders, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Multi-day paper replay harness directory",
+        value="outputs/multi_day_paper_replay_harness_real_v1",
+        key="multi_day_paper_replay_harness_output_dir",
+    )
+    if not st.button(
+        "Load multi-day paper replay harness",
+        key="load_multi_day_paper_replay_harness_button",
+        type="primary",
+    ):
+        return
+
+    output = load_multi_day_paper_replay_harness_outputs(output_dir)
+    st.subheader("Replay Harness Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Input Manifest")
+    st.dataframe(output["manifest"], width="stretch")
+    st.subheader("Replay Calendar")
+    st.dataframe(output["calendar"], width="stretch")
+    st.subheader("Position Snapshots")
+    st.dataframe(output["snapshots"], width="stretch")
+    st.subheader("Event Log")
+    st.dataframe(output["events"], width="stretch")
+    st.subheader("State Transitions")
+    st.dataframe(output["transitions"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Multi-Day Replay Harness Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download multi-day replay harness report",
+            data=output["markdown_report"],
+            file_name="multi_day_replay_report.md",
+            mime="text/markdown",
+            key="download_multi_day_paper_replay_harness_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7887,6 +7969,7 @@ def main() -> None:
         validation_evidence_index_tab,
         validation_coverage_gap_review_tab,
         simulation_hardening_design_tab,
+        multi_day_paper_replay_harness_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -7944,6 +8027,7 @@ def main() -> None:
             "V6 Step 6 Evidence",
             "V6 Step 7 Coverage Gaps",
             "V6 Step 8 Simulation Design",
+            "V6 Step 9 Replay Harness",
         ]
     )
     with single_tab:
@@ -8120,6 +8204,9 @@ def main() -> None:
 
     with simulation_hardening_design_tab:
         render_simulation_hardening_design_tab()
+
+    with multi_day_paper_replay_harness_tab:
+        render_multi_day_paper_replay_harness_tab()
 
 
 if __name__ == "__main__":

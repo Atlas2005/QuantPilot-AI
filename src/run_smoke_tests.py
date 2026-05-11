@@ -117,6 +117,8 @@ PY_COMPILE_FILES = [
     "src/run_validation_coverage_gap_review.py",
     "src/simulation_hardening_design.py",
     "src/run_simulation_hardening_design.py",
+    "src/multi_day_paper_replay_harness.py",
+    "src/run_multi_day_paper_replay_harness.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1880,6 +1882,88 @@ COMMAND_CHECKS = [
                 "assert not controls[['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']].fillna(True).astype(bool).any().any(); "
                 "report=(base/'simulation_hardening_design_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Simulation Hardening Design','multi-day paper replay','does not run a replay','simulation_hardening_design_completed_research_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_multi_day_paper_replay_harness help",
+        ["src/run_multi_day_paper_replay_harness.py", "--help"],
+    ),
+    (
+        "multi-day paper replay harness import",
+        ["-c", "import src.multi_day_paper_replay_harness"],
+    ),
+    (
+        "offline multi-day paper replay harness",
+        [
+            "src/run_multi_day_paper_replay_harness.py",
+            "--daily-plan-dir",
+            "outputs/daily_trading_plan_smoke",
+            "--paper-ledger-dir",
+            "outputs/paper_trading_ledger_smoke",
+            "--order-generator-dir",
+            "outputs/semi_auto_order_generator_smoke",
+            "--broker-research-dir",
+            "outputs/broker_integration_research_smoke",
+            "--monitoring-dir",
+            "outputs/monitoring_reporting_layer_smoke",
+            "--v5-closure-dir",
+            "outputs/capital_aware_infrastructure_review_smoke",
+            "--coverage-gap-dir",
+            "outputs/validation_coverage_gap_review_smoke",
+            "--simulation-design-dir",
+            "outputs/simulation_hardening_design_smoke",
+            "--output-dir",
+            "outputs/multi_day_paper_replay_harness_smoke",
+        ],
+    ),
+    (
+        "offline multi-day paper replay harness assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/multi_day_paper_replay_harness_smoke'); "
+                "required=['run_config.json','multi_day_replay_input_manifest.csv','multi_day_replay_calendar.csv','multi_day_replay_position_snapshots.csv','multi_day_replay_event_log.csv','multi_day_replay_state_transitions.csv','multi_day_replay_guardrails.csv','multi_day_replay_summary.csv','multi_day_replay_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'multi_day_replay_summary.csv'); "
+                "manifest=pd.read_csv(base/'multi_day_replay_input_manifest.csv'); "
+                "calendar=pd.read_csv(base/'multi_day_replay_calendar.csv'); "
+                "snapshots=pd.read_csv(base/'multi_day_replay_position_snapshots.csv'); "
+                "events=pd.read_csv(base/'multi_day_replay_event_log.csv'); "
+                "transitions=pd.read_csv(base/'multi_day_replay_state_transitions.csv'); "
+                "guardrails=pd.read_csv(base/'multi_day_replay_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['input_dependency_count']) == len(manifest); "
+                "assert int(row['replay_calendar_day_count']) == len(calendar); "
+                "assert int(row['replay_position_snapshot_count']) == len(snapshots); "
+                "assert int(row['replay_event_count']) == len(events); "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert not bool(row['execution_allowed']); "
+                "assert not bool(row['broker_connected']); "
+                "assert not bool(row['live_trading']); "
+                "assert not bool(row['real_order_submission']); "
+                "assert row['validation_status'] in {'pass','warning'}; "
+                "assert row['conclusion'] == 'multi_day_paper_replay_harness_created_research_only'; "
+                "assert set(events['event_type']) >= {'replay_initialized','input_loaded','position_snapshot_created','no_market_data_fetch','no_order_execution','replay_scaffold_completed'}; "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_threshold_change','no_model_retraining','no_feature_change','no_new_data_sources','no_broker_credentials','no_broker_sdk_import','no_broker_connection','no_live_trading','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','replay_harness_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [manifest,calendar,snapshots,events,transitions,guardrails]]; "
+                "assert all(flag_checks), flag_checks; "
+                "assert not snapshots['market_return_calculated'].fillna(True).astype(bool).any() if len(snapshots) else True; "
+                "report=(base/'multi_day_replay_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Multi-Day Paper Replay Harness','local-output-only','does not fetch market data','multi_day_paper_replay_harness_created_research_only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),
