@@ -127,6 +127,8 @@ PY_COMPILE_FILES = [
     "src/run_synthetic_replay_result_review.py",
     "src/synthetic_replay_stress_matrix.py",
     "src/run_synthetic_replay_stress_matrix.py",
+    "src/synthetic_stress_scenario_generator.py",
+    "src/run_synthetic_stress_scenario_generator.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -2297,6 +2299,89 @@ COMMAND_CHECKS = [
                 "assert all(flag_checks), flag_checks; "
                 "report=(base/'synthetic_replay_stress_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Synthetic Replay Stress Matrix','design/planning layer only','does not execute new price simulations','not trading-ready evidence']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_synthetic_stress_scenario_generator help",
+        ["src/run_synthetic_stress_scenario_generator.py", "--help"],
+    ),
+    (
+        "synthetic stress scenario generator import",
+        ["-c", "import src.synthetic_stress_scenario_generator"],
+    ),
+    (
+        "offline synthetic stress scenario generator",
+        [
+            "src/run_synthetic_stress_scenario_generator.py",
+            "--price-path-dir",
+            "outputs/replay_price_path_simulator_smoke",
+            "--result-review-dir",
+            "outputs/synthetic_replay_result_review_smoke",
+            "--stress-matrix-dir",
+            "outputs/synthetic_replay_stress_matrix_smoke",
+            "--hardening-review-dir",
+            "outputs/simulation_hardening_review_smoke",
+            "--output-dir",
+            "outputs/synthetic_stress_scenario_generator_smoke",
+        ],
+    ),
+    (
+        "offline synthetic stress scenario generator assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/synthetic_stress_scenario_generator_smoke'); "
+                "required=['run_config.json','synthetic_stress_input_manifest.csv','synthetic_stress_scenario_definitions.csv','synthetic_stress_price_path_assumptions.csv','synthetic_stress_execution_plan.csv','synthetic_stress_guardrails.csv','synthetic_stress_summary.csv','synthetic_stress_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'synthetic_stress_summary.csv'); "
+                "defs=pd.read_csv(base/'synthetic_stress_scenario_definitions.csv'); "
+                "assumptions=pd.read_csv(base/'synthetic_stress_price_path_assumptions.csv'); "
+                "plan=pd.read_csv(base/'synthetic_stress_execution_plan.csv'); "
+                "guardrails=pd.read_csv(base/'synthetic_stress_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert row['summary_item'] == 'v6_step14_synthetic_stress_scenario_generator'; "
+                "assert int(row['reviewed_input_count']) == 9; "
+                "assert int(row['missing_input_count']) == 0; "
+                "assert int(row['source_stress_dimension_count']) == 10; "
+                "assert int(row['generated_scenario_definition_count']) == len(defs) == 10; "
+                "assert int(row['generated_price_path_assumption_count']) == len(assumptions) == 10; "
+                "assert int(row['execution_plan_row_count']) == len(plan) == 10; "
+                "assert int(row['high_priority_scenario_count']) >= 5; "
+                "assert int(row['local_synthetic_only_count']) == 10; "
+                "assert int(row['not_real_market_evidence_count']) == 10; "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert not bool(row['execution_allowed']); "
+                "assert not bool(row['broker_connected']); "
+                "assert not bool(row['live_trading']); "
+                "assert not bool(row['real_order_submission']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'synthetic_stress_scenario_generator_completed_research_only'; "
+                "assert row['recommended_next_step'] == 'V6 Step 15 Simulation Hardening Closure / Transition to Data & Market Reality Foundation'; "
+                "required_scenarios={'larger_gap_down','slow_grind_down','fast_rebound','volatile_stop_loss_whipsaw','near_take_profit_reversal','flat_illiquid_path','delayed_stop_loss_touch','delayed_take_profit_touch','max_holding_unresolved_path','benchmark_lag_stress_path'}; "
+                "assert required_scenarios == set(defs['scenario_name']); "
+                "assert set(defs['execution_status']) == {'definition_created_not_market_executed'}; "
+                "assert defs['local_synthetic_only'].astype(bool).all(); "
+                "assert defs['not_real_market_evidence'].astype(bool).all(); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_live_data','no_model_retraining','no_threshold_change','no_feature_engineering_change','no_new_external_data_sources','no_broker_sdk_import','no_broker_credentials','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','local_synthetic_scenario_definitions_only','not_real_market_evidence','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['market_data_fetch','broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [defs,assumptions,plan,guardrails]]; "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'synthetic_stress_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Synthetic Stress Matrix Implementation','local synthetic scenario definitions only','not real market evidence','not trading-ready evidence']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

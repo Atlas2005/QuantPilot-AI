@@ -5449,6 +5449,34 @@ def load_synthetic_replay_stress_matrix_outputs(output_dir: str) -> dict[str, ob
     }
 
 
+def load_synthetic_stress_scenario_generator_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "synthetic_stress_report.md"
+    return {
+        "summary": pd.read_csv(base / "synthetic_stress_summary.csv")
+        if (base / "synthetic_stress_summary.csv").exists()
+        else pd.DataFrame(),
+        "manifest": pd.read_csv(base / "synthetic_stress_input_manifest.csv")
+        if (base / "synthetic_stress_input_manifest.csv").exists()
+        else pd.DataFrame(),
+        "definitions": pd.read_csv(base / "synthetic_stress_scenario_definitions.csv")
+        if (base / "synthetic_stress_scenario_definitions.csv").exists()
+        else pd.DataFrame(),
+        "assumptions": pd.read_csv(base / "synthetic_stress_price_path_assumptions.csv")
+        if (base / "synthetic_stress_price_path_assumptions.csv").exists()
+        else pd.DataFrame(),
+        "execution_plan": pd.read_csv(base / "synthetic_stress_execution_plan.csv")
+        if (base / "synthetic_stress_execution_plan.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "synthetic_stress_guardrails.csv")
+        if (base / "synthetic_stress_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -8145,6 +8173,55 @@ def render_synthetic_replay_stress_matrix_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_synthetic_stress_scenario_generator_tab() -> None:
+    st.write(
+        "Load V6 Step 14 research-only synthetic stress scenario generator outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 14 scenario-definition outputs only. It "
+        "does not run simulations, run backtests, fetch market data, train "
+        "models, change thresholds, connect to brokers, submit orders, or make "
+        "any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Synthetic stress scenario generator directory",
+        value="outputs/synthetic_stress_scenario_generator_real_v1",
+        key="synthetic_stress_scenario_generator_output_dir",
+    )
+    if not st.button(
+        "Load synthetic stress scenario generator",
+        key="load_synthetic_stress_scenario_generator_button",
+        type="primary",
+    ):
+        return
+
+    output = load_synthetic_stress_scenario_generator_outputs(output_dir)
+    st.subheader("Synthetic Stress Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Input Manifest")
+    st.dataframe(output["manifest"], width="stretch")
+    st.subheader("Scenario Definitions")
+    st.dataframe(output["definitions"], width="stretch")
+    st.subheader("Price Path Assumptions")
+    st.dataframe(output["assumptions"], width="stretch")
+    st.subheader("Execution Plan")
+    st.dataframe(output["execution_plan"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Synthetic Stress Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download synthetic stress report",
+            data=output["markdown_report"],
+            file_name="synthetic_stress_report.md",
+            mime="text/markdown",
+            key="download_synthetic_stress_scenario_generator_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -8270,6 +8347,7 @@ def main() -> None:
         replay_price_path_simulator_tab,
         synthetic_replay_result_review_tab,
         synthetic_replay_stress_matrix_tab,
+        synthetic_stress_scenario_generator_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8332,6 +8410,7 @@ def main() -> None:
             "V6 Step 11 Price Paths",
             "V6 Step 12 Result Review",
             "V6 Step 13 Stress Matrix",
+            "V6 Step 14 Scenario Generator",
         ]
     )
     with single_tab:
@@ -8523,6 +8602,9 @@ def main() -> None:
 
     with synthetic_replay_stress_matrix_tab:
         render_synthetic_replay_stress_matrix_tab()
+
+    with synthetic_stress_scenario_generator_tab:
+        render_synthetic_stress_scenario_generator_tab()
 
 
 if __name__ == "__main__":

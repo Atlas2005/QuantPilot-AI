@@ -76,6 +76,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 replay price path simulator | `python src/run_replay_price_path_simulator.py --output-dir outputs/replay_price_path_simulator_real_v1` |
 | Run V6 synthetic replay result review | `python src/run_synthetic_replay_result_review.py --output-dir outputs/synthetic_replay_result_review_real_v1` |
 | Run V6 synthetic replay stress matrix | `python src/run_synthetic_replay_stress_matrix.py --output-dir outputs/synthetic_replay_stress_matrix_real_v1` |
+| Run V6 synthetic stress scenario generator | `python src/run_synthetic_stress_scenario_generator.py --output-dir outputs/synthetic_stress_scenario_generator_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -182,6 +183,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_synthetic_replay_result_review.py`: Command-line tool for the V6 Step 12 synthetic replay review.
 - `src/synthetic_replay_stress_matrix.py`: V6 Step 13 research-only synthetic replay stress matrix and scenario expansion plan.
 - `src/run_synthetic_replay_stress_matrix.py`: Command-line tool for the V6 Step 13 stress matrix design.
+- `src/synthetic_stress_scenario_generator.py`: V6 Step 14 research-only local synthetic stress scenario definition generator.
+- `src/run_synthetic_stress_scenario_generator.py`: Command-line tool for the V6 Step 14 synthetic stress scenario generator.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2164,6 +2167,34 @@ features, add external data sources, import broker SDKs, connect to brokers,
 execute or submit orders, or make a trading-ready claim.
 
 The dashboard has a `V6 Step 13 Stress Matrix` tab for loading this output
+directory.
+
+## V6 Step 14: Synthetic Stress Matrix Implementation / Local Scenario Generator
+
+V6 Step 14 converts V6 Step 13 stress matrix design rows into deterministic
+local synthetic scenario definitions and price-path assumptions. It is a
+lightweight local converter for scenario metadata only, not a new simulator or
+market replay layer.
+
+Example:
+
+```powershell
+python src/run_synthetic_stress_scenario_generator.py --output-dir outputs/synthetic_stress_scenario_generator_real_v1
+```
+
+Generated files include `synthetic_stress_input_manifest.csv`,
+`synthetic_stress_scenario_definitions.csv`,
+`synthetic_stress_price_path_assumptions.csv`,
+`synthetic_stress_execution_plan.csv`, `synthetic_stress_guardrails.csv`,
+`synthetic_stress_summary.csv`, `synthetic_stress_report.md`, and
+`run_config.json`. This step creates local synthetic definitions only; it is
+not alpha discovery, not real backtesting, not market-data replay, not broker
+execution, and not trading-ready evidence. It does not fetch market or live
+data, retrain models, change thresholds, change features, add external data
+sources, import broker SDKs, connect to brokers, execute or submit orders, or
+make a trading-ready claim.
+
+The dashboard has a `V6 Step 14 Scenario Generator` tab for loading this output
 directory.
 
 ## Smoke Tests
