@@ -121,6 +121,8 @@ PY_COMPILE_FILES = [
     "src/run_multi_day_paper_replay_harness.py",
     "src/simulation_hardening_review.py",
     "src/run_simulation_hardening_review.py",
+    "src/replay_price_path_simulator.py",
+    "src/run_replay_price_path_simulator.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -2048,6 +2050,90 @@ COMMAND_CHECKS = [
                 "assert all(flag_checks), flag_checks; "
                 "report=(base/'simulation_hardening_review_report.md').read_text(encoding='utf-8'); "
                 "phrases=['V6 Step 8 was only a simulation hardening design/planning layer','V6 Step 9 was only a deterministic local multi-day replay scaffold','does not prove profitability','does not use real market replay prices','does not represent broker paper trading','is not live trading','is not broker integration','is not trading-ready evidence','The project remains research-only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_replay_price_path_simulator help",
+        ["src/run_replay_price_path_simulator.py", "--help"],
+    ),
+    (
+        "replay price path simulator import",
+        ["-c", "import src.replay_price_path_simulator"],
+    ),
+    (
+        "offline replay price path simulator",
+        [
+            "src/run_replay_price_path_simulator.py",
+            "--replay-dir",
+            "outputs/multi_day_paper_replay_harness_smoke",
+            "--design-dir",
+            "outputs/simulation_hardening_design_smoke",
+            "--review-dir",
+            "outputs/simulation_hardening_review_smoke",
+            "--output-dir",
+            "outputs/replay_price_path_simulator_smoke",
+        ],
+    ),
+    (
+        "offline replay price path simulator assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/replay_price_path_simulator_smoke'); "
+                "required=['run_config.json','replay_price_path_input_manifest.csv','synthetic_price_scenarios.csv','replay_price_paths.csv','replay_price_path_position_results.csv','replay_price_path_event_log.csv','replay_price_path_guardrails.csv','replay_price_path_summary.csv','replay_price_path_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'replay_price_path_summary.csv'); "
+                "manifest=pd.read_csv(base/'replay_price_path_input_manifest.csv'); "
+                "scenarios=pd.read_csv(base/'synthetic_price_scenarios.csv'); "
+                "paths=pd.read_csv(base/'replay_price_paths.csv'); "
+                "results=pd.read_csv(base/'replay_price_path_position_results.csv'); "
+                "events=pd.read_csv(base/'replay_price_path_event_log.csv'); "
+                "guardrails=pd.read_csv(base/'replay_price_path_guardrails.csv'); "
+                "row=summary.iloc[0]; "
+                "assert row['summary_item'] == 'v6_step11_replay_price_path_simulator'; "
+                "assert int(row['input_dependency_count']) == len(manifest); "
+                "assert int(row['missing_input_dependency_count']) == 0; "
+                "assert int(row['scenario_count']) == 6; "
+                "assert int(row['price_path_row_count']) == len(paths); "
+                "assert int(row['position_scenario_result_count']) == len(results); "
+                "assert int(row['synthetic_exit_event_count']) == int(row['stop_loss_touch_result_count']) + int(row['take_profit_touch_result_count']); "
+                "assert int(row['stop_loss_touch_result_count']) >= 1; "
+                "assert int(row['take_profit_touch_result_count']) >= 1; "
+                "assert int(row['max_holding_or_no_exit_result_count']) >= 1; "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert not bool(row['execution_allowed']); "
+                "assert not bool(row['broker_connected']); "
+                "assert not bool(row['live_trading']); "
+                "assert not bool(row['real_order_submission']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'replay_price_path_simulator_completed_research_only'; "
+                "assert row['recommended_next_step'] == 'V6 Step 12 Synthetic Scenario Replay Result Review / Risk Interpretation'; "
+                "required_scenarios={'flat_path','gradual_up_path','gradual_down_path','stop_loss_touch_path','take_profit_touch_path','volatile_no_exit_path'}; "
+                "assert required_scenarios == set(scenarios['scenario_name']); "
+                "assert not scenarios['market_data_fetch'].fillna(True).astype(bool).any(); "
+                "assert set(events['event_type']) >= {'price_path_simulator_initialized','input_dependencies_loaded','synthetic_scenarios_created','price_paths_generated','synthetic_exit_rules_evaluated','no_market_data_fetch_confirmed','no_order_execution_confirmed','price_path_simulator_completed'}; "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_live_data','no_threshold_change','no_model_retraining','no_feature_engineering_change','no_new_external_data_sources','no_broker_sdk_import','no_broker_credentials','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','synthetic_price_path_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "flag_cols=['market_data_fetch','broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [manifest,scenarios,paths,events,guardrails]]; "
+                "result_flag_cols=['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks.append(not results[[col for col in result_flag_cols if col in results.columns]].fillna(True).astype(bool).any().any()); "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'replay_price_path_report.md').read_text(encoding='utf-8'); "
+                "phrases=['Multi-Day Replay Price Path Simulator','local synthetic prices only','not a historical backtest','not live trading','not broker paper trading','not trading-ready evidence']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

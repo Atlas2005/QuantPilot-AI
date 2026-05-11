@@ -5368,6 +5368,37 @@ def load_simulation_hardening_review_outputs(output_dir: str) -> dict[str, objec
     }
 
 
+def load_replay_price_path_simulator_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "replay_price_path_report.md"
+    return {
+        "summary": pd.read_csv(base / "replay_price_path_summary.csv")
+        if (base / "replay_price_path_summary.csv").exists()
+        else pd.DataFrame(),
+        "manifest": pd.read_csv(base / "replay_price_path_input_manifest.csv")
+        if (base / "replay_price_path_input_manifest.csv").exists()
+        else pd.DataFrame(),
+        "scenarios": pd.read_csv(base / "synthetic_price_scenarios.csv")
+        if (base / "synthetic_price_scenarios.csv").exists()
+        else pd.DataFrame(),
+        "price_paths": pd.read_csv(base / "replay_price_paths.csv")
+        if (base / "replay_price_paths.csv").exists()
+        else pd.DataFrame(),
+        "position_results": pd.read_csv(base / "replay_price_path_position_results.csv")
+        if (base / "replay_price_path_position_results.csv").exists()
+        else pd.DataFrame(),
+        "events": pd.read_csv(base / "replay_price_path_event_log.csv")
+        if (base / "replay_price_path_event_log.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "replay_price_path_guardrails.csv")
+        if (base / "replay_price_path_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7920,6 +7951,57 @@ def render_simulation_hardening_review_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_replay_price_path_simulator_tab() -> None:
+    st.write(
+        "Load V6 Step 11 research-only local synthetic replay price path simulator outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 11 synthetic scenario outputs only. It "
+        "does not run backtests, fetch market data, train models, change "
+        "thresholds, connect to brokers, submit orders, or make any "
+        "trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Replay price path simulator directory",
+        value="outputs/replay_price_path_simulator_real_v1",
+        key="replay_price_path_simulator_output_dir",
+    )
+    if not st.button(
+        "Load replay price path simulator",
+        key="load_replay_price_path_simulator_button",
+        type="primary",
+    ):
+        return
+
+    output = load_replay_price_path_simulator_outputs(output_dir)
+    st.subheader("Replay Price Path Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Input Manifest")
+    st.dataframe(output["manifest"], width="stretch")
+    st.subheader("Synthetic Scenarios")
+    st.dataframe(output["scenarios"], width="stretch")
+    st.subheader("Replay Price Paths")
+    st.dataframe(output["price_paths"], width="stretch")
+    st.subheader("Position Results")
+    st.dataframe(output["position_results"], width="stretch")
+    st.subheader("Event Log")
+    st.dataframe(output["events"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Replay Price Path Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download replay price path report",
+            data=output["markdown_report"],
+            file_name="replay_price_path_report.md",
+            mime="text/markdown",
+            key="download_replay_price_path_simulator_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -8042,6 +8124,7 @@ def main() -> None:
         simulation_hardening_design_tab,
         multi_day_paper_replay_harness_tab,
         simulation_hardening_review_tab,
+        replay_price_path_simulator_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8101,6 +8184,7 @@ def main() -> None:
             "V6 Step 8 Simulation Design",
             "V6 Step 9 Replay Harness",
             "V6 Step 10 Review",
+            "V6 Step 11 Price Paths",
         ]
     )
     with single_tab:
@@ -8283,6 +8367,9 @@ def main() -> None:
 
     with simulation_hardening_review_tab:
         render_simulation_hardening_review_tab()
+
+    with replay_price_path_simulator_tab:
+        render_replay_price_path_simulator_tab()
 
 
 if __name__ == "__main__":

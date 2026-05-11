@@ -73,6 +73,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 simulation hardening design | `python src/run_simulation_hardening_design.py --output-dir outputs/simulation_hardening_design_real_v1` |
 | Run V6 multi-day paper replay harness scaffold | `python src/run_multi_day_paper_replay_harness.py --output-dir outputs/multi_day_paper_replay_harness_real_v1` |
 | Run V6 simulation hardening review closure | `python src/run_simulation_hardening_review.py --output-dir outputs/simulation_hardening_review_real_v1` |
+| Run V6 replay price path simulator | `python src/run_replay_price_path_simulator.py --output-dir outputs/replay_price_path_simulator_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -173,6 +174,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_multi_day_paper_replay_harness.py`: Command-line tool for the V6 Step 9 replay harness scaffold.
 - `src/simulation_hardening_review.py`: V6 Step 10 research-only multi-day replay review and simulation hardening closure layer.
 - `src/run_simulation_hardening_review.py`: Command-line tool for the V6 Step 10 simulation hardening review.
+- `src/replay_price_path_simulator.py`: V6 Step 11 research-only local synthetic replay price path scenario layer.
+- `src/run_replay_price_path_simulator.py`: Command-line tool for the V6 Step 11 replay price path simulator.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2071,6 +2074,35 @@ trading, is not broker integration, and is not trading-ready evidence. The
 project remains research-only.
 
 The dashboard has a `V6 Step 10 Review` tab for loading this output directory.
+
+## V6 Step 11: Multi-Day Replay Price Path Simulator / Local Synthetic Price Scenario Layer
+
+V6 Step 11 reads the existing Step 9 multi-day paper replay scaffold and creates
+deterministic local synthetic price paths for the scaffold positions. It
+observes how stop-loss, take-profit, benchmark-lag placeholders, and
+max-holding-day logic would behave under simple synthetic scenarios such as
+flat, gradual-up, gradual-down, stop-loss-touch, take-profit-touch, and volatile
+no-exit paths.
+
+Example:
+
+```powershell
+python src/run_replay_price_path_simulator.py --output-dir outputs/replay_price_path_simulator_real_v1
+```
+
+Generated files include `replay_price_path_input_manifest.csv`,
+`synthetic_price_scenarios.csv`, `replay_price_paths.csv`,
+`replay_price_path_position_results.csv`,
+`replay_price_path_event_log.csv`, `replay_price_path_guardrails.csv`,
+`replay_price_path_summary.csv`, `replay_price_path_report.md`, and
+`run_config.json`. This step is not a historical backtest, not live trading,
+not broker paper trading, and not trading-ready evidence. It does not fetch
+market data, connect to brokers, execute or submit orders, retrain models,
+change thresholds, change features, add external data sources, or update real
+or paper ledgers.
+
+The dashboard has a `V6 Step 11 Price Paths` tab for loading this output
+directory.
 
 ## Smoke Tests
 
