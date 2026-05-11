@@ -119,6 +119,8 @@ PY_COMPILE_FILES = [
     "src/run_simulation_hardening_design.py",
     "src/multi_day_paper_replay_harness.py",
     "src/run_multi_day_paper_replay_harness.py",
+    "src/simulation_hardening_review.py",
+    "src/run_simulation_hardening_review.py",
     "src/model_report_generator.py",
     "src/generate_model_report.py",
     "src/feature_source_registry.py",
@@ -1964,6 +1966,88 @@ COMMAND_CHECKS = [
                 "assert not snapshots['market_return_calculated'].fillna(True).astype(bool).any() if len(snapshots) else True; "
                 "report=(base/'multi_day_replay_report.md').read_text(encoding='utf-8'); "
                 "phrases=['Multi-Day Paper Replay Harness','local-output-only','does not fetch market data','multi_day_paper_replay_harness_created_research_only']; "
+                "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
+                "assert not missing_phrases, missing_phrases"
+            ),
+        ],
+    ),
+    (
+        "run_simulation_hardening_review help",
+        ["src/run_simulation_hardening_review.py", "--help"],
+    ),
+    (
+        "simulation hardening review import",
+        ["-c", "import src.simulation_hardening_review"],
+    ),
+    (
+        "offline simulation hardening review",
+        [
+            "src/run_simulation_hardening_review.py",
+            "--simulation-design-dir",
+            "outputs/simulation_hardening_design_smoke",
+            "--replay-harness-dir",
+            "outputs/multi_day_paper_replay_harness_smoke",
+            "--coverage-gap-dir",
+            "outputs/validation_coverage_gap_review_smoke",
+            "--evidence-index-dir",
+            "outputs/validation_evidence_index_smoke",
+            "--output-dir",
+            "outputs/simulation_hardening_review_smoke",
+        ],
+    ),
+    (
+        "offline simulation hardening review assertions",
+        [
+            "-c",
+            (
+                "from pathlib import Path; "
+                "import pandas as pd; "
+                "base=Path('outputs/simulation_hardening_review_smoke'); "
+                "required=['run_config.json','simulation_hardening_review_summary.csv','simulation_hardening_review_results.csv','simulation_hardening_review_guardrails.csv','simulation_hardening_readiness_blockers.csv','simulation_hardening_next_actions.csv','simulation_hardening_review_report.md']; "
+                "missing=[name for name in required if not (base/name).exists()]; "
+                "assert not missing, missing; "
+                "summary=pd.read_csv(base/'simulation_hardening_review_summary.csv'); "
+                "results=pd.read_csv(base/'simulation_hardening_review_results.csv'); "
+                "guardrails=pd.read_csv(base/'simulation_hardening_review_guardrails.csv'); "
+                "blockers=pd.read_csv(base/'simulation_hardening_readiness_blockers.csv'); "
+                "actions=pd.read_csv(base/'simulation_hardening_next_actions.csv'); "
+                "row=summary.iloc[0]; "
+                "assert int(row['reviewed_input_count']) == 8; "
+                "assert int(row['missing_input_count']) == 0; "
+                "assert int(row['design_phase_count']) == 5; "
+                "assert int(row['input_dependency_count']) >= 1; "
+                "assert int(row['replay_calendar_day_count']) >= 1; "
+                "assert int(row['replay_position_snapshot_count']) >= 1; "
+                "assert int(row['replay_event_count']) == 6; "
+                "assert int(row['replay_transition_count']) >= 1; "
+                "assert int(row['remaining_blocker_count']) == len(blockers); "
+                "assert int(row['blocking_gap_count']) >= 8; "
+                "assert int(row['next_action_count']) == len(actions); "
+                "assert int(row['market_data_fetch_count']) == 0; "
+                "assert int(row['broker_connected_count']) == 0; "
+                "assert int(row['execution_allowed_count']) == 0; "
+                "assert int(row['live_trading_count']) == 0; "
+                "assert int(row['real_order_submission_count']) == 0; "
+                "assert int(row['forbidden_true_flag_count']) == 0; "
+                "assert not bool(row['trading_ready']); "
+                "assert not bool(row['execution_allowed']); "
+                "assert not bool(row['broker_connected']); "
+                "assert not bool(row['live_trading']); "
+                "assert not bool(row['real_order_submission']); "
+                "assert row['validation_status'] == 'pass'; "
+                "assert row['conclusion'] == 'simulation_hardening_review_completed_research_only'; "
+                "assert row['recommended_next_step'] == 'V6 Step 11 Multi-Day Replay Price Path Simulator / Local Synthetic Price Scenario Layer'; "
+                "required_blockers={'no_real_market_data_replay_prices','no_out_of_sample_forward_paper_trading_evidence','no_real_broker_paper_account_reconciliation','no_walk_forward_profitability_validation','no_slippage_or_fill_model_validation','no_live_monitoring_kill_switch','no_compliance_or_risk_approval_layer','no_trading_ready_candidate_exists'}; "
+                "assert required_blockers <= set(blockers['blocker_name']); "
+                "required_guardrails={'no_new_backtests','no_market_data_fetch','no_live_data','no_model_retraining','no_threshold_change','no_feature_engineering_change','no_new_external_data_sources','no_broker_sdk_import','no_broker_credentials','no_broker_connection','no_order_execution','no_real_order_submission','no_trading_ready_upgrade','simulation_hardening_review_only','educational_research_only'}; "
+                "assert required_guardrails <= set(guardrails['guardrail']); "
+                "assert set(guardrails.loc[guardrails['guardrail'].isin(required_guardrails),'status']) == {'confirmed'}; "
+                "assert 'V6 Step 11 Multi-Day Replay Price Path Simulator / Local Synthetic Price Scenario Layer' in set(actions['recommended_action']); "
+                "flag_cols=['broker_connected','execution_allowed','live_trading','real_order_submission','trading_ready']; "
+                "flag_checks=[not frame[[col for col in flag_cols if col in frame.columns]].fillna(True).astype(bool).any().any() for frame in [results,guardrails,blockers,actions]]; "
+                "assert all(flag_checks), flag_checks; "
+                "report=(base/'simulation_hardening_review_report.md').read_text(encoding='utf-8'); "
+                "phrases=['V6 Step 8 was only a simulation hardening design/planning layer','V6 Step 9 was only a deterministic local multi-day replay scaffold','does not prove profitability','does not use real market replay prices','does not represent broker paper trading','is not live trading','is not broker integration','is not trading-ready evidence','The project remains research-only']; "
                 "missing_phrases=[phrase for phrase in phrases if phrase not in report]; "
                 "assert not missing_phrases, missing_phrases"
             ),

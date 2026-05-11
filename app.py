@@ -5343,6 +5343,31 @@ def load_multi_day_paper_replay_harness_outputs(output_dir: str) -> dict[str, ob
     }
 
 
+def load_simulation_hardening_review_outputs(output_dir: str) -> dict[str, object]:
+    base = Path(output_dir)
+    report_path = base / "simulation_hardening_review_report.md"
+    return {
+        "summary": pd.read_csv(base / "simulation_hardening_review_summary.csv")
+        if (base / "simulation_hardening_review_summary.csv").exists()
+        else pd.DataFrame(),
+        "results": pd.read_csv(base / "simulation_hardening_review_results.csv")
+        if (base / "simulation_hardening_review_results.csv").exists()
+        else pd.DataFrame(),
+        "guardrails": pd.read_csv(base / "simulation_hardening_review_guardrails.csv")
+        if (base / "simulation_hardening_review_guardrails.csv").exists()
+        else pd.DataFrame(),
+        "blockers": pd.read_csv(base / "simulation_hardening_readiness_blockers.csv")
+        if (base / "simulation_hardening_readiness_blockers.csv").exists()
+        else pd.DataFrame(),
+        "next_actions": pd.read_csv(base / "simulation_hardening_next_actions.csv")
+        if (base / "simulation_hardening_next_actions.csv").exists()
+        else pd.DataFrame(),
+        "markdown_report": report_path.read_text(encoding="utf-8")
+        if report_path.exists()
+        else "",
+    }
+
+
 def render_threshold_sensitivity_tab() -> None:
     st.write(
         "Test reduced feature ML signal backtests across probability thresholds "
@@ -7849,6 +7874,52 @@ def render_multi_day_paper_replay_harness_tab() -> None:
         st.info("No Markdown report text is available.")
 
 
+def render_simulation_hardening_review_tab() -> None:
+    st.write(
+        "Load V6 Step 10 research-only simulation hardening review and closure outputs."
+    )
+    st.warning(
+        "This panel reads the V6 Step 10 review outputs only. It does not run "
+        "backtests, fetch market data, train models, change thresholds, "
+        "connect to brokers, submit orders, or make any trading-ready claim."
+    )
+    output_dir = st.text_input(
+        "Simulation hardening review directory",
+        value="outputs/simulation_hardening_review_real_v1",
+        key="simulation_hardening_review_output_dir",
+    )
+    if not st.button(
+        "Load simulation hardening review",
+        key="load_simulation_hardening_review_button",
+        type="primary",
+    ):
+        return
+
+    output = load_simulation_hardening_review_outputs(output_dir)
+    st.subheader("Simulation Hardening Review Summary")
+    st.dataframe(output["summary"], width="stretch")
+    st.subheader("Review Results")
+    st.dataframe(output["results"], width="stretch")
+    st.subheader("Readiness Blockers")
+    st.dataframe(output["blockers"], width="stretch")
+    st.subheader("Next Actions")
+    st.dataframe(output["next_actions"], width="stretch")
+    st.subheader("Guardrails")
+    st.dataframe(output["guardrails"], width="stretch")
+    st.subheader("Simulation Hardening Review Report")
+    if output["markdown_report"]:
+        st.markdown(output["markdown_report"])
+        st.download_button(
+            "Download simulation hardening review report",
+            data=output["markdown_report"],
+            file_name="simulation_hardening_review_report.md",
+            mime="text/markdown",
+            key="download_simulation_hardening_review_report_button",
+        )
+    else:
+        st.info("No Markdown report text is available.")
+
+
 def main() -> None:
     st.set_page_config(page_title="QuantPilot-AI Dashboard", layout="wide")
 
@@ -7970,6 +8041,7 @@ def main() -> None:
         validation_coverage_gap_review_tab,
         simulation_hardening_design_tab,
         multi_day_paper_replay_harness_tab,
+        simulation_hardening_review_tab,
     ) = st.tabs(
         [
             "Single Backtest",
@@ -8028,6 +8100,7 @@ def main() -> None:
             "V6 Step 7 Coverage Gaps",
             "V6 Step 8 Simulation Design",
             "V6 Step 9 Replay Harness",
+            "V6 Step 10 Review",
         ]
     )
     with single_tab:
@@ -8207,6 +8280,9 @@ def main() -> None:
 
     with multi_day_paper_replay_harness_tab:
         render_multi_day_paper_replay_harness_tab()
+
+    with simulation_hardening_review_tab:
+        render_simulation_hardening_review_tab()
 
 
 if __name__ == "__main__":

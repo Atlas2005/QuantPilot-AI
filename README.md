@@ -72,6 +72,7 @@ Run these commands from the project root in Windows PowerShell.
 | Run V6 validation coverage gap review | `python src/run_validation_coverage_gap_review.py --output-dir outputs/validation_coverage_gap_review_real_v1` |
 | Run V6 simulation hardening design | `python src/run_simulation_hardening_design.py --output-dir outputs/simulation_hardening_design_real_v1` |
 | Run V6 multi-day paper replay harness scaffold | `python src/run_multi_day_paper_replay_harness.py --output-dir outputs/multi_day_paper_replay_harness_real_v1` |
+| Run V6 simulation hardening review closure | `python src/run_simulation_hardening_review.py --output-dir outputs/simulation_hardening_review_real_v1` |
 | Generate robustness report | `python src/generate_model_report.py --input-dir outputs/model_robustness_demo --output reports/model_robustness_demo.md` |
 | Show feature source roadmap | `python src/show_feature_sources.py --list` |
 | Show feature implementation queue | `python src/show_feature_queue.py --max-rows 20` |
@@ -170,6 +171,8 @@ python src/run_period_experiment.py --symbols 000001,600519,000858,600036,601318
 - `src/run_simulation_hardening_design.py`: Command-line tool for the V6 Step 8 simulation hardening design.
 - `src/multi_day_paper_replay_harness.py`: V6 Step 9 research-only multi-day paper replay harness and input scaffold.
 - `src/run_multi_day_paper_replay_harness.py`: Command-line tool for the V6 Step 9 replay harness scaffold.
+- `src/simulation_hardening_review.py`: V6 Step 10 research-only multi-day replay review and simulation hardening closure layer.
+- `src/run_simulation_hardening_review.py`: Command-line tool for the V6 Step 10 simulation hardening review.
 - `src/model_report_generator.py`: Converts robustness outputs into a Markdown research report.
 - `src/generate_model_report.py`: Command-line tool for model robustness report export.
 - `src/feature_source_registry.py`: Roadmap registry for future multi-factor feature sources.
@@ -2041,6 +2044,33 @@ trading, or mark anything trading-ready.
 
 The dashboard has a `V6 Step 9 Replay Harness` tab for loading this output
 directory.
+
+## V6 Step 10: Multi-Day Replay Review / Simulation Hardening Closure
+
+V6 Step 10 reads existing local V6 outputs and reviews whether the Step 8
+simulation hardening design and Step 9 multi-day replay scaffold are internally
+consistent. It carries forward remaining readiness blockers, records next
+actions, and closes the current simulation hardening scaffold as research-only.
+
+Example:
+
+```powershell
+python src/run_simulation_hardening_review.py --output-dir outputs/simulation_hardening_review_real_v1
+```
+
+Generated files include `simulation_hardening_review_summary.csv`,
+`simulation_hardening_review_results.csv`,
+`simulation_hardening_review_guardrails.csv`,
+`simulation_hardening_readiness_blockers.csv`,
+`simulation_hardening_next_actions.csv`,
+`simulation_hardening_review_report.md`, and `run_config.json`. The review
+states that V6 Step 8 was only a design/planning layer, V6 Step 9 was only a
+deterministic local scaffold, Step 9 does not prove profitability, does not use
+real market replay prices, does not represent broker paper trading, is not live
+trading, is not broker integration, and is not trading-ready evidence. The
+project remains research-only.
+
+The dashboard has a `V6 Step 10 Review` tab for loading this output directory.
 
 ## Smoke Tests
 
