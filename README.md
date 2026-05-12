@@ -1,5 +1,9 @@
 # QuantPilot-AI
 
+> This branch is a legacy research archive. Future development should move to
+> QuantPilot-AI 2.0 / QuantPilot-AI-Next with an open-source-first integration
+> architecture.
+
 QuantPilot-AI is an educational rule-based A-share backtesting project.
 
 It is designed to help beginners understand how market data, technical
